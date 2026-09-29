@@ -1,0 +1,11 @@
+.gradle/
+build/
+out/
+run/
+run-*/
+devmods/
+*.iml
+.idea/
+.vscode/
+tools/e2e/agent/build/
+tools/e2e/agent/.gradle/

@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 1,
+	"id": "slipway",
+	"version": "${version}",
+	"name": "Slipway",
+	"description": "Moving physics block structures: build from any blocks, assemble at a helm, fly with full rotation. Built on Jolt Physics.",
+	"authors": [
+		"Tim Stewart"
+	],
+	"contact": {
+		"sources": "https://github.com/TimStewartJ/slipway"
+	},
+	"license": "Apache-2.0",
+	"icon": "assets/slipway/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.timstewart.slipway.Slipway"
+		],
+		"client": [
+			"dev.timstewart.slipway.client.SlipwayClient"
+		]
+	},
+	"mixins": [
+		"slipway.mixins.json",
+		{
+			"config": "slipway.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=${loaderVersion}",
+		"minecraft": "~${minecraftVersion}",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"sodium": "*",
+		"iris": "*",
+		"distanthorizons": "*"
+	}
+}

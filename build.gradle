@@ -1,0 +1,298 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+
+plugins {
+	id 'net.fabricmc.fabric-loom' version '1.16.1'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = "${project.archives_base_name}-fabric-${project.minecraft_version}"
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Mods that Slipway integrates with but does not bundle. tools/setup-devmods.ps1 copies them from the
+// play instance; they are git-ignored. Distant Horizons is needed to compile the optional DH integration.
+def devmods = file('devmods')
+def devmod = { String prefix ->
+	def found = devmods.isDirectory() ? devmods.listFiles().findAll { it.name.startsWith(prefix) && it.name.endsWith('.jar') } : []
+	found.isEmpty() ? null : found.sort { it.name }.last()
+}
+def dhJar = devmod('DistantHorizons-fabric-')
+def sodiumJar = devmod('sodium-fabric-')
+def irisJar = devmod('iris-fabric-')
+if (dhJar == null) {
+	throw new GradleException('devmods/DistantHorizons-fabric-*.jar is missing; run tools/setup-devmods.ps1 first.')
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		slipway {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+	runs {
+		// A headless dedicated server with Slipway only: proves native loading and physics in a real game.
+		server {
+			vmArg '-Dslipway.selftest=true'
+			vmArg '-Dslipway.selftest.stop=' + (providers.gradleProperty('slipwaySelfTestStop').orNull ?: 'false')
+			vmArg '--enable-native-access=ALL-UNNAMED'
+		}
+		client {
+			vmArg '--enable-native-access=ALL-UNNAMED'
+		}
+	}
+}
+
+configurations {
+	// Platform-specific jolt-jni native libraries; their binaries are copied into the mod jar's resources.
+	joltNatives {
+		transitive = false
+	}
+}
+
+def joltNativePlatforms = [
+	'Windows64'    : 'windows-x86_64',
+	'Windows_ARM64': 'windows-aarch64',
+	'Linux64'      : 'linux-x86_64',
+	'Linux_ARM64'  : 'linux-aarch64',
+	'MacOSX64'     : 'macos-x86_64',
+	'MacOSX_ARM64' : 'macos-aarch64',
+]
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// The jolt-jni JVM library is platform-independent; it is published under several interchangeable names.
+	implementation "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}"
+	include "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}"
+	joltNativePlatforms.keySet().each { platform ->
+		joltNatives "com.github.stephengold:jolt-jni-${platform}:${project.jolt_jni_version}:${project.jolt_jni_flavor}"
+	}
+
+	compileOnly files(dhJar)
+	if (providers.gradleProperty('slipwayRenderMods').orNull == 'true') {
+		[sodiumJar, irisJar, dhJar].findAll { it != null }.each { localRuntime files(it) }
+	}
+
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+// Copies each platform's native library to slipway-natives/<os>-<arch>/ and writes a SHA-256 manifest the
+// runtime loader verifies after extraction.
+def joltNativesDir = layout.buildDirectory.dir('generated/joltNatives')
+def extractJoltNatives = tasks.register('extractJoltNatives') {
+	inputs.files(configurations.joltNatives)
+	outputs.dir(joltNativesDir)
+	doLast {
+		def root = joltNativesDir.get().asFile
+		project.delete(root)
+		def target = new File(root, 'slipway-natives')
+		target.mkdirs()
+		def manifest = new Properties()
+		configurations.joltNatives.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+			def platform = joltNativePlatforms[artifact.moduleVersion.id.name.substring('jolt-jni-'.length())]
+			if (platform == null) {
+				throw new GradleException("Unknown jolt-jni platform artifact ${artifact.moduleVersion.id.name}")
+			}
+			def libraries = project.zipTree(artifact.file).matching { include '**/*.dll', '**/*.so', '**/*.dylib' }.files
+			if (libraries.size() != 1) {
+				throw new GradleException("Expected one native library in ${artifact.file.name}, found ${libraries*.name}")
+			}
+			def library = libraries.first()
+			def dir = new File(target, platform)
+			dir.mkdirs()
+			def copy = new File(dir, library.name)
+			copy.bytes = library.bytes
+			def digest = MessageDigest.getInstance('SHA-256').digest(copy.bytes).encodeHex().toString()
+			manifest.setProperty(platform, "${library.name} ${digest}".toString())
+		}
+		manifest.setProperty('version', project.jolt_jni_version)
+		manifest.setProperty('flavor', project.jolt_jni_flavor)
+		new File(target, 'natives.properties').withWriter('UTF-8') { manifest.store(it, 'jolt-jni native libraries bundled by Slipway') }
+	}
+}
+
+sourceSets.main.resources.srcDir(extractJoltNatives)
+
+processResources {
+	inputs.property 'version', project.version
+	inputs.property 'minecraftVersion', project.minecraft_version
+	inputs.property 'loaderVersion', project.loader_version
+
+	filesMatching('fabric.mod.json') {
+		expand version: inputs.properties.version,
+			minecraftVersion: inputs.properties.minecraftVersion,
+			loaderVersion: inputs.properties.loaderVersion
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release = 25
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+	withSourcesJar()
+}
+
+tasks.named('test').configure {
+	useJUnitPlatform()
+	systemProperty 'slipway.test.nativeCache', layout.buildDirectory.dir('tmp/test-natives').get().asFile.absolutePath
+	testLogging {
+		events 'failed'
+		exceptionFormat 'full'
+	}
+}
+
+tasks.named('sourcesJar').configure {
+	exclude 'slipway-natives/**'
+}
+
+jar {
+	inputs.property 'archivesName', project.base.archivesName
+	from('LICENSE') { rename { "${it}_${inputs.properties.archivesName}" } }
+	from('NOTICE') { rename { "${it}_${inputs.properties.archivesName}" } }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Patch registry: every mixin class and every method it targets must be listed in patches.json with a reason,
+// the feature it serves and the test that covers it. PATCHES.md is generated from the registry.
+// ---------------------------------------------------------------------------------------------------------
+
+def patchRegistry = file('patches.json')
+def patchesMarkdown = file('PATCHES.md')
+
+def renderPatchesMarkdown = { Map registry ->
+	def lines = []
+	lines << '# Slipway patch registry'
+	lines << ''
+	lines << 'Generated from `patches.json` by `gradlew generatePatches`; `gradlew checkPatches` (part of `check`) fails when a'
+	lines << 'mixin, a targeted method or a covering test is missing. Edit `patches.json`, not this file.'
+	lines << ''
+	def entries = registry.patches as List
+	def hooks = entries.sum(0) { (it.methods as List).size() }
+	lines << "**${entries.size()} mixin classes, ${hooks} hooked methods.**".toString()
+	lines << ''
+	lines << '| Mixin | Side | Target mod | Target class | Methods | Feature | Reason | Covered by |'
+	lines << '| --- | --- | --- | --- | --- | --- | --- | --- |'
+	entries.sort { it.mixin }.each { e ->
+		lines << "| `${e.mixin}` | ${e.side} | ${e.targetMod} | `${e.targetClass}` | ${(e.methods as List).collect { "`${it}`" }.join('<br>')} | ${e.feature} | ${e.reason} | ${(e.tests as List).collect { "`${it}`" }.join('<br>')} |".toString()
+	}
+	lines << ''
+	return lines.join('\n')
+}
+
+def mixinSources = { ->
+	def configs = [file('src/main/resources/slipway.mixins.json'), file('src/client/resources/slipway.client.mixins.json')]
+	def found = [:]
+	configs.findAll { it.isFile() }.each { cfg ->
+		def json = new JsonSlurper().parse(cfg)
+		def pkg = json.package
+		def names = ((json.mixins ?: []) + (json.client ?: []) + (json.server ?: []))
+		names.each { name ->
+			def rel = (pkg + '.' + name).replace('.', '/') + '.java'
+			def src = [file("src/main/java/${rel}"), file("src/client/java/${rel}")].find { it.isFile() }
+			if (src == null) {
+				throw new GradleException("Mixin ${pkg}.${name} listed in ${cfg.name} has no source file")
+			}
+			found["${pkg}.${name}".toString()] = src
+		}
+	}
+	return found
+}
+
+def targetedMethods = { File src ->
+	def text = src.getText('UTF-8')
+	def methods = [] as LinkedHashSet
+	(text =~ /method\s*=\s*\{?\s*"([^"]+)"/).each { methods << it[1].replaceAll(/\(.*$/, '') }
+	(text =~ /@(?:Accessor|Invoker)\(\s*"([^"]+)"/).each { methods << it[1] }
+	(text =~ /@Overwrite[\s\S]*?\s(\w+)\s*\(/).each { methods << it[1] }
+	return methods
+}
+
+tasks.register('generatePatches') {
+	group = 'slipway'
+	description = 'Regenerates PATCHES.md from patches.json.'
+	inputs.file(patchRegistry)
+	outputs.file(patchesMarkdown)
+	doLast {
+		patchesMarkdown.setText(renderPatchesMarkdown(new JsonSlurper().parse(patchRegistry)), 'UTF-8')
+	}
+}
+
+tasks.register('checkPatches') {
+	group = 'verification'
+	description = 'Fails when a mixin or a hooked method is not registered in patches.json with a covering test.'
+	inputs.file(patchRegistry)
+	inputs.files(fileTree('src').matching { include '**/*.java', '**/*.mixins.json' })
+	doLast {
+		def registry = new JsonSlurper().parse(patchRegistry)
+		def entries = (registry.patches as List).collectEntries { [(it.mixin): it] }
+		def problems = []
+		def mixins = mixinSources()
+		mixins.each { name, src ->
+			def entry = entries[name]
+			if (entry == null) {
+				problems << "mixin ${name} is not registered in patches.json"
+				return
+			}
+			['side', 'targetMod', 'targetClass', 'feature', 'reason'].each { key ->
+				if (!(entry[key] instanceof String) || entry[key].isBlank()) problems << "${name}: '${key}' is empty"
+			}
+			def registered = (entry.methods ?: []) as Set
+			targetedMethods(src).each { method ->
+				if (!registered.contains(method)) problems << "${name}: hooked method '${method}' is not listed in patches.json"
+			}
+			registered.each { method ->
+				if (!targetedMethods(src).contains(method)) problems << "${name}: patches.json lists '${method}' but the mixin does not target it"
+			}
+			def tests = (entry.tests ?: []) as List
+			if (tests.isEmpty()) problems << "${name}: no covering test"
+			tests.each { test ->
+				// A test id is Class#method (JUnit or GameTest) or scenario:<name> (in-game harness scenario).
+				if (test.startsWith('scenario:')) {
+					if (!file("tools/e2e/scenarios/${test.substring(9)}.ps1").isFile()) problems << "${name}: scenario ${test} does not exist"
+				} else {
+					def parts = test.split('#')
+					def cls = parts[0]
+					def method = parts.length > 1 ? parts[1] : null
+					def rel = cls.replace('.', '/') + '.java'
+					def src2 = [file("src/test/java/${rel}"), file("src/gametest/java/${rel}")].find { it.isFile() }
+					if (src2 == null) {
+						problems << "${name}: test class ${cls} does not exist"
+					} else if (method != null && !(src2.getText('UTF-8') =~ /void\s+${java.util.regex.Pattern.quote(method)}\s*\(/)) {
+						problems << "${name}: test method ${test} does not exist"
+					}
+				}
+			}
+		}
+		entries.keySet().findAll { !mixins.containsKey(it) }.each { problems << "patches.json lists ${it}, which is not in any mixin config" }
+		def expected = renderPatchesMarkdown(registry)
+		if (!patchesMarkdown.isFile() || patchesMarkdown.getText('UTF-8').replace('\r\n', '\n') != expected) {
+			problems << 'PATCHES.md is out of date; run gradlew generatePatches'
+		}
+		if (!problems.isEmpty()) {
+			throw new GradleException("Patch registry check failed:\n  - " + problems.join('\n  - '))
+		}
+		logger.lifecycle("Patch registry OK: ${mixins.size()} mixin classes registered.")
+	}
+}
+
+tasks.named('check').configure { dependsOn 'checkPatches' }
