@@ -9,3 +9,4 @@ devmods/
 .vscode/
 tools/e2e/agent/build/
 tools/e2e/agent/.gradle/
+logs/
