@@ -100,7 +100,7 @@ public final class JoltSelfTest {
 				floorSettings.close();
 			}
 			if (hullShape != null) {
-				hullShape.close();
+				JoltEngine.release(hullShape);
 			}
 			hull.close();
 			deck.close();

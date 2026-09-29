@@ -4,6 +4,9 @@
 	"package": "dev.timstewart.slipway.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"ChunkMapMixin",
+		"ChunkStatusTasksMixin",
+		"LevelChunkMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

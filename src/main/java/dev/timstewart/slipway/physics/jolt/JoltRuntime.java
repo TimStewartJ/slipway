@@ -25,7 +25,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class JoltRuntime {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Slipway/Jolt");
-	private static final String RESOURCE_ROOT = "/slipway-natives/";
+	/** Resource folder with the natives; unit tests point it at the Debug build. */
+	private static final String RESOURCE_ROOT = System.getProperty("slipway.natives.root", "/slipway-natives/");
 	private static volatile Info info;
 
 	private JoltRuntime() {

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "C": "minecraft:compass",
+    "P": "#minecraft:planks",
+    "S": "minecraft:stick"
+  },
+  "pattern": [
+    "S S",
+    " C ",
+    "PPP"
+  ],
+  "result": {
+    "id": "slipway:helm"
+  }
+}

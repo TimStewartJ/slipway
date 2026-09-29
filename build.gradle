@@ -30,6 +30,13 @@ if (dhJar == null) {
 	throw new GradleException('devmods/DistantHorizons-fabric-*.jar is missing; run tools/setup-devmods.ps1 first.')
 }
 
+sourceSets {
+	gametest {
+		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+	}
+}
+
 loom {
 	splitEnvironmentSourceSets()
 
@@ -37,6 +44,9 @@ loom {
 		slipway {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
+		}
+		slipway_gametest {
+			sourceSet sourceSets.gametest
 		}
 	}
 
@@ -50,12 +60,26 @@ loom {
 		client {
 			vmArg '--enable-native-access=ALL-UNNAMED'
 		}
+		// Fabric GameTests on a headless test server; the JUnit-style report lands in build/gametest.
+		gametest {
+			server()
+			name = 'Slipway Game Tests'
+			source sourceSets.gametest
+			runDir 'build/gametest'
+			vmArg '-Dfabric-api.gametest'
+			vmArg '-Dfabric-api.gametest.report-file=' + file('build/gametest/junit.xml').absolutePath
+			vmArg '--enable-native-access=ALL-UNNAMED'
+		}
 	}
 }
+
 
 configurations {
 	// Platform-specific jolt-jni native libraries; their binaries are copied into the mod jar's resources.
 	joltNatives {
+		transitive = false
+	}
+	joltNativesDebug {
 		transitive = false
 	}
 }
@@ -80,6 +104,9 @@ dependencies {
 	joltNativePlatforms.keySet().each { platform ->
 		joltNatives "com.github.stephengold:jolt-jni-${platform}:${project.jolt_jni_version}:${project.jolt_jni_flavor}"
 	}
+	['Windows64', 'Linux64', 'MacOSX_ARM64'].each { platform ->
+		joltNativesDebug "com.github.stephengold:jolt-jni-${platform}:${project.jolt_jni_version}:DebugDp"
+	}
 
 	compileOnly files(dhJar)
 	if (providers.gradleProperty('slipwayRenderMods').orNull == 'true') {
@@ -91,41 +118,47 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
 
-// Copies each platform's native library to slipway-natives/<os>-<arch>/ and writes a SHA-256 manifest the
-// runtime loader verifies after extraction.
-def joltNativesDir = layout.buildDirectory.dir('generated/joltNatives')
-def extractJoltNatives = tasks.register('extractJoltNatives') {
-	inputs.files(configurations.joltNatives)
-	outputs.dir(joltNativesDir)
-	doLast {
-		def root = joltNativesDir.get().asFile
-		project.delete(root)
-		def target = new File(root, 'slipway-natives')
-		target.mkdirs()
-		def manifest = new Properties()
-		configurations.joltNatives.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-			def platform = joltNativePlatforms[artifact.moduleVersion.id.name.substring('jolt-jni-'.length())]
-			if (platform == null) {
-				throw new GradleException("Unknown jolt-jni platform artifact ${artifact.moduleVersion.id.name}")
+// Copies each platform's native library to <folder>/<os>-<arch>/ and writes a SHA-256 manifest the runtime
+// loader verifies after extraction.
+def registerNativeExtraction = { String taskName, Configuration natives, String folder, String flavor ->
+	def outputDir = layout.buildDirectory.dir("generated/${taskName}")
+	return tasks.register(taskName) {
+		inputs.files(natives)
+		outputs.dir(outputDir)
+		doLast {
+			def root = outputDir.get().asFile
+			project.delete(root)
+			def target = new File(root, folder)
+			target.mkdirs()
+			def manifest = new Properties()
+			natives.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+				def platform = joltNativePlatforms[artifact.moduleVersion.id.name.substring('jolt-jni-'.length())]
+				if (platform == null) {
+					throw new GradleException("Unknown jolt-jni platform artifact ${artifact.moduleVersion.id.name}")
+				}
+				def libraries = project.zipTree(artifact.file).matching { include '**/*.dll', '**/*.so', '**/*.dylib' }.files
+				if (libraries.size() != 1) {
+					throw new GradleException("Expected one native library in ${artifact.file.name}, found ${libraries*.name}")
+				}
+				def library = libraries.first()
+				def dir = new File(target, platform)
+				dir.mkdirs()
+				def copy = new File(dir, library.name)
+				copy.bytes = library.bytes
+				def digest = MessageDigest.getInstance('SHA-256').digest(copy.bytes).encodeHex().toString()
+				manifest.setProperty(platform, "${library.name} ${digest}".toString())
 			}
-			def libraries = project.zipTree(artifact.file).matching { include '**/*.dll', '**/*.so', '**/*.dylib' }.files
-			if (libraries.size() != 1) {
-				throw new GradleException("Expected one native library in ${artifact.file.name}, found ${libraries*.name}")
-			}
-			def library = libraries.first()
-			def dir = new File(target, platform)
-			dir.mkdirs()
-			def copy = new File(dir, library.name)
-			copy.bytes = library.bytes
-			def digest = MessageDigest.getInstance('SHA-256').digest(copy.bytes).encodeHex().toString()
-			manifest.setProperty(platform, "${library.name} ${digest}".toString())
+			manifest.setProperty('version', project.jolt_jni_version)
+			manifest.setProperty('flavor', flavor)
+			new File(target, 'natives.properties').withWriter('UTF-8') { manifest.store(it, 'jolt-jni native libraries bundled by Slipway') }
 		}
-		manifest.setProperty('version', project.jolt_jni_version)
-		manifest.setProperty('flavor', project.jolt_jni_flavor)
-		new File(target, 'natives.properties').withWriter('UTF-8') { manifest.store(it, 'jolt-jni native libraries bundled by Slipway') }
 	}
 }
 
+def extractJoltNatives = registerNativeExtraction('extractJoltNatives', configurations.joltNatives, 'slipway-natives', project.jolt_jni_flavor)
+// Unit tests load the Debug build, whose allocation counters the native leak test reads.
+def extractJoltNativesDebug = registerNativeExtraction('extractJoltNativesDebug', configurations.joltNativesDebug, 'slipway-natives-debug', 'DebugDp')
+sourceSets.test.resources.srcDir(extractJoltNativesDebug)
 sourceSets.main.resources.srcDir(extractJoltNatives)
 
 processResources {
@@ -155,6 +188,8 @@ java {
 tasks.named('test').configure {
 	useJUnitPlatform()
 	systemProperty 'slipway.test.nativeCache', layout.buildDirectory.dir('tmp/test-natives').get().asFile.absolutePath
+	systemProperty 'slipway.natives.root', '/slipway-natives-debug/'
+	jvmArgs '--enable-native-access=ALL-UNNAMED'
 	testLogging {
 		events 'failed'
 		exceptionFormat 'full'
@@ -296,3 +331,5 @@ tasks.register('checkPatches') {
 }
 
 tasks.named('check').configure { dependsOn 'checkPatches' }
+
+tasks.named('check').configure { dependsOn 'runGametest' }

@@ -1,0 +1,21 @@
+{
+  "values": [
+    "minecraft:bedrock",
+    "minecraft:barrier",
+    "minecraft:light",
+    "minecraft:structure_void",
+    "minecraft:command_block",
+    "minecraft:chain_command_block",
+    "minecraft:repeating_command_block",
+    "minecraft:structure_block",
+    "minecraft:jigsaw",
+    "minecraft:test_block",
+    "minecraft:test_instance_block",
+    "minecraft:moving_piston",
+    "minecraft:nether_portal",
+    "minecraft:end_portal",
+    "minecraft:end_portal_frame",
+    "minecraft:end_gateway",
+    "minecraft:reinforced_deepslate"
+  ]
+}

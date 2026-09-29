@@ -1,0 +1,17 @@
+{
+	"schemaVersion": 1,
+	"id": "slipway_gametest",
+	"version": "1.0.0",
+	"name": "Slipway Game Tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": [
+			"dev.timstewart.slipway.gametest.AssemblyGameTests",
+			"dev.timstewart.slipway.gametest.PhysicsGameTests",
+			"dev.timstewart.slipway.gametest.PacketGameTests"
+		]
+	},
+	"depends": {
+		"slipway": "*"
+	}
+}

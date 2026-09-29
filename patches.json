@@ -1,4 +1,35 @@
 {
 	"schemaVersion": 1,
-	"patches": []
+	"patches": [
+		{
+			"mixin": "dev.timstewart.slipway.mixin.ChunkStatusTasksMixin",
+			"side": "server",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.level.chunk.status.ChunkStatusTasks",
+			"methods": ["generateStructureStarts", "generateStructureReferences", "generateBiomes", "buildTerrain", "generateFeatures", "generateSpawn"],
+			"feature": "reserved-region storage",
+			"reason": "Chunks in the reserved vessel region must generate empty (no terrain, structures, features or mobs) with the void biome, so plots start clean and never get weather.",
+			"tests": ["dev.timstewart.slipway.gametest.AssemblyGameTests#reservedChunksGenerateEmptyVoid"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.ChunkMapMixin",
+			"side": "server",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.server.level.ChunkMap",
+			"methods": ["isChunkTracked"],
+			"feature": "chunk sync",
+			"reason": "Players who were sent a vessel's plot chunks must receive block, block-entity and light updates of those chunks although they are far outside the player's view.",
+			"tests": ["dev.timstewart.slipway.gametest.PacketGameTests#plotChunksAreTrackedOnlyByTheirViewers"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.LevelChunkMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.level.chunk.LevelChunk",
+			"methods": ["setBlockState"],
+			"feature": "incremental shapes and meshes",
+			"reason": "Every block change must reach Slipway so vessel collision shapes, mass, bounds and client meshes, and terrain bodies near vessels, are rebuilt.",
+			"tests": ["dev.timstewart.slipway.gametest.PhysicsGameTests#addingBlocksMakesAVesselHeavier"]
+		}
+	]
 }

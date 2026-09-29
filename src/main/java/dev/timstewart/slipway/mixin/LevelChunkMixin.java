@@ -1,0 +1,31 @@
+package dev.timstewart.slipway.mixin;
+
+import dev.timstewart.slipway.vessel.BlockChangeListener;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+/**
+ * Reports every changed block of a loaded chunk, on both sides: vessel collision shapes and meshes are rebuilt
+ * from it, and terrain collision bodies near vessels are refreshed.
+ */
+@Mixin(LevelChunk.class)
+public abstract class LevelChunkMixin {
+	@Shadow
+	@Final
+	private Level level;
+
+	@Inject(method = "setBlockState", at = @At("RETURN"))
+	private void slipway$blockChanged(BlockPos pos, BlockState state, int flags, CallbackInfoReturnable<BlockState> cir) {
+		if (cir.getReturnValue() != null) {
+			BlockChangeListener.onBlockChanged(this.level, pos, state);
+		}
+	}
+}
