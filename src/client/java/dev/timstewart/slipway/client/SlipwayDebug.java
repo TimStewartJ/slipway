@@ -140,7 +140,12 @@ public final class SlipwayDebug {
 			return "distant horizons absent";
 		}
 		int[] stats = DhProxies.stats();
-		return "groups=" + stats[0] + " boxes=" + stats[1];
+		return "groups=" + stats[0] + " boxes=" + stats[1] + " " + DhProxies.describe();
+	}
+
+	/** What Distant Horizons' LOD data holds at a world block (to check that no stale LOD is left behind). */
+	public static String dhBlockAt(int x, int y, int z) {
+		return DhProxyBridge.present() ? DhProxies.lodBlockAt(x, y, z) : "distant horizons absent";
 	}
 
 	private static final int TRACE_LIMIT = 20_000;

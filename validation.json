@@ -909,6 +909,254 @@
         "pass: client log has no errors, exceptions or Slipway warnings",
         "pass: second client log has no errors, exceptions or Slipway warnings"
       ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "render-iris-20260929-143621",
+      "milestone": "M4",
+      "date": "2026-09-29T14:37:12",
+      "commit": "4f2b9e8",
+      "slipwayJarSha256": "A1A103690B03B37C1F37559141C7A9D437DB6B0391EF1D0F272039045B55E7F7",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-143621\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "fail: the far barge has a Distant Horizons proxy",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "fail: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "render-iris-20260929-144050",
+      "milestone": "M4",
+      "date": "2026-09-29T14:41:36",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "200B7811EB6667B73B5A7AA4308E8FF1D5103900A18F50A3CCD3394ACC5990E9",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144050\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "fail: the far barge has a Distant Horizons proxy",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "pending-review",
+      "automatedResult": "pass",
+      "visualReview": null,
+      "runId": "render-iris-20260929-144413",
+      "milestone": "M4",
+      "date": "2026-09-29T14:44:59",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "9EA03A0DB5F695AF59FEC9A17200B938A47315EF393A74AC85F03088AB07D0DB",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144413\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "pass: the far barge has a Distant Horizons proxy",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "pending-review",
+      "automatedResult": "pass",
+      "visualReview": null,
+      "runId": "render-iris-20260929-144613",
+      "milestone": "M4",
+      "date": "2026-09-29T14:46:59",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "9EA03A0DB5F695AF59FEC9A17200B938A47315EF393A74AC85F03088AB07D0DB",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-144613\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "pass: the far barge has a Distant Horizons proxy",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "render-iris-20260929-145026",
+      "milestone": "M4",
+      "date": "2026-09-29T14:51:14",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "B90E37661713D5A75056097CA9C06A2EAA4ADDB0C0ADAC000BFBD182FDB4A7FD",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145026\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "pass: the far barge is drawn by an active Distant Horizons proxy at its pose",
+        "fail: when the barge moves 60 blocks east and 10 up, its proxy follows",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "pending-review",
+      "automatedResult": "pass",
+      "visualReview": null,
+      "runId": "render-iris-20260929-145336",
+      "milestone": "M4",
+      "date": "2026-09-29T14:54:25",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "CD78047AE65E880EFD4E92AD06BFF5B47F2AC14DFCF6756AA643A026973FD611",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-145336\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "pass: the far barge is drawn by an active Distant Horizons proxy at its pose",
+        "pass: when the barge moves 60 blocks east and 10 up, its proxy follows",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "render-iris-20260929-150215",
+      "milestone": "M4",
+      "date": "2026-09-29T15:03:03",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "B9DE1D48F1B15340D6844B0653698776100178B4342542027AF6995FBE16D23D",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150215\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "fail: after assembly Distant Horizons no longer has the ship at its build site",
+        "fail: after assembly Distant Horizons no longer has the barge at its build site",
+        "pass: the far barge is drawn by an active Distant Horizons proxy at its pose",
+        "pass: when the barge moves 60 blocks east and 10 up, its proxy follows",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "fail: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "render-iris-20260929-150419",
+      "milestone": "M4",
+      "date": "2026-09-29T15:05:07",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "9E3B50409F6B968065B30974292D0EAF6AFB0B3D13D0243D77555227205D99DF",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-150419\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150419\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150419\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "fail: scenario error",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "render-iris",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed all 5 frames plus a centre crop of the two far frames. Bliss on: level ship drawn and lit on the pad; rotated ship (3 axes) casts a matching shadow; barge up close shaded. At 320 blocks the barge shows as its DH proxy (red/white/blue stripes) and after the 60-east/10-up move the proxy is displaced left and up accordingly; no stale DH slab remains at the build site (LOD query: air). Caveat: a dark water-like patch on part of the pad is a pre-existing DH/Iris artifact (present with no vessels at all, verified by removing the ship), and some old stale LOD shapes from pre-fix runs float in the background of the first frames.",
+      "runId": "render-iris-20260929-150726",
+      "milestone": "M4",
+      "date": "2026-09-29T15:08:17",
+      "commit": "4f2b9e8+dirty",
+      "slipwayJarSha256": "F24EE36E368B90C4911967DB862D040F53B092F5EA9783A8E03D0D626CB7D385",
+      "report": "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\01-near-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\02-near-rotated-shaders.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\03-barge-near.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\04-barge-320-blocks-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\05-barge-moved-dh.png",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\report.md",
+        "E:\\slipway-e2e\\runs\\render-iris-20260929-150726\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: Iris is running the Bliss shader pack",
+        "pass: after assembly Distant Horizons no longer has the ship at its build site",
+        "pass: after assembly Distant Horizons no longer has the barge at its build site",
+        "pass: the far barge is drawn by an active Distant Horizons proxy at its pose",
+        "pass: when the barge moves 60 blocks east and 10 up, its proxy follows",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
     }
   ]
 }

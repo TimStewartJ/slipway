@@ -7,6 +7,7 @@ import dev.timstewart.slipway.vessel.VesselRegion;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.Collection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -19,6 +20,8 @@ import org.jspecify.annotations.Nullable;
 public final class ClientVessels {
 	private static final Long2ObjectMap<ClientVessel> VESSELS = new Long2ObjectLinkedOpenHashMap<>();
 	private static final Int2LongOpenHashMap BY_PLOT = new Int2LongOpenHashMap();
+	/** Vessels assembled moments ago whose world LODs still need refreshing (once their pose is known). */
+	private static final LongOpenHashSet JUST_ASSEMBLED = new LongOpenHashSet();
 	@Nullable
 	private static ClientLevel level;
 	/** Between the start and the end of a client tick. */
@@ -72,6 +75,7 @@ public final class ClientVessels {
 		}
 		VESSELS.clear();
 		BY_PLOT.clear();
+		JUST_ASSEMBLED.clear();
 		DhProxyBridge.clearAll();
 	}
 
@@ -79,20 +83,31 @@ public final class ClientVessels {
 		ClientVessel vessel = getOrCreate(info.vesselId());
 		vessel.applyInfo(info);
 		BY_PLOT.put(vessel.plot(), vessel.id);
+		if (info.assembled()) {
+			JUST_ASSEMBLED.add(info.vesselId());
+		}
 	}
 
 	static void onPose(SlipwayPayloads.PoseUpdate update) {
 		getOrCreate(update.vesselId()).applyPose(update);
 	}
 
-	static void onGone(long id) {
+	/** The server stopped showing a vessel up close ({@code keepProxy}) or removed it entirely. */
+	static void onGone(long id, boolean keepProxy) {
 		checkLevel();
 		ClientVessel vessel = VESSELS.remove(id);
 		if (vessel != null) {
 			BY_PLOT.remove(vessel.plot());
+			if (!keepProxy && vessel.ready()) {
+				// Disassembled (its blocks are back in the world) or removed: refresh the world's LODs there.
+				DhProxyBridge.refreshWorld(vessel.worldBounds(vessel.tickPose()).inflate(2.0));
+			}
 			vessel.close();
 		}
-		DhProxyBridge.remove(id);
+		JUST_ASSEMBLED.remove(id);
+		if (!keepProxy) {
+			DhProxyBridge.remove(id);
+		}
 	}
 
 	/** Start of every client tick: advance pose playback before entities tick. */
@@ -101,6 +116,19 @@ public final class ClientVessels {
 		clientTicks++;
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.tick();
+		}
+		if (!JUST_ASSEMBLED.isEmpty()) {
+			// The blocks of a just-assembled vessel left the world where it stands: refresh the world's LODs there.
+			var ids = JUST_ASSEMBLED.iterator();
+			while (ids.hasNext()) {
+				ClientVessel vessel = VESSELS.get(ids.nextLong());
+				if (vessel == null) {
+					ids.remove();
+				} else if (vessel.ready()) {
+					DhProxyBridge.refreshWorld(vessel.worldBounds(vessel.tickPose()).inflate(1.0));
+					ids.remove();
+				}
+			}
 		}
 		tickInProgress = true;
 	}

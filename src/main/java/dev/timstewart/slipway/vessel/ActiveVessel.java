@@ -38,7 +38,8 @@ public final class ActiveVessel {
 	public long scriptedInputUntil = Long.MIN_VALUE;
 	/** The long-range proxy (exposed blocks) needs recomputing. */
 	public boolean proxyDirty = true;
-	public long lastProxyBuild = Long.MIN_VALUE;
+	/** Game time of the last proxy rebuild; "long ago" at first (kept far from Long.MIN_VALUE so subtraction cannot overflow). */
+	public long lastProxyBuild = -1_000_000L;
 	/** Pose at the start of the previous tick; entities standing on the vessel are carried from it to the current pose. */
 	public dev.timstewart.slipway.math.VesselPose previousPose;
 	private final VesselLookup.View view = new VesselLookup.View() {

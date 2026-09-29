@@ -207,7 +207,9 @@ $script:KnownLogNoise = @(
 	'Force-disabling mixin',                          # Sodium/Iris rule
 	'Sodium has applied one or more workarounds',     # driver workaround notice
 	'This is not necessarily an issue',
-	'Rejected helm control'                           # forged-packet scenario expects these
+	'Rejected helm control',                          # forged-packet scenario expects these
+	# Iris's Distant Horizons compat, once when shaders come on; also in the user's Slipway-free Tellus-Expeditions log.
+	'Unexpected; somehow the Opaque \+ Translucent pass ran with shaders on'
 )
 
 function Get-SlipwayE2ELogProblems {

@@ -53,6 +53,18 @@ public class PhysicsGameTests {
 		});
 	}
 
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void aNewVesselGetsItsLongRangeProxy(GameTestHelper helper) {
+		BlockPos helm = raft(helper, 7, 8, 7);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		TestShips.active(helper, record);
+		helper.succeedWhen(() -> {
+			// 9 planks and the helm, every one exposed: one entry (position, colour) per block.
+			check(helper, record.proxy.length == 20, "proxy entries " + record.proxy.length / 2);
+			check(helper, record.proxyRevision > 0, "proxy revision " + record.proxyRevision);
+		});
+	}
+
 	@GameTest(structure = ARENA, maxTicks = 120)
 	public void hoverHoldsAVesselInPlace(GameTestHelper helper) {
 		BlockPos helm = raft(helper, 7, 8, 7);

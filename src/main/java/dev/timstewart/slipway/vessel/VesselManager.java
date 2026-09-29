@@ -217,7 +217,7 @@ public final class VesselManager {
 		vessel.viewerGraceUntil = gameTime + VIEWER_GRACE_TICKS;
 		int rangeChunks = Math.min(SlipwayRegistry.VESSEL.clientTrackingRange(), this.level.getServer().getPlayerList().getViewDistance());
 		double range = rangeChunks * 16.0;
-		SlipwayPayloads.VesselInfo info = this.info(vessel);
+		SlipwayPayloads.VesselInfo info = this.info(vessel, true);
 		SlipwayPayloads.PoseUpdate pose = this.posePayload(vessel, gameTime);
 		for (ServerPlayer player : this.level.players()) {
 			if (player.distanceToSqr(centre) > range * range || vessel.viewers.contains(player)) {
@@ -377,7 +377,7 @@ public final class VesselManager {
 		this.proxies.forget(id);
 		this.nextTick.add(() -> {
 			for (ServerPlayer online : this.level.players()) {
-				ServerPlayNetworking.send(online, new SlipwayPayloads.VesselGone(id));
+				ServerPlayNetworking.send(online, new SlipwayPayloads.VesselGone(id, false));
 			}
 			for (ServerPlayer viewer : viewers) {
 				if (!viewer.isRemoved() && viewer.level() == this.level) {
@@ -516,9 +516,13 @@ public final class VesselManager {
 	}
 
 	private SlipwayPayloads.VesselInfo info(ActiveVessel vessel) {
+		return this.info(vessel, false);
+	}
+
+	private SlipwayPayloads.VesselInfo info(ActiveVessel vessel, boolean assembled) {
 		VesselRecord record = vessel.record;
 		return new SlipwayPayloads.VesselInfo(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), record.anchor, record.localMin, record.localMax,
-			record.helm, record.helmFacing, record.blockCount, vessel.mass == null ? 0F : (float)vessel.mass.mass());
+			record.helm, record.helmFacing, record.blockCount, vessel.mass == null ? 0F : (float)vessel.mass.mass(), assembled);
 	}
 
 	/** A block in a plot changed: rebuild that vessel's collision shape and grow its bounds if needed. */
@@ -609,6 +613,11 @@ public final class VesselManager {
 			if (viewer.isRemoved() || viewer.level() != this.level || (!tracking.contains(viewer) && !early)) {
 				this.forgetChunks(vessel, viewer);
 				vessel.viewers.remove(viewer);
+				if (!viewer.isRemoved() && viewer.level() == this.level) {
+					// The client drops its near view (mesh, pose playback); a Distant Horizons proxy may take over.
+					ServerPlayNetworking.send(viewer, new SlipwayPayloads.VesselGone(vessel.record.id, true));
+					this.proxies.forget(vessel.record.id, viewer);
+				}
 			}
 		}
 	}

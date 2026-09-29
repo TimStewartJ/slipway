@@ -12,11 +12,19 @@ import dev.timstewart.slipway.client.ClientVessel;
 import dev.timstewart.slipway.client.ClientVessels;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.net.SlipwayPayloads;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -88,6 +96,53 @@ public final class DhProxies {
 			unregister(proxy);
 		}
 		PROXIES.clear();
+		REFRESH_DUE.clear();
+		LOD_QUERIES.clear();
+		LOD_RESULTS.clear();
+	}
+
+	/**
+	 * Diagnostics: what Distant Horizons' LOD data holds at a block (for checking stale LODs). DH's terrain getters
+	 * block on a future that must not be awaited on the render thread, so queries run on a worker: each call answers
+	 * with the latest finished query for that block ("pending" before the first) and starts a new one if none runs.
+	 */
+	public static String lodBlockAt(int x, int y, int z) {
+		long key = BlockPos.asLong(x, y, z);
+		CompletableFuture<String> running = LOD_QUERIES.get(key);
+		if (running != null && !running.isDone()) {
+			return LOD_RESULTS.getOrDefault(key, "pending");
+		}
+		if (running != null) {
+			LOD_RESULTS.put(key, running.join());
+		}
+		IDhApiLevelWrapper level;
+		try {
+			level = DhApi.Delayed.worldProxy != null && DhApi.Delayed.worldProxy.worldLoaded() ? clientLevel() : null;
+		} catch (RuntimeException error) {
+			return "error " + error;
+		}
+		if (level == null || DhApi.Delayed.terrainRepo == null) {
+			return "no DH level";
+		}
+		LOD_QUERIES.put(key, CompletableFuture.supplyAsync(() -> queryLod(level, x, y, z)).completeOnTimeout("no data: timed out", 10, TimeUnit.SECONDS));
+		return LOD_RESULTS.getOrDefault(key, "pending");
+	}
+
+	private static final Long2ObjectOpenHashMap<CompletableFuture<String>> LOD_QUERIES = new Long2ObjectOpenHashMap<>();
+	private static final Long2ObjectOpenHashMap<String> LOD_RESULTS = new Long2ObjectOpenHashMap<>();
+
+	private static String queryLod(IDhApiLevelWrapper level, int x, int y, int z) {
+		try {
+			var result = DhApi.Delayed.terrainRepo.getSingleDataPointAtBlockPos(level, x, y, z, DhApi.Delayed.terrainRepo.createSoftCache());
+			if (!result.success || result.payload == null) {
+				return "no data: " + result.message;
+			}
+			var point = result.payload;
+			return (point.blockStateWrapper == null || point.blockStateWrapper.isAir() ? "air" : String.valueOf(point.blockStateWrapper.getSerialString()))
+				+ " y" + point.bottomYBlockPos + ".." + point.topYBlockPos + " detail " + point.detailLevel;
+		} catch (RuntimeException error) {
+			return "no data: " + error;
+		}
 	}
 
 	/** Number of registered proxy groups and their boxes, for the debug overlay and tests. */
@@ -103,8 +158,43 @@ public final class DhProxies {
 		return new int[] {groups, boxes};
 	}
 
+	/** Diagnostics: what the proxies know and what DH offers. */
+	public static String describe() {
+		int withData = 0;
+		for (Proxy proxy : PROXIES.values()) {
+			if (proxy.blocks.length > 0 && proxy.serverPose != null) {
+				withData++;
+			}
+		}
+		StringBuilder out = new StringBuilder("received=" + PROXIES.size() + " withData=" + withData);
+		for (Proxy proxy : PROXIES.values()) {
+			if (proxy.group != null) {
+				DhApiVec3d origin = proxy.group.getOriginBlockPos();
+				out.append(String.format(java.util.Locale.ROOT, " proxy#%d@%.1f,%.1f,%.1f%s", proxy.id, origin.x, origin.y, origin.z,
+					proxy.group.isActive() ? "" : "(inactive)"));
+			}
+		}
+		try {
+			boolean loaded = DhApi.Delayed.worldProxy != null && DhApi.Delayed.worldProxy.worldLoaded();
+			out.append(" dhWorld=").append(loaded);
+			if (loaded) {
+				int levels = 0;
+				for (IDhApiLevelWrapper level : DhApi.Delayed.worldProxy.getAllLoadedLevelWrappers()) {
+					levels++;
+					out.append(" level[").append(level.getLevelType()).append(' ').append(level.getDimensionName()).append(' ')
+						.append(level.getWrappedMcObject() == Minecraft.getInstance().level ? "current" : "other").append(']');
+				}
+				out.append(" levels=").append(levels).append(" clientLevel=").append(clientLevel() != null);
+			}
+		} catch (RuntimeException error) {
+			out.append(" error=").append(error);
+		}
+		return out.toString();
+	}
+
 	/** Client tick: registers groups for proxies that have data but no group yet. */
 	public static void tick() {
+		refreshDueChunks();
 		if (PROXIES.isEmpty() || DhApi.Delayed.worldProxy == null || DhApi.Delayed.customRenderObjectFactory == null) {
 			return;
 		}
@@ -112,7 +202,7 @@ public final class DhProxies {
 			if (!DhApi.Delayed.worldProxy.worldLoaded()) {
 				return;
 			}
-			IDhApiLevelWrapper level = DhApi.Delayed.worldProxy.getSinglePlayerLevel();
+			IDhApiLevelWrapper level = clientLevel();
 			if (level == null) {
 				return;
 			}
@@ -125,6 +215,28 @@ public final class DhProxies {
 			Slipway.LOGGER.warn("Distant Horizons proxy update failed; proxies are disabled", error);
 			clear();
 		}
+	}
+
+	/**
+	 * DH's level for the client's current level. {@code getSinglePlayerLevel} only answers in singleplayer; on a server
+	 * the client level is found among the loaded levels by the Minecraft level it wraps.
+	 */
+	@Nullable
+	private static IDhApiLevelWrapper clientLevel() {
+		IDhApiLevelWrapper single = DhApi.Delayed.worldProxy.getSinglePlayerLevel();
+		if (single != null) {
+			return single;
+		}
+		Object current = Minecraft.getInstance().level;
+		if (current == null) {
+			return null;
+		}
+		for (IDhApiLevelWrapper level : DhApi.Delayed.worldProxy.getAllLoadedLevelWrappers()) {
+			if (level.getWrappedMcObject() == current) {
+				return level;
+			}
+		}
+		return null;
 	}
 
 	private static void register(Proxy proxy, IDhApiCustomRenderRegister register) {
@@ -189,6 +301,73 @@ public final class DhProxies {
 			return vessel.renderPose(partialTicks);
 		}
 		return proxy.serverPose;
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+	// World LOD refresh
+	// -------------------------------------------------------------------------------------------------------------
+
+	/** World chunk (packed position) to the client tick when its LOD should be rebuilt. */
+	private static final Long2LongOpenHashMap REFRESH_DUE = new Long2LongOpenHashMap();
+	/** Delay before a refresh, so the block updates that caused it have arrived. */
+	private static final int REFRESH_DELAY_TICKS = 20;
+	private static final int MAX_REFRESH_CHUNKS = 256;
+
+	/**
+	 * Queues Distant Horizons LOD rebuilds for the world chunks under a box. Assembly takes blocks out of the world and
+	 * disassembly puts them back, both on the server; on a client connected to a server DH only rebuilds a chunk's LOD
+	 * when the chunk loads or the local player breaks or places a block in it, so without this it would keep drawing the
+	 * ship where it was built.
+	 */
+	public static void queueChunkRefresh(AABB box) {
+		int minX = Mth.floor(box.minX) >> 4, maxX = Mth.floor(box.maxX) >> 4;
+		int minZ = Mth.floor(box.minZ) >> 4, maxZ = Mth.floor(box.maxZ) >> 4;
+		if ((long)(maxX - minX + 1) * (maxZ - minZ + 1) > MAX_REFRESH_CHUNKS) {
+			return;
+		}
+		long due = ClientVessels.clientTicks() + REFRESH_DELAY_TICKS;
+		for (int x = minX; x <= maxX; x++) {
+			for (int z = minZ; z <= maxZ; z++) {
+				REFRESH_DUE.put(ChunkPos.pack(x, z), due);
+			}
+		}
+	}
+
+	private static void refreshDueChunks() {
+		if (REFRESH_DUE.isEmpty()) {
+			return;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null || DhApi.Delayed.terrainRepo == null || DhApi.Delayed.worldProxy == null) {
+			REFRESH_DUE.clear();
+			return;
+		}
+		long now = ClientVessels.clientTicks();
+		try {
+			if (!DhApi.Delayed.worldProxy.worldLoaded()) {
+				return;
+			}
+			IDhApiLevelWrapper level = clientLevel();
+			if (level == null) {
+				return;
+			}
+			var entries = REFRESH_DUE.long2LongEntrySet().iterator();
+			while (entries.hasNext()) {
+				var entry = entries.next();
+				if (entry.getLongValue() > now) {
+					continue;
+				}
+				long pos = entry.getLongKey();
+				entries.remove();
+				LevelChunk chunk = mc.level.getChunkSource().getChunk(ChunkPos.getX(pos), ChunkPos.getZ(pos), false);
+				if (chunk != null) {
+					DhApi.Delayed.terrainRepo.overwriteChunkDataAsync(level, new Object[] {chunk, mc.level});
+				}
+			}
+		} catch (RuntimeException error) {
+			Slipway.LOGGER.warn("Distant Horizons LOD refresh failed", error);
+			REFRESH_DUE.clear();
+		}
 	}
 
 	/** One unit box per exposed block, centred on the block's rotated centre, relative to the vessel origin. */

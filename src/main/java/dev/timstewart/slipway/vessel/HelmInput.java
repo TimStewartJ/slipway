@@ -11,8 +11,11 @@ public final class HelmInput {
 	public float pitch;
 	public float yaw;
 	public float roll;
-	/** Game time of the last accepted update; input older than a second is treated as released. */
-	public long lastUpdate = Long.MIN_VALUE;
+	/**
+	 * Game time of the last accepted update; input older than a second is treated as released. Starts "long ago" (not at
+	 * Long.MIN_VALUE, where {@code gameTime - lastUpdate} would overflow).
+	 */
+	public long lastUpdate = -1_000_000L;
 
 	public static float sanitize(float value) {
 		if (!Float.isFinite(value)) {

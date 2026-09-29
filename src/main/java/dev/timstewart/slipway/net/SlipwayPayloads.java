@@ -42,15 +42,18 @@ public final class SlipwayPayloads {
 		}
 	}
 
-	/** Server to client when a player starts tracking a vessel or its bounds change: how plot space maps to the world. */
+	/**
+	 * Server to client when a player starts tracking a vessel or its bounds change: how plot space maps to the world.
+	 * {@code assembled} is set on the one sent as the vessel is assembled (its blocks just left the world there).
+	 */
 	public record VesselInfo(long vesselId, int entityId, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
-		int blocks, float mass) implements CustomPacketPayload {
+		int blocks, float mass, boolean assembled) implements CustomPacketPayload {
 		public static final Type<VesselInfo> TYPE = new Type<>(Slipway.id("vessel_info"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, VesselInfo> CODEC = CustomPacketPayload.codec(VesselInfo::write, VesselInfo::new);
 
 		private VesselInfo(RegistryFriendlyByteBuf buf) {
 			this(buf.readVarLong(), buf.readVarInt(), buf.readBlockPos(), buf.readBlockPos(), buf.readBlockPos(), buf.readBlockPos(),
-				buf.readEnum(Direction.class), buf.readVarInt(), buf.readFloat());
+				buf.readEnum(Direction.class), buf.readVarInt(), buf.readFloat(), buf.readBoolean());
 		}
 
 		private void write(RegistryFriendlyByteBuf buf) {
@@ -63,6 +66,7 @@ public final class SlipwayPayloads {
 			buf.writeEnum(this.helmFacing);
 			buf.writeVarInt(this.blocks);
 			buf.writeFloat(this.mass);
+			buf.writeBoolean(this.assembled);
 		}
 
 		@Override
@@ -71,11 +75,18 @@ public final class SlipwayPayloads {
 		}
 	}
 
-	/** Server to client: forget a vessel (it was disassembled or left the proxy range). */
-	public record VesselGone(long vesselId) implements CustomPacketPayload {
+	/**
+	 * Server to client: forget a vessel. With {@code keepProxy} only the near view goes (the player stopped viewing it:
+	 * its mesh and pose playback are dropped, the Distant Horizons proxy stays); otherwise the vessel is gone entirely
+	 * (removed, disassembled, or out of proxy range).
+	 */
+	public record VesselGone(long vesselId, boolean keepProxy) implements CustomPacketPayload {
 		public static final Type<VesselGone> TYPE = new Type<>(Slipway.id("vessel_gone"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, VesselGone> CODEC = CustomPacketPayload.codec(
-			(p, buf) -> buf.writeVarLong(p.vesselId), buf -> new VesselGone(buf.readVarLong()));
+			(p, buf) -> {
+				buf.writeVarLong(p.vesselId);
+				buf.writeBoolean(p.keepProxy);
+			}, buf -> new VesselGone(buf.readVarLong(), buf.readBoolean()));
 
 		@Override
 		public Type<VesselGone> type() {

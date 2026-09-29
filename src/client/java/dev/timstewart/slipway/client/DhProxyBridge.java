@@ -46,4 +46,11 @@ public final class DhProxyBridge {
 			DhProxies.clear();
 		}
 	}
+
+	/** Asks Distant Horizons to rebuild the LODs of the loaded world chunks under a box (blocks there changed). */
+	static void refreshWorld(net.minecraft.world.phys.AABB box) {
+		if (PRESENT) {
+			DhProxies.queueChunkRefresh(box);
+		}
+	}
 }
