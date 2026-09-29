@@ -686,6 +686,229 @@
         "pass: server log has no errors, exceptions or Slipway warnings",
         "pass: client log has no errors, exceptions or Slipway warnings"
       ]
+    },
+    {
+      "scenario": "save-reload",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "save-reload-20260929-141318",
+      "milestone": "M6",
+      "date": "2026-09-29T14:13:31",
+      "commit": "c95a76e",
+      "slipwayJarSha256": "2FE2B7E33FB6EBBDBACA14EDABBEE8BF61E6C52A1999AC9903C0779A6704038E",
+      "report": "E:\\slipway-e2e\\runs\\save-reload-20260929-141318\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141318\\01-before-stop.png",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141318\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141318\\report.md",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141318\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the server stops cleanly",
+        "fail: scenario error",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "save-reload",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "save-reload-20260929-141523",
+      "milestone": "M6",
+      "date": "2026-09-29T14:15:59",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "B781FBC76EA73A3A45A404740DC1E162839CBC060114D856C9B93F4925573C4D",
+      "report": "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\01-before-stop.png",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\02-after-reload.png",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\report.md",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\server-after-restart-log.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\server-before-stop-log.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141523\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the server stops cleanly",
+        "pass: after a restart the vessel has exactly the saved pose, rotation and velocity",
+        "fail: every block and block entity (chest items, furnace, sign text) survived the restart",
+        "pass: after reconnecting the client has the vessel and the server simulates it again",
+        "pass: no errors while saving, stopping and loading",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "save-reload",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed both frames: the tilted mixed ship in flight before the server stop, and the same ship with the same attitude, further along its path, after the restart and reconnect. Logs: saved and loaded pose/rotation/velocity identical; every block and block entity intact in the plot after reconnect.",
+      "runId": "save-reload-20260929-141619",
+      "milestone": "M6",
+      "date": "2026-09-29T14:16:50",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "B781FBC76EA73A3A45A404740DC1E162839CBC060114D856C9B93F4925573C4D",
+      "report": "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\01-before-stop.png",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\02-after-reload.png",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\report.md",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\server-after-restart-log.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\server-before-stop-log.txt",
+        "E:\\slipway-e2e\\runs\\save-reload-20260929-141619\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the server stops cleanly",
+        "pass: after a restart the vessel has exactly the saved pose, rotation and velocity",
+        "pass: after reconnecting the client has the vessel and the server simulates it again",
+        "pass: every block and block entity (chest items, furnace, sign text) survived the restart",
+        "pass: no errors while saving, stopping and loading",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "multiplayer",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "multiplayer-20260929-141710",
+      "milestone": "M6",
+      "date": "2026-09-29T14:22:18",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "B781FBC76EA73A3A45A404740DC1E162839CBC060114D856C9B93F4925573C4D",
+      "report": "E:\\slipway-e2e\\runs\\multiplayer-20260929-141710\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-141710\\report.md",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-141710\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "fail: scenario error",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "multiplayer",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "multiplayer-20260929-142543",
+      "milestone": "M6",
+      "date": "2026-09-29T14:26:55",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "B781FBC76EA73A3A45A404740DC1E162839CBC060114D856C9B93F4925573C4D",
+      "report": "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\01-watcher-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\02-pilot-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\03-pilot-sees-B-on-deck.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\04-B-riding.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\report.md",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-142543\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: a second client joins as another player",
+        "pass: client A takes the helm",
+        "fail: both clients agree with the server pose (within the interpolation delay)",
+        "fail: the watcher's rendered vessel moves smoothly (no reversals, no jumps between frames)",
+        "pass: client B is carried on the moving deck (on its own client)",
+        "fail: the server accepts both players (no kicks or corrections)",
+        "fail: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings",
+        "pass: second client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "multiplayer",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "multiplayer-20260929-143004",
+      "milestone": "M6",
+      "date": "2026-09-29T14:31:02",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "832E8E1349A0E4350CF24E8A1B44E8122A46DFE8286AC7B3BFBAF2D938ADF2B6",
+      "report": "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\01-watcher-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\02-pilot-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\03-pilot-sees-B-on-deck.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\04-B-riding.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\report.md",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143004\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: a second client joins as another player",
+        "pass: client A takes the helm",
+        "pass: both clients agree with the server pose (within the interpolation delay)",
+        "fail: the watcher's rendered vessel moves smoothly (no reversals, no jumps between frames)",
+        "pass: client B is carried on the moving deck (on its own client)",
+        "pass: the server accepts both players (no kicks or corrections)",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings",
+        "pass: second client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "multiplayer",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "multiplayer-20260929-143215",
+      "milestone": "M6",
+      "date": "2026-09-29T14:32:59",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "A1A103690B03B37C1F37559141C7A9D437DB6B0391EF1D0F272039045B55E7F7",
+      "report": "E:\\slipway-e2e\\runs\\multiplayer-20260929-143215\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143215\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143215\\report.md",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143215\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "fail: scenario error",
+        "fail: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "multiplayer",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed all 4 frames: watcher (client B, offline dev client, vanilla renderer) sees the climbing vessel in the distance; pilot (client A, Prism + Sodium/Iris/DH) at the helm with HUD; pilot sees SlipwayWatcher (name tag) standing on the deck; B first-person view riding the deck. Trace on B: 463 frames, maxDeltaV 0.059 b/t, 0 reversals, 0 stalls.",
+      "runId": "multiplayer-20260929-143331",
+      "milestone": "M6",
+      "date": "2026-09-29T14:34:22",
+      "commit": "c95a76e+dirty",
+      "slipwayJarSha256": "A1A103690B03B37C1F37559141C7A9D437DB6B0391EF1D0F272039045B55E7F7",
+      "report": "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\01-watcher-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\02-pilot-view.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\03-pilot-sees-B-on-deck.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\04-B-riding.png",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\report.md",
+        "E:\\slipway-e2e\\runs\\multiplayer-20260929-143331\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: a second client joins as another player",
+        "pass: client A takes the helm",
+        "pass: both clients agree with the server pose (within the interpolation delay)",
+        "pass: the watcher's rendered vessel moves smoothly (no reversals, no jumps between frames)",
+        "pass: client B is carried on the moving deck (on its own client)",
+        "pass: the server accepts both players (no kicks or corrections)",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings",
+        "pass: second client log has no errors, exceptions or Slipway warnings"
+      ]
     }
   ]
 }

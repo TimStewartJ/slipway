@@ -63,7 +63,12 @@ function Enter-SlipwayE2EArea {
 	$bx = [Math]::Floor($X); $by = [Math]::Floor($Y) - 1; $bz = [Math]::Floor($Z)
 	Send-SlipwayE2ERcon -Command "gamemode creative $($Client.Player)" | Out-Null
 	# Hover while the destination loads: falling into chunks that are still arriving trips the server's movement check.
-	try { Invoke-SlipwayE2EAgent -Client $Client -Verb fly -Argument on | Out-Null } catch { }
+	# Creative mode (which allows flying) reaches the client a moment after the command.
+	for ($i = 0; $i -lt 15; $i++) {
+		$flying = try { [string](Invoke-SlipwayE2EAgent -Client $Client -Verb fly -Argument on) } catch { '' }
+		if ($flying -match 'flying=true') { break }
+		Start-Sleep -Milliseconds 200
+	}
 	$face = if ($LookAt) { " facing $($LookAt[0]) $($LookAt[1]) $($LookAt[2])" } else { '' }
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3}{4}" -f $Client.Player, $X, ($Y + 0.5), $Z, $face) | Out-Null
 	Start-Sleep -Seconds $SettleSeconds

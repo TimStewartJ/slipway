@@ -219,7 +219,7 @@ public final class SlipwayDebug {
 		if (mc.level == null) {
 			return;
 		}
-		double time = mc.level.getGameTime() + partialTicks;
+		double time = ClientVessels.clientTicks() + partialTicks;
 		if (!TRACE.isEmpty() && TRACE.getLast()[0] == time) {
 			return;
 		}
@@ -229,7 +229,8 @@ public final class SlipwayDebug {
 	/**
 	 * Stops recording and summarises motion between frames: speed in blocks per tick, the largest change of velocity
 	 * between consecutive frames (0 for perfectly smooth constant motion), direction reversals while moving and the
-	 * largest rotation between frames.
+	 * largest rotation between frames. Gaps of more than {@value #STALL_TICKS} ticks between frames are the client
+	 * stalling (not the vessel jumping): they are counted and reported, and velocity is not compared across them.
 	 */
 	public static String traceStop() {
 		traceId = -1;
@@ -241,14 +242,22 @@ public final class SlipwayDebug {
 		double maxStep = 0.0;
 		double maxTurn = 0.0;
 		double speedSum = 0.0;
+		double maxGap = 0.0;
 		int reversals = 0;
 		int intervals = 0;
+		int stalls = 0;
 		double[] previousVelocity = null;
 		for (int i = 1; i < frames; i++) {
 			double[] a = TRACE.get(i - 1);
 			double[] b = TRACE.get(i);
 			double dt = b[0] - a[0];
 			if (dt <= 1.0e-6) {
+				continue;
+			}
+			maxGap = Math.max(maxGap, dt);
+			if (dt > STALL_TICKS) {
+				stalls++;
+				previousVelocity = null;
 				continue;
 			}
 			double[] v = {(b[1] - a[1]) / dt, (b[2] - a[2]) / dt, (b[3] - a[3]) / dt};
@@ -271,7 +280,10 @@ public final class SlipwayDebug {
 			previousVelocity = v;
 		}
 		double duration = TRACE.getLast()[0] - TRACE.getFirst()[0];
-		return String.format(Locale.ROOT, "frames=%d ticks=%.2f meanSpeed=%.4f maxDeltaV=%.4f maxStep=%.4f reversals=%d maxTurnDeg=%.3f",
-			frames, duration, intervals == 0 ? 0.0 : speedSum / intervals, maxDeltaV, maxStep, reversals, maxTurn);
+		return String.format(Locale.ROOT, "frames=%d ticks=%.2f meanSpeed=%.4f maxDeltaV=%.4f maxStep=%.4f reversals=%d maxTurnDeg=%.3f stalls=%d maxGapTicks=%.2f",
+			frames, duration, intervals == 0 ? 0.0 : speedSum / intervals, maxDeltaV, maxStep, reversals, maxTurn, stalls, maxGap);
 	}
+
+	/** A gap between rendered frames longer than this many ticks is a client stall. */
+	private static final double STALL_TICKS = 3.0;
 }

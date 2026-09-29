@@ -19,11 +19,18 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Interpolation: server poses arrive every tick stamped with the server's game time. The client plays them
  * back {@value #DELAY_TICKS} ticks late, interpolating between the two snapshots around the playback time
- * (position lerp, rotation slerp), so network jitter does not show. Rendering then interpolates between the
- * previous and current client-tick poses with the frame's partial tick, exactly as entities do.
+ * (position lerp, rotation slerp), so network jitter does not show. The playback clock follows the newest snapshot
+ * like a jitter buffer: it runs up to {@value #MAX_RATE_CHANGE} faster or slower to hold the delay, holds the last
+ * pose if data runs out, and only jumps when it is more than {@value #SNAP_TICKS} ticks off (joining, a teleport,
+ * a long stall). Rendering then interpolates between the previous and current client-tick poses with the frame's
+ * partial tick, exactly as entities do.
  */
 public final class ClientVessel {
 	static final double DELAY_TICKS = 2.0;
+	/** Largest fraction by which the playback clock runs fast or slow to return to the target delay. */
+	static final double MAX_RATE_CHANGE = 0.1;
+	/** Playback further off the target delay than this jumps to it. */
+	static final double SNAP_TICKS = 10.0;
 	private static final int MAX_SNAPSHOTS = 40;
 
 	public final long id;
@@ -108,12 +115,7 @@ public final class ClientVessel {
 		if (this.snapshots.isEmpty() || this.tickPose == null) {
 			return;
 		}
-		long latest = this.snapshots.peekLast().tick;
-		this.playbackTick += 1.0;
-		// Stay DELAY_TICKS behind the newest snapshot: catch up after stalls, slow down when packets run late.
-		if (this.playbackTick > latest || this.playbackTick < latest - DELAY_TICKS - 4) {
-			this.playbackTick = latest - DELAY_TICKS;
-		}
+		this.playbackTick = nextPlaybackTick(this.playbackTick, this.snapshots.peekLast().tick);
 		this.previousTickPose = this.tickPose;
 		this.tickPose = this.sample(this.playbackTick);
 		// Drop snapshots that playback has passed, keeping one before it.
@@ -126,6 +128,19 @@ public final class ClientVessel {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * The playback time one client tick later: one tick on, run up to {@link #MAX_RATE_CHANGE} fast or slow towards
+	 * {@link #DELAY_TICKS} behind the newest snapshot, or straight to it when more than {@link #SNAP_TICKS} off.
+	 */
+	static double nextPlaybackTick(double playback, long latest) {
+		double target = latest - DELAY_TICKS;
+		double behind = target - (playback + 1.0);
+		if (!Double.isFinite(playback) || Math.abs(behind) > SNAP_TICKS) {
+			return target;
+		}
+		return playback + 1.0 + Math.max(-MAX_RATE_CHANGE, Math.min(MAX_RATE_CHANGE, behind * MAX_RATE_CHANGE));
 	}
 
 	private VesselPose sample(double tick) {

@@ -91,14 +91,20 @@ public final class VesselManager {
 		for (VesselManager manager : MANAGERS.values()) {
 			for (ActiveVessel vessel : manager.active.values()) {
 				manager.physics.syncRecord(vessel);
-				if (stopping) {
-					VesselRecord r = vessel.record;
-					Slipway.LOGGER.info(String.format(java.util.Locale.ROOT, "Vessel %d saved at pos=%.3f,%.3f,%.3f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f",
-						r.id, r.pose.x(), r.pose.y(), r.pose.z(), r.pose.qx(), r.pose.qy(), r.pose.qz(), r.pose.qw(),
-						r.linearVelocity.x, r.linearVelocity.y, r.linearVelocity.z));
-				}
 			}
 			manager.registry.setDirty();
+			if (stopping && !manager.registry.all().isEmpty()) {
+				// Vessels whose chunks unloaded as the last players left are already inactive; their records hold the
+				// state they had then. The end-to-end harness compares each saved state with what loads back.
+				if (Boolean.getBoolean("slipway.e2e")) {
+					for (VesselRecord r : manager.registry.all()) {
+						Slipway.LOGGER.info(String.format(java.util.Locale.ROOT, "Vessel %d saved at pos=%.3f,%.3f,%.3f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f",
+							r.id, r.pose.x(), r.pose.y(), r.pose.z(), r.pose.qx(), r.pose.qy(), r.pose.qz(), r.pose.qw(),
+							r.linearVelocity.x, r.linearVelocity.y, r.linearVelocity.z));
+					}
+				}
+				Slipway.LOGGER.info("Saved {} vessels in {}", manager.registry.size(), manager.level.dimension().identifier());
+			}
 		}
 	}
 

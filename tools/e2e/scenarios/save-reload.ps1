@@ -55,9 +55,7 @@ try {
 	$dv = [Math]::Sqrt([Math]::Pow($loaded.Velocity[0] - $savedVel[0], 2) + [Math]::Pow($loaded.Velocity[1] - $savedVel[1], 2) + [Math]::Pow($loaded.Velocity[2] - $savedVel[2], 2))
 	$speed = [Math]::Sqrt([Math]::Pow($savedVel[0], 2) + [Math]::Pow($savedVel[1], 2) + [Math]::Pow($savedVel[2], 2))
 	Add-SlipwayE2ECheck -Run $run -Title 'after a restart the vessel has exactly the saved pose, rotation and velocity' -Condition ($loaded.active -eq 'false' -and $dp -lt 0.002 -and $dq -gt 0.999999 -and $dv -lt 0.002 -and $speed -gt 1.0) -Detail ("saved: {0}; loaded: {1}; position differs {2:N4}, |q.q'| {3:N7}, velocity differs {4:N4}, saved speed {5:N2}" -f $savedLine, $loaded.Text, $dp, $dq, $dv, $speed) | Out-Null
-	$pa = $loaded.PlotAnchor
-	$inPlot = Test-SlipwayE2EShipAt -Specs $specs -X $pa[0] -Y $pa[1] -Z $pa[2] -ReferenceData $reference
-	Add-SlipwayE2ECheck -Run $run -Title 'every block and block entity (chest items, furnace, sign text) survived the restart' -Condition ($inPlot.Count -eq 0) -Detail ($inPlot -join '; ') | Out-Null
+
 
 	# Reconnect: the vessel is back, drawn, and resumes moving.
 	Invoke-SlipwayE2EAgent -Client $c -Verb connect -Argument "localhost:$($s2.Port)" | Out-Null
@@ -68,6 +66,10 @@ try {
 	$live = Get-SlipwayE2EVessel -Id $id
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '02-after-reload' -Directory $run.Directory -SettleMilliseconds 500
 	Add-SlipwayE2ECheck -Run $run -Title 'after reconnecting the client has the vessel and the server simulates it again' -Condition ($clientView -match "#$id ready=true" -and $live.active -eq 'true' -and $live.body -eq 'true') -Detail "client: $clientView; server: $($live.Text)" -Screenshot $shot | Out-Null
+	# The plot is loaded again now that a player is near the vessel.
+	$pa = $loaded.PlotAnchor
+	$inPlot = Test-SlipwayE2EShipAt -Specs $specs -X $pa[0] -Y $pa[1] -Z $pa[2] -ReferenceData $reference
+	Add-SlipwayE2ECheck -Run $run -Title 'every block and block entity (chest items, furnace, sign text) survived the restart' -Condition ($inPlot.Count -eq 0) -Detail ($inPlot -join '; ') | Out-Null
 	$problems = @($stopProblems) + @(Get-SlipwayE2ELogProblems -LogPath $s2.LogPath -Offset 0)
 	Add-SlipwayE2ECheck -Run $run -Title 'no errors while saving, stopping and loading' -Condition ($problems.Count -eq 0) -Detail (($problems | Select-Object -First 5) -join ' / ') | Out-Null
 	Read-SlipwayE2ELogSince -LogPath $s2.LogPath -Offset 0 | Set-Content (Join-Path $run.Directory 'server-after-restart-log.txt') -Encoding UTF8

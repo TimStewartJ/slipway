@@ -295,8 +295,8 @@ function Set-SlipwayE2EShaders {
 
 function Set-SlipwayE2EOptions {
 	<# .SYNOPSIS Writes a predictable options.txt for a test instance (render distance, GUI scale, no tutorials). #>
-	param([string]$InstanceId = $script:InstanceA, [int]$RenderDistance = 10, [int]$Fov = 70)
-	$mc = Join-Path (Get-SlipwayE2EInstanceDir $InstanceId) '.minecraft'
+	param([string]$InstanceId = $script:InstanceA, [int]$RenderDistance = 10, [int]$Fov = 70, [string]$GameDir)
+	$mc = if ($GameDir) { $GameDir } else { Join-Path (Get-SlipwayE2EInstanceDir $InstanceId) '.minecraft' }
 	$fovValue = ($Fov - 70) / 40.0
 	@(
 		"renderDistance:$RenderDistance", 'simulationDistance:8', 'guiScale:2', "fov:$fovValue", 'maxFps:120', 'enableVsync:false',
@@ -425,6 +425,61 @@ function Start-SlipwayE2EClient {
 		}
 		if (-not $ready) { throw 'The client did not finish loading the world' }
 	}
+	try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
+	$client
+}
+
+function Get-SlipwayE2EWatcherProcess {
+	Get-CimInstance Win32_Process -Filter "Name='java.exe' or Name='javaw.exe'" |
+		Where-Object { $_.CommandLine -match 'slipway\.e2e\.watcher=true' } | Select-Object -First 1
+}
+
+function Start-SlipwayE2EWatcher {
+	<#
+	.SYNOPSIS Starts a second player as an offline Loom dev client (the e2eWatcher run in build.gradle: vanilla
+	renderer, game directory build\e2e-watcher, player name SlipwayWatcher) and waits until it is in the world. Prism
+	8.3 can only launch with a Microsoft account, and a second one is not always logged in; the e2e server runs in
+	offline mode, so an offline dev client is an equally real second player.
+	#>
+	param([Parameter(Mandatory)]$Server, [int]$TimeoutSeconds = 300)
+	if (Get-SlipwayE2EWatcherProcess) { throw 'The watcher client is already running' }
+	$gameDir = Join-Path $script:Repo 'build\e2e-watcher'
+	New-Item -ItemType Directory -Force (Join-Path $gameDir 'mods') | Out-Null
+	$agent = Get-ChildItem (Join-Path $script:Repo 'tools\e2e\agent\build\libs') -Filter 'slipway-e2e-agent-*.jar' | Where-Object { $_.Name -notmatch 'sources' } | Select-Object -First 1
+	if (-not $agent) { throw 'Build the e2e agent first (deploy-test-build.ps1)' }
+	Get-ChildItem (Join-Path $gameDir 'mods') -Filter '*.jar' | Remove-Item -Force
+	Copy-Item $agent.FullName (Join-Path $gameDir 'mods') -Force
+	Set-SlipwayE2EOptions -GameDir $gameDir
+	Remove-Item (Join-Path $gameDir 'slipway-e2e') -Recurse -Force -ErrorAction SilentlyContinue
+	$serverOffset = Get-SlipwayE2ELogOffset -LogPath $Server.LogPath
+	if (-not $env:JAVA_HOME) { $env:JAVA_HOME = Split-Path (Split-Path $script:JavaExe) }
+	$log = Join-Path $gameDir 'gradle-run.log'
+	Start-Process -FilePath (Join-Path $script:Repo 'gradlew.bat') -ArgumentList @('runE2eWatcher', '--console=plain') -WorkingDirectory $script:Repo `
+		-WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError "$log.err" | Out-Null
+	$deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+	$game = $null
+	while (-not $game -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1; $game = Get-SlipwayE2EWatcherProcess }
+	if (-not $game) { throw "The watcher dev client did not start within ${TimeoutSeconds}s (see $log)" }
+	$client = [pscustomobject]@{ InstanceId = 'e2e-watcher (dev client)'; ProcessId = [int]$game.ProcessId; GameDir = $gameDir; ClientLog = (Join-Path $gameDir 'logs\latest.log'); Player = $null }
+	$joined = $null
+	while (-not $joined -and (Get-Date) -lt $deadline) {
+		try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
+		try { $joined = Wait-SlipwayE2ELog -LogPath $Server.LogPath -Pattern 'SlipwayWatcher joined the game' -StartOffset $serverOffset -TimeoutSeconds 2 } catch { }
+		if (-not (Get-Process -Id $client.ProcessId -ErrorAction SilentlyContinue)) { throw "The watcher exited before joining (see $log)" }
+	}
+	if (-not $joined) { throw "The watcher did not join within ${TimeoutSeconds}s" }
+	$client.Player = 'SlipwayWatcher'
+	Send-SlipwayE2ERcon -Command "op $($client.Player)" | Out-Null
+	$ready = $false
+	while (-not $ready -and (Get-Date) -lt $deadline) {
+		try {
+			$where = Invoke-SlipwayE2EAgent -Client $client -Verb session -TimeoutSeconds 5
+			$screen = Invoke-SlipwayE2EAgent -Client $client -Verb screen -TimeoutSeconds 5
+			$ready = $where -like "world * player=$($client.Player)" -and $screen -eq 'none'
+		} catch { }
+		if (-not $ready) { Start-Sleep -Milliseconds 500 }
+	}
+	if (-not $ready) { throw 'The watcher did not finish loading the world' }
 	try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
 	$client
 }

@@ -1,4 +1,5 @@
-# Scenario multiplayer: two clients on the dedicated server. Client A pilots a vessel through a climbing turn while
+# Scenario multiplayer: two clients on the dedicated server (A: Prism with Sodium, Iris and DH; B: an offline dev client
+# with the vanilla renderer). Client A pilots a vessel through a climbing turn while
 # client B watches from a platform: B's rendered vessel moves smoothly (frame-by-frame trace: no reversals, no jumps),
 # both clients agree with the server's pose, and when B walks onto the flying vessel's deck B is carried along on B's
 # own client and on the server. Screenshots from both clients.
@@ -30,8 +31,8 @@ try {
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3} facing {1} {2} {4}" -f $c.Player, ($hx + 0.5), $hy, ($hz - 1.5), ($hz + 5)) | Out-Null
 	$id = Invoke-SlipwayE2EAssembleCommand -X $hx -Y $hy -Z $hz
 
-	# Second client: another account on the second test instance.
-	$c2 = Start-SlipwayE2EClient -Server $s -InstanceId 'Slipway-Test2-MC-26.3-Fabric' -Profile 'YogaBGalaxy'
+	# Second client: another player, as an offline dev client (the e2e server runs in offline mode).
+	$c2 = Start-SlipwayE2EWatcher -Server $s
 	$client2Offset = Get-SlipwayE2ELogOffset -LogPath $c2.ClientLog
 	$session | Add-Member -NotePropertyName Client2 -NotePropertyValue $c2 -Force
 	$session | ConvertTo-Json -Depth 4 | Set-Content (Get-SlipwayE2ESessionFile)
@@ -50,30 +51,37 @@ try {
 	Invoke-SlipwayE2EAgent -Client $c2 -Verb slipway -Argument "traceStart $id" | Out-Null
 	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'helm 0.7 0 0.3 0 0.5 0 100' | Out-Null
 	Start-Sleep -Milliseconds 1500
-	$shotB = Save-SlipwayE2EScreenshot -Client $c2 -Name '01-watcher-view' -Directory $run.Directory
-	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument back | Out-Null
-	$shotA = Save-SlipwayE2EScreenshot -Client $c -Name '02-pilot-view' -Directory $run.Directory
 	$gaps = [System.Collections.Generic.List[string]]::new()
 	$worst = 0.0
 	for ($i = 0; $i -lt 6; $i++) {
+		$clock = [System.Diagnostics.Stopwatch]::StartNew()
 		$server = Get-SlipwayE2EVessel -Id $id
+		$t0 = $clock.Elapsed.TotalSeconds
 		$pa = Get-ClientPose $c $id
+		$ta = $clock.Elapsed.TotalSeconds
 		$pb = Get-ClientPose $c2 $id
+		$tb = $clock.Elapsed.TotalSeconds
 		if ($pa -and $pb) {
-			# Clients play poses back 2 ticks late on purpose (interpolation); allow the distance flown in ~5 ticks.
-			$allow = 0.5 + $server.speed * 0.25
+			# Clients play poses back 2 ticks late on purpose (interpolation), and each client is asked a little
+			# after the server: allow the distance flown in that time plus half a block.
+			$allowA = 0.5 + $server.speed * (0.1 + $ta - $t0 + 0.05)
+			$allowB = 0.5 + $server.speed * (0.1 + $tb - $t0 + 0.05)
 			$da = Get-Distance $pa $server; $db = Get-Distance $pb $server
-			$worst = [Math]::Max($worst, [Math]::Max($da - $allow, $db - $allow))
-			$gaps.Add(("A {0:N2} B {1:N2} (allow {2:N2})" -f $da, $db, $allow))
+			$worst = [Math]::Max($worst, [Math]::Max($da - $allowA, $db - $allowB))
+			$gaps.Add(("A {0:N2} (allow {1:N2}) B {2:N2} (allow {3:N2})" -f $da, $allowA, $db, $allowB))
 		} else { $gaps.Add('missing'); $worst = 99 }
 		Start-Sleep -Milliseconds 300
 	}
 	Start-Sleep -Seconds 3
 	$trace = Invoke-SlipwayE2EAgent -Client $c2 -Verb slipway -Argument 'traceStop'
+	# Screenshots after the trace: taking one stalls that client for a moment.
+	$shotB = Save-SlipwayE2EScreenshot -Client $c2 -Name '01-watcher-view' -Directory $run.Directory
+	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument back | Out-Null
+	$shotA = Save-SlipwayE2EScreenshot -Client $c -Name '02-pilot-view' -Directory $run.Directory
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument first | Out-Null
 	Add-SlipwayE2ECheck -Run $run -Title 'both clients agree with the server pose (within the interpolation delay)' -Condition ($worst -le 0) -Detail ($gaps -join '; ') -Screenshot $shotA | Out-Null
-	$tm = [regex]::Match($trace, 'frames=(\d+) ticks=([\d.]+) meanSpeed=([\d.]+) maxDeltaV=([\d.]+) maxStep=([\d.]+) reversals=(\d+) maxTurnDeg=([\d.]+)')
-	$smooth = $tm.Success -and [int]$tm.Groups[1].Value -gt 100 -and [int]$tm.Groups[6].Value -eq 0 -and [double]$tm.Groups[4].Value -lt 0.25 -and [double]$tm.Groups[3].Value -gt 0.1
+	$tm = [regex]::Match($trace, 'frames=(\d+) ticks=([\d.]+) meanSpeed=([\d.]+) maxDeltaV=([\d.]+) maxStep=([\d.]+) reversals=(\d+) maxTurnDeg=([\d.]+) stalls=(\d+)')
+	$smooth = $tm.Success -and [int]$tm.Groups[1].Value -gt 100 -and [int]$tm.Groups[6].Value -eq 0 -and [double]$tm.Groups[4].Value -lt 0.25 -and [double]$tm.Groups[3].Value -gt 0.1 -and [int]$tm.Groups[8].Value -le 2
 	Add-SlipwayE2ECheck -Run $run -Title "the watcher's rendered vessel moves smoothly (no reversals, no jumps between frames)" -Condition $smooth -Detail "trace on client B: $trace (speeds in blocks per tick)" -Screenshot $shotB | Out-Null
 
 	# B steps onto the moving deck and is carried; the pilot sees B on the deck.

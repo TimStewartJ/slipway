@@ -23,6 +23,7 @@ public final class ClientVessels {
 	private static ClientLevel level;
 	/** Between the start and the end of a client tick. */
 	private static boolean tickInProgress;
+	private static long clientTicks;
 
 	static {
 		BY_PLOT.defaultReturnValue(-1L);
@@ -97,10 +98,16 @@ public final class ClientVessels {
 	/** Start of every client tick: advance pose playback before entities tick. */
 	static void tick() {
 		checkLevel();
+		clientTicks++;
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.tick();
 		}
 		tickInProgress = true;
+	}
+
+	/** Client ticks since start (monotonic, unlike the level's game time, which the server corrects). */
+	public static long clientTicks() {
+		return clientTicks;
 	}
 
 	/** End of every client tick. */
