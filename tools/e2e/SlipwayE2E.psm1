@@ -209,7 +209,11 @@ $script:KnownLogNoise = @(
 	'This is not necessarily an issue',
 	'Rejected helm control',                          # forged-packet scenario expects these
 	# Iris's Distant Horizons compat, once when shaders come on; also in the user's Slipway-free Tellus-Expeditions log.
-	'Unexpected; somehow the Opaque \+ Translucent pass ran with shaders on'
+	'Unexpected; somehow the Opaque \+ Translucent pass ran with shaders on',
+	# A quitting singleplayer client closes the in-memory channel while the integrated server is still writing to it
+	# (seen in 1 of 5 quits in the leak test, before Slipway stopped sending to closing connections; any packet written
+	# in that window, vanilla's included, ends the connection this way instead of "Disconnected"). Benign at quit time.
+	'lost connection: Internal Exception: java\.nio\.channels\.ClosedChannelException'
 )
 
 function Get-SlipwayE2ELogProblems {
@@ -303,7 +307,7 @@ function Set-SlipwayE2EOptions {
 	@(
 		"renderDistance:$RenderDistance", 'simulationDistance:8', 'guiScale:2', "fov:$fovValue", 'maxFps:120', 'enableVsync:false',
 		'tutorialStep:none', 'skipMultiplayerWarning:true', 'onboardAccessibility:false', 'joinedFirstServer:true', 'pauseOnLostFocus:false',
-		'narrator:0', 'soundCategory_master:0.0', 'ao:true', 'entityDistanceScaling:1.0', 'fullscreen:false'
+		'narrator:0', 'soundCategory_master:0.0', 'ao:true', 'entityDistanceScaling:1.0', 'fullscreen:false', 'inactivityFpsLimit:minimized'
 	) | Set-Content -Path (Join-Path $mc 'options.txt') -Encoding ASCII
 }
 

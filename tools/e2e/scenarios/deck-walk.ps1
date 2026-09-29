@@ -41,6 +41,8 @@ try {
 		(New-SlipwayE2EBlock 'lamp' 5 0 5 'minecraft:glowstone')
 	) -X $hx -Y $hy -Z $hz
 	$id = Invoke-SlipwayE2EAssembleCommand -X $hx -Y $hy -Z $hz
+	# Movement checks cover walking on the vessel, not the harness's own setup teleports.
+	$movementOffset = Get-SlipwayE2ELogOffset -LogPath $s.LogPath
 	Send-SlipwayE2ERcon -Command "slipway mode $id level false" | Out-Null
 	Start-Sleep -Seconds 1
 	$v = Get-SlipwayE2EVessel -Id $id
@@ -135,7 +137,7 @@ try {
 	Add-SlipwayE2ECheck -Run $run -Title 'on a 70 degree bank the player slides off instead of clipping through' -Condition ($minY -gt -0.05 -and ($last.Carrier -ne $id -or $last.Local[0] -gt 5 -or $last.Local[0] -lt -5)) -Detail ("tilt {0:N1}; {1} samples over the deck, lowest local y {2:N3} ({3}); last: {4}" -f $tilt, $over.Count, $minY, $(if ($lowest) { $lowest.Text } else { 'none' }), $last.Text) -Screenshot $shot | Out-Null
 	Send-SlipwayE2ERcon -Command "slipway mode $id level true" | Out-Null
 	$pos = Get-SlipwayE2EPlayerPosition -Player $c.Player
-	$kicked = @(Read-SlipwayE2ELogSince -LogPath $s.LogPath -Offset $serverOffset | Where-Object { $_ -match 'Flying is not enabled|kicked|moved wrongly|moved too quickly' })
+	$kicked = @(Read-SlipwayE2ELogSince -LogPath $s.LogPath -Offset $movementOffset | Where-Object { $_ -match 'Flying is not enabled|kicked|moved wrongly|moved too quickly' })
 	Add-SlipwayE2ECheck -Run $run -Title 'the server neither kicked nor corrected the walking player' -Condition ($kicked.Count -eq 0) -Detail (($kicked | Select-Object -First 3) -join ' / ') | Out-Null
 } catch {
 	Add-SlipwayE2EStep -Run $run -Title 'scenario error' -Detail "$($_.Exception.Message) at $($_.InvocationInfo.PositionMessage)" -Status fail

@@ -14,8 +14,23 @@ Requires Java 25.
 
 ```
 tools/setup-devmods.ps1      # copies Fabric API, Sodium, Iris and Distant Horizons jars into devmods/
-gradlew build                # mod jar in build/libs, runs unit tests and the patch registry check
+gradlew build                # mod jar in build/libs; runs unit tests, Fabric GameTests and the patch registry check
+gradlew generatePatches      # regenerates PATCHES.md from patches.json after changing a mixin
 ```
+
+The jar bundles jolt-jni's double-precision native libraries for Windows, Linux and macOS (x86_64 and aarch64).
+
+## Testing
+
+- `gradlew test`: unit tests (math, controller, shapes, mass properties, collisions, records, Jolt engine including a
+  native leak test with the Debug natives).
+- `gradlew runGametest`: Fabric GameTests in a headless server (assembly round trips, deny list, physics, packets,
+  interaction). Also part of `gradlew build`.
+- `tools/e2e/`: the end-to-end harness. A dedicated server plus a Prism test client with a test-only agent mod (and
+  an offline dev client as a second player) run scenarios that build ships, fly them, walk on them, interact, save and
+  reload, measure performance and check for leaks, with in-game screenshots and a report per run under
+  `E:\slipway-e2e\runs`. `tools/e2e/run-scenarios.ps1` runs them in sequence; `validation.json` lists every run and
+  its verdict (runs with screenshots only count after the screenshots were reviewed).
 
 ## License
 

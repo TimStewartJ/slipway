@@ -82,6 +82,11 @@ public final class VesselManager {
 		MANAGERS.clear();
 	}
 
+	/** Levels Slipway currently manages vessels for (0 once every server in this process has stopped). */
+	public static int managerCount() {
+		return MANAGERS.size();
+	}
+
 	/**
 	 * Before the server saves (autosave, /save-all, shutdown): brings every active vessel's record up to the latest
 	 * physics state so what is written is the vessel's current pose and velocity. On shutdown each saved state is
@@ -169,12 +174,22 @@ public final class VesselManager {
 				this.disassemble(vessel.record.id, player);
 			} else if (player.getVehicle() != vessel.entity) {
 				if (player.startRiding(vessel.entity, true, true)) {
-					player.sendOverlayMessage(Component.translatable("slipway.helm.taken"));
+					player.sendSystemMessage(helmControls());
 				}
 			}
 			return;
 		}
 		this.assemble(pos, player);
+	}
+
+	/** The helm's controls, with each key shown as the player has it bound. */
+	static Component helmControls() {
+		return Component.translatable("slipway.helm.taken",
+			Component.keybind("key.forward"), Component.keybind("key.back"), Component.keybind("key.left"), Component.keybind("key.right"),
+			Component.keybind("key.jump"), Component.keybind("key.slipway.descend"), Component.keybind("key.slipway.pitch_up"),
+			Component.keybind("key.slipway.pitch_down"), Component.keybind("key.slipway.roll_left"), Component.keybind("key.slipway.roll_right"),
+			Component.keybind("key.slipway.strafe_left"), Component.keybind("key.slipway.strafe_right"), Component.keybind("key.slipway.toggle_hover"),
+			Component.keybind("key.slipway.toggle_level"), Component.keybind("key.sneak"));
 	}
 
 	public VesselAssembly.Outcome assemble(BlockPos helmPos, @Nullable ServerPlayer player) {
@@ -492,6 +507,10 @@ public final class VesselManager {
 		SlipwayPayloads.VesselInfo info = vessel.infoDirty ? this.info(vessel) : null;
 		vessel.infoDirty = false;
 		for (ServerPlayer player : tracking) {
+			// Skip players whose connection is closing (a quitting client), rather than write to a closed channel.
+			if (!player.connection.isAcceptingMessages()) {
+				continue;
+			}
 			if (info != null) {
 				ServerPlayNetworking.send(player, info);
 			}
@@ -499,7 +518,7 @@ public final class VesselManager {
 		}
 		// Viewers that got the vessel early at assembly and are not tracking its entity yet.
 		for (ServerPlayer player : vessel.viewers) {
-			if (!tracking.contains(player)) {
+			if (!tracking.contains(player) && player.connection.isAcceptingMessages()) {
 				if (info != null) {
 					ServerPlayNetworking.send(player, info);
 				}

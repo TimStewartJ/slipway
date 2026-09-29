@@ -148,6 +148,12 @@ public final class SlipwayDebug {
 		return DhProxyBridge.present() ? DhProxies.lodBlockAt(x, y, z) : "distant horizons absent";
 	}
 
+	/** Live Jolt engines and bodies in this process (an integrated server's physics runs here too), and Slipway's managers. */
+	public static String natives() {
+		return "engines=" + dev.timstewart.slipway.physics.jolt.JoltEngine.liveEngines() + " bodies=" + dev.timstewart.slipway.physics.jolt.JoltEngine.liveBodies()
+			+ " managers=" + dev.timstewart.slipway.vessel.VesselManager.managerCount() + " clientVessels=" + ClientVessels.all().size();
+	}
+
 	private static final int TRACE_LIMIT = 20_000;
 	private static long traceId = -1;
 	private static final List<double[]> TRACE = new ArrayList<>();

@@ -273,6 +273,30 @@ public final class SlipwayAgent implements ClientModInitializer {
 					this.report(id, "ok", mc.options.getCameraType().name());
 				}
 				case "fps" -> this.report(id, "ok", String.valueOf(mc.getFps()));
+				case "fpscap" -> {
+					mc.options.framerateLimit().set(Integer.parseInt(argument));
+					// The harness sends no real input, so the "AFK" limit (30 fps after a minute) would cap measurements.
+					mc.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
+					this.report(id, "ok", "framerate limit " + mc.options.framerateLimit().get() + ", inactivity limit " + mc.options.inactivityFpsLimit().get());
+				}
+				case "openworld" -> {
+					if (mc.level != null) {
+						throw new IllegalStateException("already in a world");
+					}
+					mc.createWorldOpenFlows().openWorld(argument, () -> mc.gui.setScreen(new TitleScreen()));
+					this.report(id, "ok", "opening " + argument);
+				}
+				case "mem" -> {
+					System.gc();
+					java.lang.management.MemoryUsage heap = java.lang.management.ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+					java.lang.management.MemoryUsage nonHeap = java.lang.management.ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage();
+					long direct = 0;
+					for (java.lang.management.BufferPoolMXBean pool : java.lang.management.ManagementFactory.getPlatformMXBeans(java.lang.management.BufferPoolMXBean.class)) {
+						direct += pool.getMemoryUsed();
+					}
+					this.report(id, "ok", String.format(Locale.ROOT, "heapUsedMb=%.1f heapCommittedMb=%.1f nonHeapMb=%.1f directMb=%.1f",
+						heap.getUsed() / 1048576.0, heap.getCommitted() / 1048576.0, nonHeap.getUsed() / 1048576.0, direct / 1048576.0));
+				}
 				case "perf" -> {
 					if (argument.equals("start")) {
 						this.perfFps.clear();

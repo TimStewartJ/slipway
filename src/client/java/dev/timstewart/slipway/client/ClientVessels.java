@@ -76,6 +76,7 @@ public final class ClientVessels {
 		VESSELS.clear();
 		BY_PLOT.clear();
 		JUST_ASSEMBLED.clear();
+		level = null;
 		DhProxyBridge.clearAll();
 	}
 

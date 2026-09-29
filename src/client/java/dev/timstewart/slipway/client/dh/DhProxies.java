@@ -208,7 +208,12 @@ public final class DhProxies {
 			}
 			for (Proxy proxy : PROXIES.values()) {
 				if (proxy.group == null && proxy.blocks.length > 0 && proxy.serverPose != null) {
-					register(proxy, level.getRenderRegister());
+					IDhApiCustomRenderRegister register = level.getRenderRegister();
+					if (register == null) {
+						// DH has the level but not its renderer yet (just joined); try again next tick.
+						return;
+					}
+					register(proxy, register);
 				}
 			}
 		} catch (RuntimeException error) {

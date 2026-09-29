@@ -30,6 +30,8 @@ try {
 	Set-SlipwayE2EBlocks -Specs (Get-SlipwayE2ESmallShip) -X $hx -Y $hy -Z $hz
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3} facing {1} {2} {4}" -f $c.Player, ($hx + 0.5), $hy, ($hz - 1.5), ($hz + 5)) | Out-Null
 	$id = Invoke-SlipwayE2EAssembleCommand -X $hx -Y $hy -Z $hz
+	# Movement checks cover riding and piloting, not the harness's own setup teleports.
+	$movementOffset = Get-SlipwayE2ELogOffset -LogPath $s.LogPath
 
 	# Second client: another player, as an offline dev client (the e2e server runs in offline mode).
 	$c2 = Start-SlipwayE2EWatcher -Server $s
@@ -107,7 +109,7 @@ try {
 	$shotA2 = Save-SlipwayE2EScreenshot -Client $c -Name '03-pilot-sees-B-on-deck' -Directory $run.Directory -SettleMilliseconds 300
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument first | Out-Null
 	$shotB2 = Save-SlipwayE2EScreenshot -Client $c2 -Name '04-B-riding' -Directory $run.Directory
-	$kicked = @(Read-SlipwayE2ELogSince -LogPath $s.LogPath -Offset $serverOffset | Where-Object { $_ -match 'lost connection|kicked|moved wrongly|moved too quickly|Flying is not enabled' })
+	$kicked = @(Read-SlipwayE2ELogSince -LogPath $s.LogPath -Offset $movementOffset | Where-Object { $_ -match 'lost connection|kicked|moved wrongly|moved too quickly|Flying is not enabled' })
 	Add-SlipwayE2ECheck -Run $run -Title 'the server accepts both players (no kicks or corrections)' -Condition ($kicked.Count -eq 0) -Detail (($kicked | Select-Object -First 3) -join ' / ') -Screenshot $shotA2 | Out-Null
 	Add-SlipwayE2EStep -Run $run -Title 'screenshot: B riding the deck, B view' -Screenshot $shotB2
 } catch {
