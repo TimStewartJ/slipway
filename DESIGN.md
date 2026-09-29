@@ -209,6 +209,42 @@ the real ship until it moved). No DH fork change was needed.
 - **Default keys** avoid vanilla 26.3 defaults (Z descend, arrows pitch/roll, N/M strafe, H hover, B level). The
   play instance for the author rebinds three of them to fit that player's layout.
 
+## M7 — measurements (2026-09-29, this machine)
+
+**Performance** (`tools/e2e/scenarios/perf.ps1`, run `perf-20260929-155228`): Iris + Bliss, Sodium, Distant Horizons,
+render distance 10, 1280x720 window, frame rate uncapped, a 961-block barge (20x3x16 concrete plus helm) seen from
+30 blocks, compared with a warm baseline of the same view without it:
+
+| Phase | Client fps (avg / 5th pct) | Server tick (avg / worst) | Slipway exchange (main thread) | Physics step (own thread) |
+| --- | --- | --- | --- | --- |
+| Baseline, no vessel (after the run) | 507.7 / 458 | 2.64 / 2.78 ms | 0.001 ms | 0.056 ms |
+| Vessel hovering in view | 409.6 / 300 | 3.10 / 3.59 ms | 0.039 ms | 0.074 ms |
+| Vessel flying a circle in view | 432.5 / 336 | 2.87 / 3.03 ms | 0.037 ms | 0.066 ms |
+
+So the flying 961-block vessel costs about 15% of frame rate (~0.35 ms per frame at these rates) and +0.23 ms of
+server tick time, of which Slipway's main-thread work is under 0.05 ms; the rest (entity tracking, packets) is
+vanilla's. The server stays near 3 ms of its 50 ms budget. The frame cost is the per-frame vertex copy of the
+cached mesh plus Iris's shadow pass drawing it a second time.
+
+**Native handles and leaks** (`leak.ps1`, run `leak-20260929-155454`): one client process opened and closed a
+singleplayer world with three flying vessels five times. With the world open: 1 Jolt engine, 3 bodies; after each
+close: 0 engines, 0 bodies, 0 Slipway level managers, 0 client vessels. Process private memory grew 34 MB per cycle
+(allocator and cache growth; not unbounded in these cycles). Heap after GC did grow by about 175 MB per cycle, but
+JFR old-object samples with paths to GC roots show all retained worlds held by Distant Horizons (its
+`WorldGeneratorInjector.worldGeneratorByLevelWrapper` static map keeps every closed `ServerLevel`, and its world-gen
+threads keep stack references), with no path through Slipway or jolt-jni. That is a Distant Horizons (fork.6) issue:
+long singleplayer sessions that reopen worlds many times will accumulate heap until restart. The JUnit leak test
+(`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
+balance exactly over full engine lifecycles.
+
+**Soak** (`soak.ps1`, run `soak-20260929-160745`): a pilot flew the mixed ship (Iris + Bliss on) for 20.7 minutes
+through a repeating one-minute program (fast runs, turns, climbs and dives, a full roll through inverted, strafing,
+hover-off drops, return legs) with an altitude hold between rounds. 42 samples, every one finite, the pilot at the
+helm throughout, no block lost, the ship intact at the end; server tick 2.95 ms on average, worst sample 4.67 ms;
+physics step at most 0.107 ms; no Slipway error or warning in either log. The run is recorded as failed only because
+a Remote Desktop session change minimized the game window at minute 18 and vanilla's renderer logged
+"Cannot acquire minimized window" (now in the known-noise list); the final regression reruns the soak.
+
 ## Known log noise (not Slipway)
 
 The harness ignores these, each checked to occur without Slipway or to be expected by a test:

@@ -71,8 +71,14 @@ try {
 	$nextSample = 0.0
 	$nextShot = 60.0
 	$crashed = $null
+	$startY = (Get-SlipwayE2EVessel -Id $id).Y
 	while ($clock.Elapsed.TotalMinutes -lt $Minutes -and -not $crashed) {
-		foreach ($step in $program) {
+		# Altitude hold between rounds: the program's drops and climbs do not cancel exactly.
+		$dy = $startY - (Get-SlipwayE2EVessel -Id $id).Y
+		$cycle = [System.Collections.Generic.List[object]]::new()
+		if ([Math]::Abs($dy) -gt 6) { $cycle.Add(@{ S = [Math]::Min(8, [Math]::Max(1, [int][Math]::Round([Math]::Abs($dy) / 12))); Axes = $(if ($dy -gt 0) { '0 0 1 0 0 0' } else { '0 0 -1 0 0 0' }) }) }
+		$cycle.AddRange([object[]]$program)
+		foreach ($step in $cycle) {
 			if ($step.Mode) { Send-SlipwayE2ERcon -Command "slipway mode $id $($step.Mode)" | Out-Null }
 			Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument ("helm {0} {1}" -f $step.Axes, ($step.S * 20)) | Out-Null
 			$stepEnd = $clock.Elapsed.TotalSeconds + $step.S

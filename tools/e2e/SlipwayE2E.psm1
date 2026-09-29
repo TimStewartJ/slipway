@@ -213,7 +213,11 @@ $script:KnownLogNoise = @(
 	# A quitting singleplayer client closes the in-memory channel while the integrated server is still writing to it
 	# (seen in 1 of 5 quits in the leak test, before Slipway stopped sending to closing connections; any packet written
 	# in that window, vanilla's included, ends the connection this way instead of "Disconnected"). Benign at quit time.
-	'lost connection: Internal Exception: java\.nio\.channels\.ClosedChannelException'
+	'lost connection: Internal Exception: java\.nio\.channels\.ClosedChannelException',
+	# Vanilla's renderer when the window is minimized (e.g. by a Remote Desktop session change on this machine):
+	# "Couldn't acquire next surface texture ... SurfaceException: Cannot acquire minimized window".
+	"Couldn't acquire next surface texture",
+	'SurfaceException: Cannot acquire minimized window'
 )
 
 function Get-SlipwayE2ELogProblems {
@@ -307,7 +311,7 @@ function Set-SlipwayE2EOptions {
 	@(
 		"renderDistance:$RenderDistance", 'simulationDistance:8', 'guiScale:2', "fov:$fovValue", 'maxFps:120', 'enableVsync:false',
 		'tutorialStep:none', 'skipMultiplayerWarning:true', 'onboardAccessibility:false', 'joinedFirstServer:true', 'pauseOnLostFocus:false',
-		'narrator:0', 'soundCategory_master:0.0', 'ao:true', 'entityDistanceScaling:1.0', 'fullscreen:false', 'inactivityFpsLimit:minimized'
+		'narrator:0', 'soundCategory_master:0.0', 'ao:true', 'entityDistanceScaling:1.0', 'fullscreen:false', 'inactivityFpsLimit:"minimized"'
 	) | Set-Content -Path (Join-Path $mc 'options.txt') -Encoding ASCII
 }
 

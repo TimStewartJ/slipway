@@ -47,7 +47,19 @@ blocks.
 
 ## The sandbox
 
-(Filled in when the world is built; see the end of this file.)
+You spawn on a small glass platform (0 85 -12) facing south, with two identical skiffs floating in front of you
+(366 blocks each: oak deck, spruce hull, dark oak keel, railings, a mast with a sail and a red flag, a doorway with
+a door, a chest with spare helms and blocks, a redstone lamp with a lever, a sign and a lantern):
+
+- **Left: vessel #1**, already assembled. Walk or fly onto its stern (the open end facing you), use the helm to take
+  it, and fly. `/slipway info 1` shows its state.
+- **Right: the plain copy** (helm at 8 85 0). Use its helm to assemble it yourself; it becomes vessel #2.
+
+The world is creative with cheats on, difficulty peaceful, and the ground is about 20 blocks below. The chest on each
+skiff holds four more Slipway Helms (also in the creative inventory under Functional Blocks, `/give @s slipway:helm`,
+or crafted in survival from two sticks on top, a compass in the middle and three planks below) for your own builds:
+anything face-connected to the helm becomes part of the vessel, so build ships in the air or on a temporary platform
+you remove, not touching the ground.
 
 ## What to try
 
