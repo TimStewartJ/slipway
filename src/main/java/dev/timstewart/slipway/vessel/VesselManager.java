@@ -16,10 +16,15 @@ import java.util.Map;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ThreadedLevelLightEngine;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
@@ -31,12 +36,17 @@ import org.jspecify.annotations.Nullable;
  */
 public final class VesselManager {
 	private static final Map<ServerLevel, VesselManager> MANAGERS = new IdentityHashMap<>();
+	/** How long players who got a new vessel early keep it while their tracking of its entity starts. */
+	private static final int VIEWER_GRACE_TICKS = 100;
 
 	private final ServerLevel level;
 	private final VesselRegistry registry;
 	private final Long2ObjectMap<ActiveVessel> active = new Long2ObjectLinkedOpenHashMap<>();
 	private final Int2LongOpenHashMap plotToVessel = new Int2LongOpenHashMap();
 	private final VesselPhysicsBridge physics;
+	private final VesselProxies proxies;
+	/** Work to do at the start of the next tick (after this tick's block updates have gone out). */
+	private final List<Runnable> nextTick = new ArrayList<>();
 
 	private VesselManager(ServerLevel level) {
 		this.level = level;
@@ -46,6 +56,7 @@ public final class VesselManager {
 			this.plotToVessel.put(record.plot, record.id);
 		}
 		this.physics = new VesselPhysicsBridge(this);
+		this.proxies = new VesselProxies(this);
 	}
 
 	public static VesselManager get(ServerLevel level) {
@@ -69,6 +80,26 @@ public final class VesselManager {
 			manager.close();
 		}
 		MANAGERS.clear();
+	}
+
+	/**
+	 * Before the server saves (autosave, /save-all, shutdown): brings every active vessel's record up to the latest
+	 * physics state so what is written is the vessel's current pose and velocity. On shutdown each saved state is
+	 * logged, which lets the save/reload test compare it with what loads.
+	 */
+	public static void beforeSave(boolean stopping) {
+		for (VesselManager manager : MANAGERS.values()) {
+			for (ActiveVessel vessel : manager.active.values()) {
+				manager.physics.syncRecord(vessel);
+				if (stopping) {
+					VesselRecord r = vessel.record;
+					Slipway.LOGGER.info(String.format(java.util.Locale.ROOT, "Vessel %d saved at pos=%.3f,%.3f,%.3f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f",
+						r.id, r.pose.x(), r.pose.y(), r.pose.z(), r.pose.qx(), r.pose.qy(), r.pose.qz(), r.pose.qw(),
+						r.linearVelocity.x, r.linearVelocity.y, r.linearVelocity.z));
+				}
+			}
+			manager.registry.setDirty();
+		}
 	}
 
 	public ServerLevel level() {
@@ -152,13 +183,66 @@ public final class VesselManager {
 			entity.setVesselId(record.id);
 			Vec3 centre = worldCentre(record);
 			entity.setPos(centre);
-			// The entity joins the level first; its first load activates the vessel.
+			// The entity joins the level first; its load event activates the vessel.
 			this.level.addFreshEntity(entity);
+			ActiveVessel vessel = this.active.get(record.id);
+			if (vessel != null) {
+				this.shareNow(vessel, centre);
+			}
 		}
 		if (player != null) {
 			player.sendOverlayMessage(outcome.message());
 		}
 		return outcome;
+	}
+
+	/**
+	 * Sends a just-assembled vessel (info, pose and plot chunks) to every player near it right away, ahead of the
+	 * block updates that remove its blocks from the world at the end of this tick. Players standing on the structure
+	 * therefore find the vessel under their feet the moment the world blocks vanish instead of falling through while
+	 * the regular tracking catches up.
+	 */
+	private void shareNow(ActiveVessel vessel, Vec3 centre) {
+		vessel.chunksReady = this.plotChunksLoaded(vessel);
+		if (!vessel.chunksReady || vessel.entity == null) {
+			return;
+		}
+		long gameTime = this.level.getGameTime();
+		vessel.viewerGraceUntil = gameTime + VIEWER_GRACE_TICKS;
+		int rangeChunks = Math.min(SlipwayRegistry.VESSEL.clientTrackingRange(), this.level.getServer().getPlayerList().getViewDistance());
+		double range = rangeChunks * 16.0;
+		SlipwayPayloads.VesselInfo info = this.info(vessel);
+		SlipwayPayloads.PoseUpdate pose = this.posePayload(vessel, gameTime);
+		for (ServerPlayer player : this.level.players()) {
+			if (player.distanceToSqr(centre) > range * range || vessel.viewers.contains(player)) {
+				continue;
+			}
+			vessel.viewers.add(player);
+			ServerPlayNetworking.send(player, info);
+			ServerPlayNetworking.send(player, pose);
+			for (long chunk : vessel.ticketChunks) {
+				LevelChunk levelChunk = this.level.getChunkSource().getChunkNow(ChunkPos.getX(chunk), ChunkPos.getZ(chunk));
+				if (levelChunk != null) {
+					player.connection.send(new ClientboundLevelChunkWithLightPacket(levelChunk, this.level.getLightEngine(), null, null));
+				}
+			}
+		}
+		// Those chunk packets carry the light from before the blocks moved in (vanilla only sends chunks once their light
+		// work is done); send the finished light as soon as the light engine has caught up.
+		ThreadedLevelLightEngine lightEngine = this.level.getChunkSource().getLightEngine();
+		for (long chunk : vessel.ticketChunks) {
+			int chunkX = ChunkPos.getX(chunk);
+			int chunkZ = ChunkPos.getZ(chunk);
+			lightEngine.waitForPendingTasks(chunkX, chunkZ).thenRunAsync(() -> {
+				if (this.active.get(vessel.record.id) != vessel) {
+					return;
+				}
+				ClientboundLightUpdatePacket light = new ClientboundLightUpdatePacket(new ChunkPos(chunkX, chunkZ), lightEngine, null, null);
+				for (ServerPlayer viewer : vessel.viewers) {
+					viewer.connection.send(light);
+				}
+			}, this.level.getServer());
+		}
 	}
 
 	public VesselAssembly.Outcome disassemble(long id, @Nullable ServerPlayer player) {
@@ -172,6 +256,7 @@ public final class VesselManager {
 		}
 		VesselAssembly.Placement placement = VesselAssembly.plan(this.level, record, SlipwayConfig.get());
 		if (placement.refusal() != null) {
+			Slipway.LOGGER.info("Vessel {} stays assembled: {}", id, placement.refusal().getString());
 			if (player != null) {
 				player.sendOverlayMessage(placement.refusal());
 			}
@@ -180,24 +265,123 @@ public final class VesselManager {
 		if (vessel != null && vessel.entity != null) {
 			vessel.entity.ejectPassengers();
 		}
+		List<Relocation> aboard = this.entitiesAboard(record, placement);
 		int count = VesselAssembly.disassemble(this.level, record, placement);
-		for (ServerPlayer viewer : this.level.players()) {
-			ServerPlayNetworking.send(viewer, new SlipwayPayloads.VesselGone(id));
+		// The blocks moved by up to half a block and a few degrees to the snapped placement; move everything that was
+		// on board with them. Server-simulated entities move now (the world blocks are there now). Players move their
+		// own bodies: their teleport goes out next tick, after the new blocks have reached them and before the vessel
+		// they stand on disappears for them.
+		List<Relocation> players = new ArrayList<>();
+		for (Relocation move : aboard) {
+			if (move.entity() instanceof ServerPlayer) {
+				players.add(move);
+			} else {
+				move.entity().snapTo(move.target().x, move.target().y, move.target().z, move.yRot(), move.entity().getXRot());
+			}
 		}
+		if (!players.isEmpty()) {
+			this.nextTick.add(() -> {
+				for (Relocation move : players) {
+					if (move.entity() instanceof ServerPlayer moved && !moved.isRemoved() && moved.level() == this.level && !moved.isPassenger()) {
+						moved.connection.teleport(move.target().x, move.target().y, move.target().z, move.yRot(), moved.getXRot());
+					}
+				}
+			});
+		}
+		this.retire(id, vessel, record);
+		Component message = Component.translatable("slipway.disassemble.done", count);
+		if (player != null) {
+			player.sendOverlayMessage(message);
+		}
+		return new VesselAssembly.Outcome(true, message, record);
+	}
+
+	/** Where an entity that was on a vessel goes when the vessel snaps into the world. */
+	private record Relocation(Entity entity, Vec3 target, float yRot) {
+	}
+
+	/**
+	 * Entities standing on or inside a vessel (not passengers; the pilot has been set down already), with where the
+	 * snapped placement puts them: the same position relative to the blocks, turned with them.
+	 */
+	private List<Relocation> entitiesAboard(VesselRecord record, VesselAssembly.Placement placement) {
+		double[] b = VesselPhysicsBridge.worldBounds(record);
+		AABB around = new AABB(b[0], b[1], b[2], b[3], b[4], b[5]).inflate(1.0, 3.0, 1.0);
+		VesselPose pose = record.pose;
+		BlockPos anchor = placement.worldAnchor();
+		double turn = placement.quarterTurns() * 90.0 - pose.yawTwistDegrees();
+		List<Relocation> result = new ArrayList<>();
+		for (Entity entity : this.level.getEntities((Entity)null, around, e -> !(e instanceof VesselEntity) && !e.isPassenger() && !e.isRemoved())) {
+			Vector3d local = pose.worldToLocal(entity.getX(), entity.getY(), entity.getZ(), new Vector3d());
+			if (local.x < record.localMin.getX() - 1 || local.x > record.localMax.getX() + 2 || local.z < record.localMin.getZ() - 1
+				|| local.z > record.localMax.getZ() + 2 || local.y < record.localMin.getY() - 1 || local.y > record.localMax.getY() + 4) {
+				continue;
+			}
+			// Quarter turns about the anchor block's centre, matching how block cells turn.
+			double lx = local.x - 0.5;
+			double lz = local.z - 0.5;
+			double tx;
+			double tz;
+			switch (Math.floorMod(placement.quarterTurns(), 4)) {
+				case 1 -> { tx = lz; tz = -lx; }
+				case 2 -> { tx = -lx; tz = -lz; }
+				case 3 -> { tx = -lz; tz = lx; }
+				default -> { tx = lx; tz = lz; }
+			}
+			Vec3 target = new Vec3(anchor.getX() + 0.5 + tx, anchor.getY() + local.y, anchor.getZ() + 0.5 + tz);
+			result.add(new Relocation(entity, target, (float)(entity.getYRot() - turn)));
+		}
+		return result;
+	}
+
+	/** Deletes a vessel and all its blocks without drops (admin command); returns the number of blocks, or -1. */
+	public int remove(long id) {
+		VesselRecord record = this.registry.get(id);
+		if (record == null) {
+			return -1;
+		}
+		ActiveVessel vessel = this.active.get(id);
+		if (vessel != null && vessel.entity != null) {
+			vessel.entity.ejectPassengers();
+		}
+		int count = VesselAssembly.erase(this.level, record);
+		this.retire(id, vessel, record);
+		Slipway.LOGGER.info("Removed vessel {} ({} blocks)", id, count);
+		return count;
+	}
+
+	/**
+	 * Forgets a vessel whose blocks have left its plot. Clients keep drawing and colliding with it until they have the
+	 * world blocks that replace it, which go out with the block updates at the end of this tick; the vessel is dropped
+	 * on their side one tick later. The plot is only freed then, so a new vessel cannot take it before the old chunks
+	 * are forgotten.
+	 */
+	private void retire(long id, @Nullable ActiveVessel vessel, VesselRecord record) {
+		List<ServerPlayer> viewers = vessel == null ? List.of() : List.copyOf(vessel.viewers);
+		List<Long> chunks = vessel == null ? List.of() : List.copyOf(vessel.ticketChunks);
 		if (vessel != null) {
+			vessel.viewers.clear();
 			this.deactivate(vessel, true);
 			if (vessel.entity != null) {
 				vessel.entity.discard();
 			}
 		}
 		this.registry.remove(id);
-		this.registry.freePlot(record.plot);
 		this.plotToVessel.remove(record.plot);
-		Component message = Component.translatable("slipway.disassemble.done", count);
-		if (player != null) {
-			player.sendOverlayMessage(message);
-		}
-		return new VesselAssembly.Outcome(true, message, record);
+		this.proxies.forget(id);
+		this.nextTick.add(() -> {
+			for (ServerPlayer online : this.level.players()) {
+				ServerPlayNetworking.send(online, new SlipwayPayloads.VesselGone(id));
+			}
+			for (ServerPlayer viewer : viewers) {
+				if (!viewer.isRemoved() && viewer.level() == this.level) {
+					for (long chunk : chunks) {
+						viewer.connection.chunkSender.dropChunk(viewer, ChunkPos.unpack(chunk));
+					}
+				}
+			}
+			this.registry.freePlot(record.plot);
+		});
 	}
 
 	// ---------------------------------------------------------------------------------------------------------
@@ -254,6 +438,8 @@ public final class VesselManager {
 	}
 
 	private void close() {
+		this.nextTick.forEach(Runnable::run);
+		this.nextTick.clear();
 		for (ActiveVessel vessel : List.copyOf(this.active.values())) {
 			this.physics.syncRecord(vessel);
 			this.deactivate(vessel, false);
@@ -267,6 +453,11 @@ public final class VesselManager {
 
 	/** Start of the level tick: exchange with physics, then place entities and sync viewers. */
 	public void tickStart() {
+		if (!this.nextTick.isEmpty()) {
+			List<Runnable> tasks = List.copyOf(this.nextTick);
+			this.nextTick.clear();
+			tasks.forEach(Runnable::run);
+		}
 		for (ActiveVessel vessel : this.active.values()) {
 			if (!vessel.chunksReady) {
 				vessel.chunksReady = this.plotChunksLoaded(vessel);
@@ -282,18 +473,16 @@ public final class VesselManager {
 			}
 			this.syncViewers(vessel);
 		}
+		this.proxies.tick(gameTime);
 		this.registry.setDirty();
 	}
 
 	private void broadcastPose(ActiveVessel vessel, long gameTime) {
-		VesselRecord record = vessel.record;
 		Collection<ServerPlayer> tracking = net.fabricmc.fabric.api.networking.v1.PlayerLookup.tracking(vessel.entity);
-		if (tracking.isEmpty()) {
+		if (tracking.isEmpty() && vessel.viewers.isEmpty()) {
 			return;
 		}
-		byte flags = (byte)((record.hover ? 1 : 0) | (record.level ? 2 : 0) | (vessel.hasBody ? 4 : 0));
-		SlipwayPayloads.PoseUpdate pose = new SlipwayPayloads.PoseUpdate(record.id, vessel.entity.getId(), gameTime,
-			SlipwayPayloads.VesselPoseData.of(record.pose), record.linearVelocity, record.angularVelocity, flags);
+		SlipwayPayloads.PoseUpdate pose = this.posePayload(vessel, gameTime);
 		SlipwayPayloads.VesselInfo info = vessel.infoDirty ? this.info(vessel) : null;
 		vessel.infoDirty = false;
 		for (ServerPlayer player : tracking) {
@@ -302,6 +491,22 @@ public final class VesselManager {
 			}
 			ServerPlayNetworking.send(player, pose);
 		}
+		// Viewers that got the vessel early at assembly and are not tracking its entity yet.
+		for (ServerPlayer player : vessel.viewers) {
+			if (!tracking.contains(player)) {
+				if (info != null) {
+					ServerPlayNetworking.send(player, info);
+				}
+				ServerPlayNetworking.send(player, pose);
+			}
+		}
+	}
+
+	private SlipwayPayloads.PoseUpdate posePayload(ActiveVessel vessel, long gameTime) {
+		VesselRecord record = vessel.record;
+		byte flags = (byte)((record.hover ? 1 : 0) | (record.level ? 2 : 0) | (vessel.hasBody ? 4 : 0));
+		return new SlipwayPayloads.PoseUpdate(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), gameTime,
+			SlipwayPayloads.VesselPoseData.of(record.pose), record.linearVelocity, record.angularVelocity, flags);
 	}
 
 	private SlipwayPayloads.VesselInfo info(ActiveVessel vessel) {
@@ -317,6 +522,7 @@ public final class VesselManager {
 			return;
 		}
 		vessel.shapeDirty = true;
+		vessel.proxyDirty = true;
 		vessel.revision++;
 		if (!state.isAir()) {
 			this.includeLocal(vessel, vessel.record.toLocal(pos));
@@ -393,7 +599,8 @@ public final class VesselManager {
 			}
 		}
 		for (ServerPlayer viewer : List.copyOf(vessel.viewers)) {
-			if (!tracking.contains(viewer) || viewer.isRemoved() || viewer.level() != this.level) {
+			boolean early = !tracking.contains(viewer) && this.level.getGameTime() <= vessel.viewerGraceUntil;
+			if (viewer.isRemoved() || viewer.level() != this.level || (!tracking.contains(viewer) && !early)) {
 				this.forgetChunks(vessel, viewer);
 				vessel.viewers.remove(viewer);
 			}
@@ -450,6 +657,7 @@ public final class VesselManager {
 	/** Sets a vessel's pose directly (commands and tests); physics picks it up at the next exchange. */
 	public void teleport(ActiveVessel vessel, VesselPose pose) {
 		vessel.record.pose = pose;
+		vessel.previousPose = pose;
 		vessel.record.linearVelocity = Vec3.ZERO;
 		vessel.record.angularVelocity = Vec3.ZERO;
 		this.physics.teleport(vessel);

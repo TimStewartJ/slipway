@@ -29,6 +29,7 @@ import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -46,6 +47,9 @@ public final class JoltEngine implements PhysicsEngine {
 	public static final int LAYER_MOVING = 1;
 	private static final float MAX_CONVEX_RADIUS = 0.05F;
 	private static final float MIN_HALF_EXTENT = 0.001F;
+	/** Process-wide counts of live engines and bodies, for the in-game leak checks. */
+	private static final AtomicInteger LIVE_ENGINES = new AtomicInteger();
+	private static final AtomicInteger LIVE_BODIES = new AtomicInteger();
 
 	private final BroadPhaseLayerInterfaceTable layerMap;
 	private final ObjectLayerPairFilterTable pairFilter;
@@ -79,6 +83,17 @@ public final class JoltEngine implements PhysicsEngine {
 		this.bodies = this.system.getBodyInterface();
 		this.vesselBodies.defaultReturnValue(Jolt.cInvalidBodyId);
 		this.staticBodies.defaultReturnValue(Jolt.cInvalidBodyId);
+		LIVE_ENGINES.incrementAndGet();
+	}
+
+	/** Engines created and not yet closed, in this process. */
+	public static int liveEngines() {
+		return LIVE_ENGINES.get();
+	}
+
+	/** Bodies created and not yet destroyed, in this process. */
+	public static int liveBodies() {
+		return LIVE_BODIES.get();
 	}
 
 	@Override
@@ -110,6 +125,7 @@ public final class JoltEngine implements PhysicsEngine {
 				settings.setAngularVelocity(new Vec3((float)angularVelocity.x, (float)angularVelocity.y, (float)angularVelocity.z));
 				settings.setUserData(vesselId);
 				int bodyId = this.bodies.createAndAddBody(settings, EActivation.Activate);
+				LIVE_BODIES.incrementAndGet();
 				this.vesselBodies.put(vesselId, bodyId);
 			} finally {
 				settings.close();
@@ -126,6 +142,7 @@ public final class JoltEngine implements PhysicsEngine {
 		if (bodyId != Jolt.cInvalidBodyId) {
 			this.bodies.removeBody(bodyId);
 			this.bodies.destroyBody(bodyId);
+			LIVE_BODIES.decrementAndGet();
 		}
 	}
 
@@ -169,6 +186,7 @@ public final class JoltEngine implements PhysicsEngine {
 				settings.setFriction(0.8f);
 				settings.setRestitution(0.0f);
 				int bodyId = this.bodies.createAndAddBody(settings, EActivation.DontActivate);
+				LIVE_BODIES.incrementAndGet();
 				this.staticBodies.put(sectionKey, bodyId);
 				this.staticChangesSinceOptimize++;
 			} finally {
@@ -185,6 +203,7 @@ public final class JoltEngine implements PhysicsEngine {
 		if (bodyId != Jolt.cInvalidBodyId) {
 			this.bodies.removeBody(bodyId);
 			this.bodies.destroyBody(bodyId);
+			LIVE_BODIES.decrementAndGet();
 			this.staticChangesSinceOptimize++;
 		}
 	}
@@ -328,5 +347,6 @@ public final class JoltEngine implements PhysicsEngine {
 		this.broadPhaseFilter.close();
 		this.pairFilter.close();
 		this.layerMap.close();
+		LIVE_ENGINES.decrementAndGet();
 	}
 }

@@ -124,6 +124,35 @@ public record VesselPose(double x, double y, double z, double qx, double qy, dou
 		return Math.toDegrees(Math.atan2(-ax.z, ax.x));
 	}
 
+	/**
+	 * How far the vessel turned about world +Y since {@code from}, in degrees (right-hand rule, (-180, 180]): the twist
+	 * about +Y of the rotation between the two poses (swing-twist decomposition). Unlike a difference of headings it
+	 * stays continuous while the vessel rolls or pitches through vertical, so riders keep their facing.
+	 */
+	public double yawTurnSinceDegrees(VesselPose from) {
+		Quaterniond delta = this.rotation().mul(from.rotation().conjugate());
+		return twistAboutYDegrees(delta);
+	}
+
+	/** Twist of the whole rotation about world +Y in degrees: how much a facing turns when carried from local to world. */
+	public double yawTwistDegrees() {
+		return twistAboutYDegrees(this.rotation());
+	}
+
+	private static double twistAboutYDegrees(Quaterniond q) {
+		if (Math.abs(q.y) < 1.0e-12 && Math.abs(q.w) < 1.0e-12) {
+			return 0.0;
+		}
+		double degrees = Math.toDegrees(2.0 * Math.atan2(q.y, q.w));
+		degrees = degrees % 360.0;
+		if (degrees > 180.0) {
+			degrees -= 360.0;
+		} else if (degrees <= -180.0) {
+			degrees += 360.0;
+		}
+		return degrees;
+	}
+
 	/** The nearest whole number of quarter turns about +Y (0..3). */
 	public int nearestQuarterTurns() {
 		return Math.floorMod((int)Math.round(this.headingDegrees() / 90.0), 4);

@@ -26,7 +26,9 @@ public final class VesselRecord {
 		Vec3.CODEC.fieldOf("angular_velocity").forGetter(r -> r.angularVelocity),
 		Codec.BOOL.fieldOf("hover").forGetter(r -> r.hover),
 		Codec.BOOL.fieldOf("level").forGetter(r -> r.level),
-		Codec.INT.fieldOf("blocks").forGetter(r -> r.blockCount)
+		Codec.INT.fieldOf("blocks").forGetter(r -> r.blockCount),
+		Codec.INT.optionalFieldOf("proxy_revision", 0).forGetter(r -> r.proxyRevision),
+		Codec.INT_STREAM.xmap(java.util.stream.IntStream::toArray, java.util.Arrays::stream).optionalFieldOf("proxy", new int[0]).forGetter(r -> r.proxy)
 	).apply(i, VesselRecord::new));
 
 	public final long id;
@@ -46,9 +48,21 @@ public final class VesselRecord {
 	public boolean hover;
 	public boolean level;
 	public int blockCount;
+	/** Bumped whenever {@link #proxy} is recomputed. */
+	public int proxyRevision;
+	/**
+	 * The vessel's exposed blocks for long-range proxies, two ints per block: the local position packed as three
+	 * signed 10-bit fields ({@link #packProxyPos}) and the block's map colour as RGB.
+	 */
+	public int[] proxy;
 
 	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
 		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount) {
+		this(id, plot, anchor, localMin, localMax, helm, helmFacing, pose, linearVelocity, angularVelocity, hover, level, blockCount, 0, new int[0]);
+	}
+
+	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
+		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount, int proxyRevision, int[] proxy) {
 		this.id = id;
 		this.plot = plot;
 		this.anchor = anchor;
@@ -62,6 +76,25 @@ public final class VesselRecord {
 		this.hover = hover;
 		this.level = level;
 		this.blockCount = blockCount;
+		this.proxyRevision = proxyRevision;
+		this.proxy = proxy == null || proxy.length % 2 != 0 ? new int[0] : proxy;
+	}
+
+	/** Packs a local position (each coordinate within [-512, 511]) into one int. */
+	public static int packProxyPos(int x, int y, int z) {
+		return (x & 0x3FF) | (y & 0x3FF) << 10 | (z & 0x3FF) << 20;
+	}
+
+	public static int unpackProxyX(int packed) {
+		return (packed << 22) >> 22;
+	}
+
+	public static int unpackProxyY(int packed) {
+		return (packed << 12) >> 22;
+	}
+
+	public static int unpackProxyZ(int packed) {
+		return (packed << 2) >> 22;
 	}
 
 	/** Plot position of a local block position. */

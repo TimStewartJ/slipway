@@ -68,6 +68,28 @@ public class AssemblyGameTests {
 		});
 	}
 
+	@GameTest(structure = ARENA, maxTicks = 40)
+	public void removeDeletesAVesselAndItsBlocksWithoutDrops(GameTestHelper helper) {
+		Map<BlockPos, BlockState> ship = TestShips.mixedShip();
+		TestShips.build(helper, ship);
+		TestShips.fillBlockEntities(helper);
+		ServerLevel level = helper.getLevel();
+		VesselRecord record = TestShips.assemble(helper, TestShips.MIXED_HELM);
+		helper.runAfterDelay(5, () -> {
+			VesselManager manager = VesselManager.get(level);
+			int removed = manager.remove(record.id);
+			check(helper, removed == ship.size(), "removed " + removed + " blocks, expected " + ship.size());
+			check(helper, manager.registry().get(record.id) == null && manager.active(record.id) == null, "the vessel is still known");
+			for (BlockPos rel : ship.keySet()) {
+				check(helper, level.getBlockState(record.anchor.offset(rel.subtract(TestShips.MIXED_HELM))).isAir(), "plot not cleared at " + rel);
+				check(helper, helper.getBlockState(rel).isAir(), "a block appeared in the world at " + rel);
+			}
+			check(helper, TestShips.itemEntitiesAround(helper) == 0, "removing dropped items");
+			check(helper, manager.remove(record.id) == -1, "removing twice did not report an unknown vessel");
+			helper.succeed();
+		});
+	}
+
 	@GameTest(structure = ARENA, maxTicks = 20)
 	public void deniedBlocksAndOtherHelmsStayInTheWorld(GameTestHelper helper) {
 		for (int x = 0; x < 4; x++) {

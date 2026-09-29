@@ -11,6 +11,7 @@ import com.mojang.brigadier.context.CommandContext;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.net.ServerPackets;
 import dev.timstewart.slipway.physics.PhysicsWorld;
+import dev.timstewart.slipway.physics.jolt.JoltEngine;
 import dev.timstewart.slipway.physics.jolt.JoltRuntime;
 import dev.timstewart.slipway.vessel.ActiveVessel;
 import dev.timstewart.slipway.vessel.VesselAssembly;
@@ -49,6 +50,11 @@ public final class SlipwayCommands {
 			VesselAssembly.Outcome outcome = manager(ctx).disassemble(LongArgumentType.getLong(ctx, "id"), null);
 			return reply(ctx, outcome.success(), outcome.message().getString());
 		})));
+		root.then(Commands.literal("remove").then(Commands.argument("id", LongArgumentType.longArg(1)).executes(ctx -> {
+			long id = LongArgumentType.getLong(ctx, "id");
+			int count = manager(ctx).remove(id);
+			return reply(ctx, count >= 0, count >= 0 ? "Removed vessel " + id + " and its " + count + " blocks" : "no vessel " + id);
+		})));
 
 		var poseRoll = Commands.argument("roll", DoubleArgumentType.doubleArg(-360, 360)).executes(SlipwayCommands::pose);
 		var posePitch = Commands.argument("pitch", DoubleArgumentType.doubleArg(-360, 360)).then(poseRoll);
@@ -84,7 +90,8 @@ public final class SlipwayCommands {
 		root.then(Commands.literal("natives").executes(ctx -> {
 			JoltRuntime.Info info = JoltRuntime.info();
 			return reply(ctx, info != null, info == null ? "Jolt not loaded" : "jolt-jni " + info.joltVersion() + " " + info.platform() + " "
-				+ info.buildType() + (info.doublePrecision() ? " double" : " single") + " precision; " + info.libraryFile());
+				+ info.buildType() + (info.doublePrecision() ? " double" : " single") + " precision; " + info.libraryFile()
+				+ "; live engines=" + JoltEngine.liveEngines() + " bodies=" + JoltEngine.liveBodies());
 		}));
 		root.then(Commands.literal("packets").executes(ctx -> reply(ctx, true, "rejected serverbound packets: " + ServerPackets.rejectedCount())));
 		dispatcher.register(root);
@@ -132,11 +139,15 @@ public final class SlipwayCommands {
 		Vec3 centre = VesselManager.worldCentre(record);
 		String text = String.format(Locale.ROOT,
 			"vessel %d: blocks=%d plot=%d anchor=%s bounds=%s..%s pos=%.3f,%.3f,%.3f centre=%.2f,%.2f,%.2f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f "
-				+ "speed=%.3f spin=%.3f hover=%s level=%s active=%s body=%s mass=%.1f",
+				+ "speed=%.3f spin=%.3f hover=%s level=%s active=%s body=%s mass=%.1f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f plotAnchor=%d,%d,%d input=%s",
 			id, record.blockCount, record.plot, record.anchor.toShortString(), record.localMin.toShortString(), record.localMax.toShortString(),
 			pose.x(), pose.y(), pose.z(), centre.x, centre.y, centre.z, attitude[0], attitude[1], attitude[2], pose.tiltDegrees(),
 			record.linearVelocity.length(), record.angularVelocity.length(), record.hover, record.level, active != null,
-			active != null && active.hasBody, active == null || active.mass == null ? 0.0 : active.mass.mass());
+			active != null && active.hasBody, active == null || active.mass == null ? 0.0 : active.mass.mass(),
+			pose.qx(), pose.qy(), pose.qz(), pose.qw(), record.linearVelocity.x, record.linearVelocity.y, record.linearVelocity.z,
+			record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(),
+			active == null ? "none" : String.format(Locale.ROOT, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f", active.input.forward, active.input.strafe,
+				active.input.vertical, active.input.pitch, active.input.yaw, active.input.roll));
 		return reply(ctx, true, text);
 	}
 
@@ -145,10 +156,10 @@ public final class SlipwayCommands {
 		VesselPhysicsBridge bridge = manager.physics();
 		PhysicsWorld world = bridge.worldIfStarted();
 		double mspt = ctx.getSource().getServer().getAverageTickTimeNanos() / 1.0e6;
-		String text = String.format(Locale.ROOT, "mspt=%.2f exchange=%.3fms step=%.3fms vesselBodies=%d terrainBodies=%d active=%d failed=%s",
+		String text = String.format(Locale.ROOT, "mspt=%.2f exchange=%.3fms step=%.3fms vesselBodies=%d terrainBodies=%d active=%d failed=%s liveEngines=%d liveBodies=%d",
 			mspt, bridge.lastExchangeNanos() / 1.0e6, world == null ? 0.0 : world.lastStepNanos() / 1.0e6,
 			world == null ? 0 : world.vesselBodies(), world == null ? 0 : world.staticBodies(), manager.activeVessels().size(),
-			world != null && world.failed());
+			world != null && world.failed(), JoltEngine.liveEngines(), JoltEngine.liveBodies());
 		return reply(ctx, true, text);
 	}
 

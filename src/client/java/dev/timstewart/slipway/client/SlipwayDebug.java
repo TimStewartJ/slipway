@@ -1,0 +1,221 @@
+package dev.timstewart.slipway.client;
+
+import dev.timstewart.slipway.client.dh.DhProxies;
+import dev.timstewart.slipway.math.VesselPose;
+import dev.timstewart.slipway.net.SlipwayPayloads;
+import dev.timstewart.slipway.vessel.VesselCollisions;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+
+/**
+ * Read-only introspection (and scripted piloting) for the end-to-end test agent, which calls these methods by
+ * reflection. Nothing here grants anything a normal client could not already do.
+ */
+public final class SlipwayDebug {
+	private SlipwayDebug() {
+	}
+
+	/** One line per known vessel: id, readiness, pose and attitude, mesh size, modes. */
+	public static String vessels() {
+		StringBuilder out = new StringBuilder();
+		for (ClientVessel vessel : ClientVessels.all()) {
+			VesselPose pose = vessel.tickPose();
+			if (out.length() > 0) {
+				out.append(" | ");
+			}
+			if (pose == null) {
+				out.append("#").append(vessel.id).append(" pending");
+				continue;
+			}
+			double[] a = pose.attitudeDegrees();
+			Vec3 centre = vessel.worldCentre(pose);
+			out.append(String.format(Locale.ROOT, "#%d ready=%s centre=%.3f,%.3f,%.3f pos=%.3f,%.3f,%.3f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f vertices=%d blocks=%d speed=%.3f hover=%s level=%s body=%s",
+				vessel.id, vessel.ready(), centre.x, centre.y, centre.z, pose.x(), pose.y(), pose.z(), a[0], a[1], a[2], pose.tiltDegrees(),
+				vessel.mesh.vertexCount(), vessel.blocks, vessel.velocity.length(), vessel.hover, vessel.level, vessel.hasBody));
+		}
+		return out.length() == 0 ? "none" : out.toString();
+	}
+
+	/** What the crosshair is on, with the vessel-local position when it is a vessel block. */
+	public static String hit() {
+		Minecraft mc = Minecraft.getInstance();
+		HitResult hit = mc.hitResult;
+		if (hit == null) {
+			return "none";
+		}
+		if (hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK) {
+			BlockPos pos = block.getBlockPos();
+			ClientVessel vessel = ClientVessels.atPlotPos(pos);
+			String state = mc.level == null ? "?" : mc.level.getBlockState(pos).toString();
+			if (vessel != null) {
+				BlockPos local = pos.subtract(vessel.anchor);
+				return "vessel " + vessel.id + " local " + local.toShortString() + " face " + block.getDirection() + " " + state;
+			}
+			return "block " + pos.toShortString() + " face " + block.getDirection() + " " + state;
+		}
+		return hit.getType().toString();
+	}
+
+	/** Deck state of the local player. */
+	public static String rider() {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.player == null) {
+			return "no player";
+		}
+		VesselCollisions.Rider rider = (VesselCollisions.Rider)mc.player;
+		String local = "";
+		ClientVessel vessel = ClientVessels.get(rider.slipway$carrier());
+		if (vessel != null && vessel.ready()) {
+			Vec3 l = vessel.tickPose().worldToLocal(mc.player.position());
+			local = String.format(Locale.ROOT, " local=%.3f,%.3f,%.3f", l.x, l.y, l.z);
+		}
+		return String.format(Locale.ROOT, "carrier=%d onGround=%s lastContact=%d tick=%d pos=%.3f,%.3f,%.3f vehicle=%s%s", rider.slipway$carrier(),
+			mc.player.onGround(), rider.slipway$lastContactTick(), mc.player.tickCount, mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+			mc.player.getVehicle() == null ? "none" : mc.player.getVehicle().getType().toShortString(), local);
+	}
+
+	/** Pilot for some ticks with fixed axes: forward, strafe, vertical, pitch, yaw, roll. */
+	public static String helm(float forward, float strafe, float vertical, float pitch, float yaw, float roll, int ticks) {
+		HelmControls.script(new float[] {forward, strafe, vertical, pitch, yaw, roll}, ticks);
+		return HelmControls.pilotedVessel() == null ? "not piloting" : "piloting for " + ticks + " ticks";
+	}
+
+	/** Turns the local player's view to a point given in a vessel's local coordinates; reports the world point. */
+	public static String lookAtLocal(long id, double x, double y, double z) {
+		Minecraft mc = Minecraft.getInstance();
+		ClientVessel vessel = ClientVessels.get(id);
+		if (mc.player == null || vessel == null || !vessel.ready()) {
+			return "no such vessel";
+		}
+		Vec3 world = vessel.tickPose().localToWorld(new Vec3(x, y, z));
+		Vec3 eye = mc.player.getEyePosition();
+		double dx = world.x - eye.x;
+		double dy = world.y - eye.y;
+		double dz = world.z - eye.z;
+		float yaw = (float)Math.toDegrees(Math.atan2(-dx, dz));
+		float pitch = (float)-Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
+		mc.player.setYRot(yaw);
+		mc.player.setXRot(pitch);
+		mc.player.yRotO = yaw;
+		mc.player.xRotO = pitch;
+		mc.player.setYHeadRot(yaw);
+		return String.format(Locale.ROOT, "looking %.2f %.2f at %.3f,%.3f,%.3f distance %.2f", yaw, pitch, world.x, world.y, world.z, world.distanceTo(eye));
+	}
+
+	/** World position of a vessel-local point, as "x y z". */
+	public static String worldOf(long id, double x, double y, double z) {
+		ClientVessel vessel = ClientVessels.get(id);
+		if (vessel == null || !vessel.ready()) {
+			return "no such vessel";
+		}
+		Vec3 world = vessel.tickPose().localToWorld(new Vec3(x, y, z));
+		return String.format(Locale.ROOT, "%.4f %.4f %.4f", world.x, world.y, world.z);
+	}
+
+	/** Sends a raw helm control packet, whatever the local state (used to prove the server refuses forged input). */
+	public static String forgeHelm(long vesselId, float forward, float strafe, float vertical, float pitch, float yaw, float roll, int toggles) {
+		ClientPlayNetworking.send(new SlipwayPayloads.HelmControl(vesselId, 424242, forward, strafe, vertical, pitch, yaw, roll, (byte)toggles));
+		return "sent";
+	}
+
+	/** Sends many helm control packets in one tick (to prove the server's rate limit). */
+	public static String forgeHelmBurst(long vesselId, int count) {
+		int n = Math.max(0, Math.min(1000, count));
+		for (int i = 0; i < n; i++) {
+			ClientPlayNetworking.send(new SlipwayPayloads.HelmControl(vesselId, 500000 + i, 0.1f, 0f, 0f, 0f, 0f, 0f, (byte)0));
+		}
+		return "sent " + n;
+	}
+
+	/** Distant Horizons proxy groups and boxes registered. */
+	public static String dh() {
+		if (!DhProxyBridge.present()) {
+			return "distant horizons absent";
+		}
+		int[] stats = DhProxies.stats();
+		return "groups=" + stats[0] + " boxes=" + stats[1];
+	}
+
+	private static final int TRACE_LIMIT = 20_000;
+	private static long traceId = -1;
+	private static final List<double[]> TRACE = new ArrayList<>();
+
+	/** Starts recording the rendered pose of a vessel every frame (for the smoothness check). */
+	public static String traceStart(long id) {
+		TRACE.clear();
+		traceId = id;
+		return "tracing " + id;
+	}
+
+	/** Called by the renderer with the pose it draws; records one sample per distinct frame time. */
+	public static void traceFrame(long id, VesselPose pose, float partialTicks) {
+		if (id != traceId || TRACE.size() >= TRACE_LIMIT) {
+			return;
+		}
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null) {
+			return;
+		}
+		double time = mc.level.getGameTime() + partialTicks;
+		if (!TRACE.isEmpty() && TRACE.getLast()[0] == time) {
+			return;
+		}
+		TRACE.add(new double[] {time, pose.x(), pose.y(), pose.z(), pose.qx(), pose.qy(), pose.qz(), pose.qw()});
+	}
+
+	/**
+	 * Stops recording and summarises motion between frames: speed in blocks per tick, the largest change of velocity
+	 * between consecutive frames (0 for perfectly smooth constant motion), direction reversals while moving and the
+	 * largest rotation between frames.
+	 */
+	public static String traceStop() {
+		traceId = -1;
+		int frames = TRACE.size();
+		if (frames < 3) {
+			return "frames=" + frames;
+		}
+		double maxDeltaV = 0.0;
+		double maxStep = 0.0;
+		double maxTurn = 0.0;
+		double speedSum = 0.0;
+		int reversals = 0;
+		int intervals = 0;
+		double[] previousVelocity = null;
+		for (int i = 1; i < frames; i++) {
+			double[] a = TRACE.get(i - 1);
+			double[] b = TRACE.get(i);
+			double dt = b[0] - a[0];
+			if (dt <= 1.0e-6) {
+				continue;
+			}
+			double[] v = {(b[1] - a[1]) / dt, (b[2] - a[2]) / dt, (b[3] - a[3]) / dt};
+			double speed = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+			speedSum += speed;
+			intervals++;
+			maxStep = Math.max(maxStep, speed * dt);
+			double dot = Math.abs(a[4] * b[4] + a[5] * b[5] + a[6] * b[6] + a[7] * b[7]);
+			maxTurn = Math.max(maxTurn, Math.toDegrees(2.0 * Math.acos(Math.min(1.0, dot))));
+			if (previousVelocity != null) {
+				double dx = v[0] - previousVelocity[0];
+				double dy = v[1] - previousVelocity[1];
+				double dz = v[2] - previousVelocity[2];
+				maxDeltaV = Math.max(maxDeltaV, Math.sqrt(dx * dx + dy * dy + dz * dz));
+				double previousSpeed = Math.sqrt(previousVelocity[0] * previousVelocity[0] + previousVelocity[1] * previousVelocity[1] + previousVelocity[2] * previousVelocity[2]);
+				if (speed > 0.01 && previousSpeed > 0.01 && v[0] * previousVelocity[0] + v[1] * previousVelocity[1] + v[2] * previousVelocity[2] < 0) {
+					reversals++;
+				}
+			}
+			previousVelocity = v;
+		}
+		double duration = TRACE.getLast()[0] - TRACE.getFirst()[0];
+		return String.format(Locale.ROOT, "frames=%d ticks=%.2f meanSpeed=%.4f maxDeltaV=%.4f maxStep=%.4f reversals=%d maxTurnDeg=%.3f",
+			frames, duration, intervals == 0 ? 0.0 : speedSum / intervals, maxDeltaV, maxStep, reversals, maxTurn);
+	}
+}

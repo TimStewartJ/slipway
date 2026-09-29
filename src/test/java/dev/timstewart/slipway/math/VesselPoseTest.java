@@ -87,6 +87,23 @@ class VesselPoseTest {
 	}
 
 	@Test
+	void yawTurnIsContinuousThroughRollAndPitch() {
+		// Rolling through inverted must not look like a half turn to riders.
+		VesselPose rolled150 = VesselPose.fromYawPitchRoll(0, 0, 0, 40, 0, 150);
+		VesselPose rolled210 = VesselPose.fromYawPitchRoll(0, 0, 0, 40, 0, 210);
+		assertEquals(0.0, rolled210.yawTurnSinceDegrees(rolled150), 1e-6);
+		VesselPose pitched85 = VesselPose.fromYawPitchRoll(0, 0, 0, 10, 85, 0);
+		VesselPose pitched95 = VesselPose.fromYawPitchRoll(0, 0, 0, 10, 95, 0);
+		assertEquals(0.0, pitched95.yawTurnSinceDegrees(pitched85), 1e-6);
+		// A plain turn is reported with the heading's sign convention, wrapped into (-180, 180].
+		VesselPose a = VesselPose.fromYawPitchRoll(0, 0, 0, 170, 0, 0);
+		VesselPose b = VesselPose.fromYawPitchRoll(0, 0, 0, -170, 0, 0);
+		assertEquals(20.0, b.yawTurnSinceDegrees(a), 1e-6);
+		assertEquals(20.0, VesselPose.fromYawPitchRoll(0, 0, 0, 20, 0, 0).yawTwistDegrees(), 1e-6);
+		assertEquals(VesselPose.fromYawPitchRoll(0, 0, 0, 33, 0, 0).headingDegrees(), VesselPose.fromYawPitchRoll(0, 0, 0, 33, 0, 0).yawTwistDegrees(), 1e-6);
+	}
+
+	@Test
 	void nonFinitePosesAreRejected() {
 		assertThrows(IllegalArgumentException.class, () -> new VesselPose(Double.NaN, 0, 0, 0, 0, 0, 1));
 		assertThrows(IllegalArgumentException.class, () -> new VesselPose(0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, 1));

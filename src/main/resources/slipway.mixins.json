@@ -4,9 +4,15 @@
 	"package": "dev.timstewart.slipway.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"BlockPlaceContextMixin",
 		"ChunkMapMixin",
 		"ChunkStatusTasksMixin",
-		"LevelChunkMixin"
+		"EntityMixin",
+		"LevelChunkMixin",
+		"PlayerMixin",
+		"ServerGamePacketListenerImplMixin",
+		"ServerLevelMixin",
+		"UseOnContextMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -24,6 +24,12 @@ import org.joml.Vector3d;
 public final class VesselController {
 	/** Per-second gain of hover braking on idle axes. */
 	public static final double BRAKE_GAIN = 1.5;
+	/**
+	 * Per-second gain of the turn-rate controller. With the default level strength (1.5 per second) the levelling
+	 * loop is a damped oscillator with natural frequency sqrt(3 * 1.5) = 2.1 rad/s and damping ratio 0.71: it
+	 * settles within about three seconds with a few percent overshoot.
+	 */
+	public static final double RATE_GAIN = 3.0;
 	public static final double GRAVITY = 9.81;
 
 	private VesselController() {
@@ -92,7 +98,7 @@ public final class VesselController {
 			}
 			target.fma(p.levelStrength(), correction);
 		}
-		double rateGain = p.angularAcceleration() / Math.max(0.05, p.maxTurnRate());
+		double rateGain = RATE_GAIN;
 		Vector3d alpha = new Vector3d(target).sub(angularVelocity).mul(rateGain);
 		double maxAlpha = 2.0 * p.angularAcceleration() + p.levelStrength();
 		if (alpha.length() > maxAlpha) {

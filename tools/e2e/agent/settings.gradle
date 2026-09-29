@@ -1,0 +1,12 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		gradlePluginPortal()
+	}
+}
+
+// A standalone build, not part of the mod: gradlew -p tools/e2e/agent build
+rootProject.name = 'slipway-e2e-agent'

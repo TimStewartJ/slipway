@@ -63,7 +63,7 @@ public class VesselEntity extends Entity {
 		this.setPos(worldCenter);
 		if (previous != null) {
 			// Keep riders facing the same way relative to the vessel while it turns.
-			double delta = pose.headingDegrees() - previous.headingDegrees();
+			double delta = pose.yawTurnSinceDegrees(previous);
 			if (Math.abs(delta) > 1.0e-6) {
 				for (Entity passenger : this.getPassengers()) {
 					float yaw = (float)(passenger.getYRot() - delta);
@@ -140,6 +140,11 @@ public class VesselEntity extends Entity {
 		return new Vec3(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
 	}
 
+	/**
+	 * Places the pilot so that their eyes (not their feet) sit where a standing pilot's eyes would be in vessel space.
+	 * The camera cannot roll, so this keeps the view at the right point of the ship at any attitude instead of pushing
+	 * it through the deck when the vessel banks or flies inverted.
+	 */
 	@Override
 	protected void positionRider(Entity passenger, Entity.MoveFunction moveFunction) {
 		if (this.pose == null) {
@@ -147,8 +152,9 @@ public class VesselEntity extends Entity {
 			return;
 		}
 		Vec3 local = this.pilotLocalPosition();
-		Vector3d world = this.pose.localToWorld(local.x, local.y, local.z, new Vector3d());
-		moveFunction.accept(passenger, world.x, world.y, world.z);
+		double eye = passenger.getEyeHeight();
+		Vector3d world = this.pose.localToWorld(local.x, local.y + eye, local.z, new Vector3d());
+		moveFunction.accept(passenger, world.x, world.y - eye, world.z);
 	}
 
 	@Override

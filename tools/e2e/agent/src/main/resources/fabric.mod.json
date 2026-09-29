@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "slipway_e2e_agent",
+	"version": "${version}",
+	"name": "Slipway e2e agent (test only)",
+	"description": "Test-only client mod that lets Slipway's end-to-end harness drive a client through a command file. Never install it in a play instance.",
+	"license": "Apache-2.0",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.timstewart.slipway.e2e.SlipwayAgent"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,37 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version '1.16.1'
+}
+
+// Test-only client mod for Slipway's end-to-end harness (see ../README.md). It runs commands appended to
+// <gameDir>/slipway-agent/commands.txt so the harness can drive a client without taking window focus.
+// Never install it in a play instance.
+group = 'dev.timstewart.slipway.e2e'
+version = '0.1.0'
+
+base {
+	archivesName = 'slipway-e2e-agent-26.3'
+}
+
+dependencies {
+	minecraft 'com.mojang:minecraft:26.3'
+	implementation 'net.fabricmc:fabric-loader:0.19.5'
+	implementation 'net.fabricmc.fabric-api:fabric-api:0.160.7+26.3'
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 25
+	options.encoding = 'UTF-8'
+}
+
+processResources {
+	inputs.property 'version', project.version
+	filesMatching('fabric.mod.json') {
+		expand version: inputs.properties.version
+	}
+}

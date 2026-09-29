@@ -160,6 +160,20 @@ public final class VesselAssembly {
 		return snapshots.size();
 	}
 
+	/** Deletes every block of a vessel's plot without drops (the admin remove command); returns how many. */
+	public static int erase(ServerLevel level, VesselRecord record) {
+		loadPlotChunks(level, record.plotMin(), record.plotMax());
+		List<Snapshot> blocks = new ArrayList<>();
+		for (BlockPos plotPos : BlockPos.betweenClosed(record.plotMin(), record.plotMax())) {
+			BlockState state = level.getBlockState(plotPos);
+			if (!state.isAir()) {
+				blocks.add(new Snapshot(plotPos.immutable(), state, state.hasBlockEntity() ? new CompoundTag() : null));
+			}
+		}
+		clear(level, blocks);
+		return blocks.size();
+	}
+
 	static BlockPos worldTarget(BlockPos worldAnchor, BlockPos local, int quarterTurns) {
 		int[] xz = VesselPose.rotateQuarterTurns(local.getX(), local.getZ(), quarterTurns);
 		return worldAnchor.offset(xz[0], local.getY(), xz[1]);

@@ -4,6 +4,9 @@
 	"package": "dev.timstewart.slipway.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ClientChunkCacheMixin",
+		"ClientLevelMixin",
+		"LocalPlayerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

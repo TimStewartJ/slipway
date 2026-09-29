@@ -1,0 +1,215 @@
+package dev.timstewart.slipway.gametest;
+
+import static dev.timstewart.slipway.gametest.TestShips.check;
+
+import dev.timstewart.slipway.math.VesselPose;
+import dev.timstewart.slipway.registry.SlipwayRegistry;
+import dev.timstewart.slipway.vessel.ActiveVessel;
+import dev.timstewart.slipway.vessel.HelmBlock;
+import dev.timstewart.slipway.vessel.VesselManager;
+import dev.timstewart.slipway.vessel.VesselRecord;
+import java.util.List;
+import java.util.Locale;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+
+/** Entities on decks, reach, placement orientation and drops on vessels. */
+public class InteractionGameTests {
+	private static final String ARENA = "slipway:arena";
+
+	/** A square plank deck of the given half size at height y with a helm (forward north) in the middle. */
+	static BlockPos deck(GameTestHelper helper, int cx, int y, int cz, int half) {
+		for (int x = cx - half; x <= cx + half; x++) {
+			for (int z = cz - half; z <= cz + half; z++) {
+				helper.setBlock(new BlockPos(x, y, z), Blocks.OAK_PLANKS);
+			}
+		}
+		BlockPos helm = new BlockPos(cx, y + 1, cz);
+		helper.setBlock(helm, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.SOUTH));
+		return helm;
+	}
+
+	/** An armor stand: it falls and collides like any entity but never walks on its own (a NoAI mob does not even fall). */
+	static ArmorStand pig(GameTestHelper helper, Vec3 at) {
+		ArmorStand stand = net.minecraft.world.entity.EntityTypes.ARMOR_STAND.create(helper.getLevel(), net.minecraft.world.entity.EntitySpawnReason.MOB_SUMMONED);
+		stand.snapTo(at.x, at.y, at.z, 0f, 0f);
+		helper.getLevel().addFreshEntity(stand);
+		return stand;
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void entitiesLandOnADeckAndRideAlong(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 11, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		// Stand the pig beside the helm, one block east of it.
+		Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(helm.east())).add(0, 2.0, 0);
+		ArmorStand pig = pig(helper, start);
+		double deckTop = helper.absolutePos(helm).getY();
+		Vec3[] landedLocal = {null};
+		helper.onEachTick(() -> {
+			if (landedLocal[0] == null && vessel.hasBody && pig.onGround() && Math.abs(pig.getY() - deckTop) < 0.05) {
+				landedLocal[0] = record.pose.worldToLocal(pig.position());
+				long now = helper.getLevel().getGameTime();
+				vessel.input.set(1f, 0f, 0f, 0f, 0f, 0f, now);
+				vessel.scriptedInputUntil = now + 10;
+			}
+		});
+		helper.runAfterDelay(120, () -> {
+			check(helper, landedLocal[0] != null, "the pig never landed on the deck (y " + pig.getY() + ", deck top " + deckTop + ")");
+			Vec3 localNow = record.pose.worldToLocal(pig.position());
+			double drift = localNow.distanceTo(landedLocal[0]);
+			double travelled = helper.absolutePos(helm).getZ() - record.pose.z();
+			check(helper, travelled > 2.0, String.format(Locale.ROOT, "the vessel only moved %.2f", travelled));
+			check(helper, drift < 0.6, String.format(Locale.ROOT, "the pig slid %.2f blocks on the deck while it moved %.2f", drift, travelled));
+			check(helper, localNow.y > -0.05 && localNow.y < 0.1, "the pig is not on the deck: local y " + localNow.y);
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void theDeckCarriesEntitiesWhenItRises(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 3, 8, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		ArmorStand pig = pig(helper, Vec3.atBottomCenterOf(helper.absolutePos(helm.west())).add(0, 1.0, 0));
+		boolean[] started = {false};
+		helper.onEachTick(() -> {
+			if (!started[0] && vessel.hasBody && pig.onGround()) {
+				started[0] = true;
+				long now = helper.getLevel().getGameTime();
+				vessel.input.set(0f, 0f, 1f, 0f, 0f, 0f, now);
+				vessel.scriptedInputUntil = now + 15;
+			}
+		});
+		helper.runAfterDelay(100, () -> {
+			check(helper, started[0], "the pig never stood on the deck");
+			double risen = record.pose.y() - helper.absolutePos(helm).getY();
+			double pigLocalY = record.pose.worldToLocal(pig.position()).y;
+			check(helper, risen > 1.5, String.format(Locale.ROOT, "the vessel rose only %.2f", risen));
+			check(helper, Math.abs(pigLocalY) < 0.1, String.format(Locale.ROOT, "the pig fell through or was left behind: local y %.2f after rising %.2f", pigLocalY, risen));
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void steepDecksShedEntities(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 7, 8, 3);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		record.level = false;
+		VesselManager.get(helper.getLevel()).teleport(vessel, TestShips.poseAboutHelm(helper.absolutePos(helm), 0, 0, 60));
+		ArmorStand[] pig = {null};
+		// Drop it on the downhill half, clear of the helm (roll about Z puts local -X downhill).
+		helper.runAfterDelay(5, () -> pig[0] = pig(helper, record.pose.localToWorld(new Vec3(-1.5, 3.0, 0.5))));
+		helper.runAfterDelay(90, () -> {
+			Vec3 local = record.pose.worldToLocal(pig[0].position());
+			boolean onDeck = Math.abs(local.x) < 3.5 && Math.abs(local.z) < 3.5 && local.y > -0.2 && local.y < 0.5;
+			check(helper, !onDeck, String.format(Locale.ROOT, "the pig is still resting on a 60-degree deck at local %.2f, %.2f, %.2f", local.x, local.y, local.z));
+			check(helper, record.pose.tiltDegrees() > 50, "the deck levelled out");
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void entitiesAboardMoveWithTheSnappedBlocks(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		// Park the vessel off the grid, turned 12 degrees and 0.4 blocks low: disassembly snaps it back and up.
+		VesselPose turned = TestShips.poseAboutHelm(helper.absolutePos(helm), 12, 0, 0);
+		VesselManager.get(helper.getLevel()).teleport(vessel, turned.withPosition(turned.x(), turned.y() - 0.4, turned.z()));
+		ArmorStand[] stand = {null};
+		helper.runAfterDelay(5, () -> stand[0] = pig(helper, record.pose.localToWorld(new Vec3(1.5, 0.5, 0.5))));
+		helper.runAfterDelay(60, () -> {
+			Vec3 localBefore = record.pose.worldToLocal(stand[0].position());
+			check(helper, Math.abs(localBefore.y) < 0.05, "the stand did not settle on the deck: local y " + localBefore.y);
+			var outcome = VesselManager.get(helper.getLevel()).disassemble(record.id, null);
+			check(helper, outcome.success(), "disassembly failed: " + outcome.message().getString());
+			BlockPos below = BlockPos.containing(stand[0].getX(), stand[0].getY() - 0.5, stand[0].getZ());
+			check(helper, helper.getLevel().getBlockState(below).is(Blocks.OAK_PLANKS), "the stand is not above a deck block: " + below.toShortString());
+			check(helper, Math.abs(stand[0].getY() - (below.getY() + 1)) < 0.01,
+				String.format(Locale.ROOT, "the stand is at y %.3f, not on the deck top %d", stand[0].getY(), below.getY() + 1));
+		});
+		helper.runAfterDelay(80, () -> {
+			BlockPos below = BlockPos.containing(stand[0].getX(), stand[0].getY() - 0.5, stand[0].getZ());
+			check(helper, helper.getLevel().getBlockState(below).is(Blocks.OAK_PLANKS) && Math.abs(stand[0].getY() - (below.getY() + 1)) < 0.01,
+				String.format(Locale.ROOT, "the stand fell through the snapped deck: y %.3f", stand[0].getY()));
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 40)
+	public void reachIsMeasuredToWhereTheVesselIs(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 1);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		BlockPos plotDeck = record.anchor.offset(1, -1, 0);
+		Vec3 near = Vec3.atBottomCenterOf(helper.absolutePos(helm.east(2))).add(0, 0, 0);
+		player.snapTo(near.x, near.y, near.z, 0f, 0f);
+		check(helper, player.isWithinBlockInteractionRange(plotDeck, 1.0), "a block two metres away on the vessel is out of reach");
+		player.snapTo(near.x + 20, near.y, near.z, 0f, 0f);
+		check(helper, !player.isWithinBlockInteractionRange(plotDeck, 1.0), "a vessel block 20 metres away is within reach");
+		helper.succeed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 40)
+	public void blocksPlacedOnATurnedVesselFaceTheVesselFrame(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		// Turn the vessel a quarter turn: local north now points world west... local +Z points world east.
+		VesselManager.get(helper.getLevel()).teleport(vessel, TestShips.poseAboutHelm(helper.absolutePos(helm), 90, 0, 0));
+		helper.runAfterDelay(2, () -> {
+			ServerPlayer player = helper.makeMockServerPlayerInLevel();
+			Vec3 standAt = record.pose.localToWorld(new Vec3(1.5, 0, 1.5));
+			// Look world west (yaw 90) and a little down: in the vessel's frame that is local north.
+			player.snapTo(standAt.x, standAt.y, standAt.z, 90f, 30f);
+			ItemStack stairs = new ItemStack(Items.OAK_STAIRS);
+			player.setItemInHand(InteractionHand.MAIN_HAND, stairs);
+			BlockPos plotDeck = record.anchor.offset(-1, -1, 1);
+			BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(plotDeck).add(0, 0.5, 0), Direction.UP, plotDeck, false);
+			var result = ((BlockItem)Items.OAK_STAIRS).place(new BlockPlaceContext(player, InteractionHand.MAIN_HAND, stairs, hit));
+			check(helper, result.consumesAction(), "placing on the vessel failed: " + result);
+			BlockState placed = helper.getLevel().getBlockState(plotDeck.above());
+			check(helper, placed.is(Blocks.OAK_STAIRS), "no stair on the vessel, found " + placed);
+			check(helper, placed.getValue(StairBlock.FACING) == Direction.NORTH, "stair faces " + placed.getValue(StairBlock.FACING) + " in the vessel frame, expected north");
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 40)
+	public void brokenVesselBlocksDropWhereTheVesselIs(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 5, 8, 1);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		helper.runAfterDelay(2, () -> {
+			BlockPos plotDeck = record.anchor.offset(1, -1, 1);
+			helper.getLevel().destroyBlock(plotDeck, true);
+			Vec3 world = record.pose.localToWorld(new Vec3(1.5, -0.5, 1.5));
+			List<ItemEntity> nearVessel = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(world, world).inflate(2.0));
+			List<ItemEntity> inPlot = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(Vec3.atCenterOf(plotDeck), Vec3.atCenterOf(plotDeck)).inflate(4.0));
+			check(helper, !nearVessel.isEmpty(), "no drop near the vessel's world position " + world);
+			check(helper, inPlot.isEmpty(), "the drop stayed in the vessel's plot");
+			check(helper, nearVessel.getFirst().getItem().is(Items.OAK_PLANKS), "unexpected drop " + nearVessel.getFirst().getItem());
+			nearVessel.forEach(ItemEntity::discard);
+			helper.succeed();
+		});
+	}
+}

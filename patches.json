@@ -19,7 +19,7 @@
 			"methods": ["isChunkTracked"],
 			"feature": "chunk sync",
 			"reason": "Players who were sent a vessel's plot chunks must receive block, block-entity and light updates of those chunks although they are far outside the player's view.",
-			"tests": ["dev.timstewart.slipway.gametest.PacketGameTests#plotChunksAreTrackedOnlyByTheirViewers"]
+			"tests": ["dev.timstewart.slipway.gametest.PacketGameTests#plotChunksAreTrackedOnlyByTheirViewers", "scenario:interaction"]
 		},
 		{
 			"mixin": "dev.timstewart.slipway.mixin.LevelChunkMixin",
@@ -29,7 +29,102 @@
 			"methods": ["setBlockState"],
 			"feature": "incremental shapes and meshes",
 			"reason": "Every block change must reach Slipway so vessel collision shapes, mass, bounds and client meshes, and terrain bodies near vessels, are rebuilt.",
-			"tests": ["dev.timstewart.slipway.gametest.PhysicsGameTests#addingBlocksMakesAVesselHeavier"]
+			"tests": ["dev.timstewart.slipway.gametest.PhysicsGameTests#addingBlocksMakesAVesselHeavier", "scenario:interaction"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.EntityMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.entity.Entity",
+			"methods": ["move", "collide"],
+			"feature": "deck riding and entity collision",
+			"reason": "Entities collide with vessel blocks in the vessel's frame, stand and walk on decks at any angle, slide off steep ones, and are carried by the moving vessel.",
+			"tests": [
+				"dev.timstewart.slipway.gametest.InteractionGameTests#entitiesLandOnADeckAndRideAlong",
+				"dev.timstewart.slipway.gametest.InteractionGameTests#theDeckCarriesEntitiesWhenItRises",
+				"dev.timstewart.slipway.gametest.InteractionGameTests#steepDecksShedEntities",
+				"scenario:deck-walk"
+			]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.PlayerMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.entity.player.Player",
+			"methods": ["isWithinBlockInteractionRange"],
+			"feature": "interaction reach",
+			"reason": "All block reach checks (use, break, containers, menus, signs) must measure the distance to where a vessel block is in the world, not to its plot position.",
+			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#reachIsMeasuredToWhereTheVesselIs", "scenario:interaction"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.UseOnContextMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.item.context.UseOnContext",
+			"methods": ["getHorizontalDirection", "getRotation"],
+			"feature": "placement on vessels",
+			"reason": "Blocks placed on a rotated vessel are oriented by the player's facing in the vessel's frame.",
+			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#blocksPlacedOnATurnedVesselFaceTheVesselFrame"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.BlockPlaceContextMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.item.context.BlockPlaceContext",
+			"methods": ["getNearestLookingDirection", "getNearestLookingVerticalDirection", "getNearestLookingDirections"],
+			"feature": "placement on vessels",
+			"reason": "Look-axis placement (logs, pistons, observers) on a rotated vessel follows the player's view in the vessel's frame.",
+			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#blocksPlacedOnATurnedVesselFaceTheVesselFrame", "scenario:interaction"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.ServerLevelMixin",
+			"side": "server",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.server.level.ServerLevel",
+			"methods": ["addFreshEntity", "playSeededSound", "levelEvent"],
+			"feature": "drops, sounds and effects on vessels",
+			"reason": "Entities spawned by vessel blocks (drops, experience, falling blocks) and sounds and level events at vessel blocks must appear where the vessel is, not in its far-away plot.",
+			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#brokenVesselBlocksDropWhereTheVesselIs", "scenario:interaction"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.ServerGamePacketListenerImplMixin",
+			"side": "server",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.server.network.ServerGamePacketListenerImpl",
+			"methods": ["noBlocksAround", "forceSendPlayerSupportBlocks"],
+			"feature": "deck riding",
+			"reason": "A player standing on a vessel has no world blocks around them; without this the server kicks them for flying after four seconds and logs and resends the air below them every ten seconds.",
+			"tests": ["scenario:deck-walk"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.client.mixin.ClientChunkCacheMixin",
+			"side": "client",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.client.multiplayer.ClientChunkCache",
+			"methods": ["getChunk", "replaceWithPacketData", "drop", "replaceBiomes", "onLightUpdate"],
+			"feature": "chunk sync and rendering",
+			"reason": "Vessel plot chunks are far outside the client's view-sized chunk storage; they are kept in a separate map so the client level has their blocks, block entities and light while terrain renderers never see them.",
+			"tests": ["scenario:assemble-mixed", "scenario:render-iris"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.client.mixin.LocalPlayerMixin",
+			"side": "client",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.client.player.LocalPlayer",
+			"methods": ["raycastHitResult"],
+			"feature": "interaction on vessels",
+			"reason": "The crosshair must pick vessel blocks, in vessel space, so placing, breaking and using them works at any orientation.",
+			"tests": ["scenario:interaction"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.client.mixin.ClientLevelMixin",
+			"side": "client",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.client.multiplayer.ClientLevel",
+			"methods": ["playSound", "setSectionDirtyWithNeighbors", "setSectionRangeDirty"],
+			"feature": "sounds and lighting on vessels",
+			"reason": "Sounds the client plays itself for its own actions at vessel blocks must play where the block is; when light data for a plot section arrives, the vessel mesh must be rebuilt (the terrain renderer that would be told never sees plot sections).",
+			"tests": ["scenario:interaction", "scenario:assemble-mixed"]
 		}
 	]
 }

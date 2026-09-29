@@ -19,6 +19,8 @@ public final class ActiveVessel {
 	public boolean chunksReady;
 	/** Players who have been sent this vessel's plot chunks. */
 	public final Set<ServerPlayer> viewers = new HashSet<>();
+	/** Until this game time, viewers sent the vessel at assembly are kept although they do not track its entity yet. */
+	public long viewerGraceUntil = Long.MIN_VALUE;
 	/** Helm input from the pilot, cleared when nobody pilots. */
 	public final HelmInput input = new HelmInput();
 	public final RateLimiter controlRate = new RateLimiter();
@@ -34,6 +36,47 @@ public final class ActiveVessel {
 	public boolean infoDirty = true;
 	/** Game time until which input set by a command is kept without a pilot (test harness). */
 	public long scriptedInputUntil = Long.MIN_VALUE;
+	/** The long-range proxy (exposed blocks) needs recomputing. */
+	public boolean proxyDirty = true;
+	public long lastProxyBuild = Long.MIN_VALUE;
+	/** Pose at the start of the previous tick; entities standing on the vessel are carried from it to the current pose. */
+	public dev.timstewart.slipway.math.VesselPose previousPose;
+	private final VesselLookup.View view = new VesselLookup.View() {
+		@Override
+		public long id() {
+			return ActiveVessel.this.record.id;
+		}
+
+		@Override
+		public net.minecraft.core.BlockPos anchor() {
+			return ActiveVessel.this.record.anchor;
+		}
+
+		@Override
+		public dev.timstewart.slipway.math.VesselPose pose() {
+			return ActiveVessel.this.record.pose;
+		}
+
+		@Override
+		public dev.timstewart.slipway.math.VesselPose previousPose() {
+			return ActiveVessel.this.previousPose == null ? ActiveVessel.this.record.pose : ActiveVessel.this.previousPose;
+		}
+
+		@Override
+		public net.minecraft.world.phys.AABB worldBounds() {
+			double[] b = VesselPhysicsBridge.worldBounds(ActiveVessel.this.record);
+			return new net.minecraft.world.phys.AABB(b[0], b[1], b[2], b[3], b[4], b[5]);
+		}
+
+		@Override
+		public net.minecraft.world.phys.Vec3 velocity() {
+			return ActiveVessel.this.record.linearVelocity;
+		}
+	};
+
+	public VesselLookup.View view() {
+		return this.view;
+	}
 	/** Physics results from steps before this one are stale (the body was created or teleported since). */
 	public long poseValidFromStep = Long.MAX_VALUE;
 

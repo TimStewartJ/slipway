@@ -74,9 +74,14 @@ public final class VesselPhysicsBridge {
 		if (this.world != null) {
 			this.world.await();
 			for (ActiveVessel vessel : this.manager.activeVessels()) {
+				vessel.previousPose = vessel.record.pose;
 				if (vessel.hasBody) {
 					this.applyResult(vessel, this.world.result(vessel.record.id));
 				}
+			}
+		} else {
+			for (ActiveVessel vessel : this.manager.activeVessels()) {
+				vessel.previousPose = vessel.record.pose;
 			}
 		}
 		boolean anyBody = false;

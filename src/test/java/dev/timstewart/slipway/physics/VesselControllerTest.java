@@ -84,6 +84,41 @@ class VesselControllerTest {
 	}
 
 	@Test
+	void levelModeSettlesQuicklyWithLittleOvershoot() {
+		// Integrate the rotation under the controller's torque alone (rigid body, world-space inertia, 60 Hz), starting
+		// rolled 30 degrees and pitched 10, and check the vessel is level within three seconds without swinging past.
+		Quaterniond q = new Quaterniond().rotateZ(Math.toRadians(30)).rotateX(Math.toRadians(10));
+		Vector3d w = new Vector3d();
+		double dt = 1.0 / 60.0;
+		double worstOvershoot = 0.0;
+		double tiltAt3s = Double.NaN;
+		for (int step = 0; step < 6 * 60; step++) {
+			VesselController.Command c = run(0, 0, 0, 0, 0, 0, true, true, q, new Vector3d(), w);
+			org.joml.Matrix3d rot = new org.joml.Matrix3d().set(q);
+			org.joml.Matrix3d inertia = new org.joml.Matrix3d(INERTIA[0], INERTIA[3], INERTIA[6], INERTIA[1], INERTIA[4], INERTIA[7], INERTIA[2], INERTIA[5], INERTIA[8]);
+			org.joml.Matrix3d worldInertia = new org.joml.Matrix3d(rot).mul(inertia).mul(new org.joml.Matrix3d(rot).transpose());
+			Vector3d alpha = new org.joml.Matrix3d(worldInertia).invert().transform(new Vector3d(c.torque()));
+			w.fma(dt, alpha);
+			Vector3d axis = w.lengthSquared() < 1e-18 ? new Vector3d(0, 1, 0) : new Vector3d(w).normalize();
+			Quaterniond spin = new Quaterniond().rotationAxis(w.length() * dt, axis.x, axis.y, axis.z);
+			q = spin.mul(q).normalize();
+			Vector3d up = q.transform(new Vector3d(0, 1, 0));
+			double tilt = Math.toDegrees(Math.acos(Math.min(1.0, up.y)));
+			// Overshoot: the up axis crossing to the other side of vertical from where it started.
+			Vector3d right = q.transform(new Vector3d(1, 0, 0));
+			if (step > 30 && up.x > 0) {
+				worstOvershoot = Math.max(worstOvershoot, tilt);
+			}
+			if (step == 3 * 60) {
+				tiltAt3s = tilt;
+			}
+			assertTrue(Double.isFinite(right.x));
+		}
+		assertTrue(tiltAt3s < 2.0, "still tilted " + tiltAt3s + " degrees after 3 s");
+		assertTrue(worstOvershoot < 3.0, "swung " + worstOvershoot + " degrees past level");
+	}
+
+	@Test
 	void outputsAreFiniteAndBounded() {
 		VesselController.Command c = run(1, 1, 1, 1, 1, 1, true, true, new Quaterniond().rotateXYZ(1, 2, 3), new Vector3d(500, -500, 500),
 			new Vector3d(40, -40, 40));

@@ -61,7 +61,10 @@ public final class Slipway implements ModInitializer {
 				manager.tickStart();
 			}
 		});
+		// Created with the level so parked vessels are known (and shown as proxies) before any of them loads.
+		ServerLevelEvents.LOAD.register((server, level) -> VesselManager.get(level));
 		ServerLevelEvents.UNLOAD.register((server, level) -> VesselManager.onLevelUnload(level));
+		ServerLifecycleEvents.BEFORE_SAVE.register((server, flush, force) -> VesselManager.beforeSave(!server.isRunning()));
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> VesselManager.onServerStopped());
 
 		if (Boolean.getBoolean("slipway.selftest")) {
