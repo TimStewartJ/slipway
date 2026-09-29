@@ -34,7 +34,10 @@ public final class VesselPicking {
 			if (!vessel.ready()) {
 				continue;
 			}
-			VesselPose pose = vessel.renderPose(partialTicks);
+			VesselPose pose = ClientVessels.poseMatchingEntities(vessel, partialTicks);
+			if (pose == null) {
+				continue;
+			}
 			AABB bounds = vessel.worldBounds(pose).inflate(0.5);
 			if (!bounds.contains(from) && bounds.clip(from, to).isEmpty()) {
 				continue;

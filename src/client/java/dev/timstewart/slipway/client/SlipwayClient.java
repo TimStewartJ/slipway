@@ -33,8 +33,10 @@ public final class SlipwayClient implements ClientModInitializer {
 
 		ClientTickEvents.START_CLIENT_TICK.register(mc -> ClientVessels.tick());
 		ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+			ClientVessels.endTick();
 			HelmControls.tick(mc);
 			DhProxyBridge.tick();
+			SlipwayDebug.riderTraceTick();
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> mc.execute(ClientVessels::clear));
 

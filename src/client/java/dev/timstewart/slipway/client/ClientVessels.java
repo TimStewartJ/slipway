@@ -21,6 +21,8 @@ public final class ClientVessels {
 	private static final Int2LongOpenHashMap BY_PLOT = new Int2LongOpenHashMap();
 	@Nullable
 	private static ClientLevel level;
+	/** Between the start and the end of a client tick. */
+	private static boolean tickInProgress;
 
 	static {
 		BY_PLOT.defaultReturnValue(-1L);
@@ -98,6 +100,26 @@ public final class ClientVessels {
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.tick();
 		}
+		tickInProgress = true;
+	}
+
+	/** End of every client tick. */
+	static void endTick() {
+		tickInProgress = false;
+	}
+
+	/**
+	 * The pose that matches where entities are right now. During a client tick, before entities have moved, vessels
+	 * have already advanced to this tick's pose while every entity still stands where the previous tick left it (and
+	 * vanilla picks the crosshair target at exactly that moment, before handling clicks): the previous tick's pose
+	 * matches. Between ticks (render frames) it is the interpolated pose.
+	 */
+	@Nullable
+	public static VesselPose poseMatchingEntities(ClientVessel vessel, float partialTicks) {
+		if (tickInProgress && vessel.previousTickPose() != null) {
+			return vessel.previousTickPose();
+		}
+		return vessel.renderPose(partialTicks);
 	}
 
 	/** A plot chunk arrived or left: its vessel's mesh must be rebuilt there. */

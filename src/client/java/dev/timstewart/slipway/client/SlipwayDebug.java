@@ -146,6 +146,62 @@ public final class SlipwayDebug {
 	private static final int TRACE_LIMIT = 20_000;
 	private static long traceId = -1;
 	private static final List<double[]> TRACE = new ArrayList<>();
+	private static final int RIDER_TRACE_LIMIT = 4_000;
+	private static long riderTraceId = -1;
+	private static final List<String> RIDER_TRACE = new ArrayList<>();
+	private static final List<Double> RIDER_TRACE_Y = new ArrayList<>();
+
+	/** Starts recording the local player's deck state every client tick, relative to one vessel. */
+	public static String riderTraceStart(long id) {
+		RIDER_TRACE.clear();
+		RIDER_TRACE_Y.clear();
+		riderTraceId = id;
+		return "rider trace " + id;
+	}
+
+	/** End of every client tick while a rider trace runs. */
+	static void riderTraceTick() {
+		Minecraft mc = Minecraft.getInstance();
+		if (riderTraceId < 0 || mc.player == null || RIDER_TRACE.size() >= RIDER_TRACE_LIMIT) {
+			return;
+		}
+		ClientVessel vessel = ClientVessels.get(riderTraceId);
+		if (vessel == null || !vessel.ready()) {
+			return;
+		}
+		VesselPose pose = vessel.tickPose();
+		VesselPose previous = vessel.previousTickPose() == null ? pose : vessel.previousTickPose();
+		Vec3 l = pose.worldToLocal(mc.player.position());
+		VesselCollisions.Rider rider = (VesselCollisions.Rider)mc.player;
+		VesselCollisions.Contact c = rider.slipway$contact();
+		Vec3 v = mc.player.getDeltaMovement();
+		double[] a = pose.attitudeDegrees();
+		RIDER_TRACE_Y.add(l.y);
+		RIDER_TRACE.add(String.format(Locale.ROOT,
+			"t=%d local=%.3f,%.3f,%.3f ground=%s carrier=%d carried=%s contact=%s%s%s%s stage=%d boxMinY=%.9f lift=%.3f vel=%.3f,%.3f,%.3f pose.y=%.3f dy=%.4f pitch=%.1f yaw=%.1f roll=%.1f",
+			mc.level.getGameTime(), l.x, l.y, l.z, mc.player.onGround(), rider.slipway$carrier(), rider.slipway$lastCarryTick() == mc.player.tickCount,
+			c.touched ? "T" : "-", c.ground ? "G" : "-", c.steep ? "S" : "-", c.wall ? "W" : "-", c.stage, c.boxMinY, c.lift, v.x, v.y, v.z, pose.y(),
+			pose.y() - previous.y(), a[0], a[1], a[2]));
+	}
+
+	/** Stops the rider trace: the lowest local y and the ticks around it. */
+	public static String riderTraceStop() {
+		riderTraceId = -1;
+		if (RIDER_TRACE.isEmpty()) {
+			return "samples=0";
+		}
+		int worst = 0;
+		for (int i = 1; i < RIDER_TRACE_Y.size(); i++) {
+			if (RIDER_TRACE_Y.get(i) < RIDER_TRACE_Y.get(worst)) {
+				worst = i;
+			}
+		}
+		StringBuilder out = new StringBuilder(String.format(Locale.ROOT, "samples=%d minY=%.4f at %d", RIDER_TRACE.size(), RIDER_TRACE_Y.get(worst), worst));
+		for (int i = Math.max(0, worst - 6); i <= Math.min(RIDER_TRACE.size() - 1, worst + 3); i++) {
+			out.append(" || ").append(RIDER_TRACE.get(i));
+		}
+		return out.toString();
+	}
 
 	/** Starts recording the rendered pose of a vessel every frame (for the smoothness check). */
 	public static String traceStart(long id) {

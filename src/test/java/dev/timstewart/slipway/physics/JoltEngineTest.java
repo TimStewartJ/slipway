@@ -108,6 +108,59 @@ class JoltEngineTest {
 		}
 	}
 
+	/** The deck-walk test ship: a 13x13 plank deck with a helm in the middle, a two-block mast and a lamp off-centre. */
+	static BoxList asymmetricShip() {
+		BoxList boxes = new BoxList();
+		boxes.add(-6, -1, -6, 7, 0, 7, 600f);
+		boxes.add(0, 0, 0, 1, 1, 1, 800f);
+		boxes.add(0, 0, 5, 1, 2, 6, 700f);
+		boxes.add(5, 0, 5, 6, 1, 6, 1200f);
+		return boxes;
+	}
+
+	/** Flies a vessel with the real controller for some steps; returns its final state. */
+	static PhysicsEngine.BodyState fly(JoltEngine engine, long id, BoxList boxes, int steps, double forward, double pitch, double yaw, double roll, boolean level) {
+		VesselController.Params params = new VesselController.Params(12.0, 24.0, 1.6, 0.9, 1.5);
+		BoxList.MassProperties mass = boxes.massProperties();
+		PhysicsEngine.BodyState state = new PhysicsEngine.BodyState();
+		for (int i = 0; i < steps; i++) {
+			engine.readVessel(id, state);
+			VesselController.Command command = VesselController.compute(params, forward, 0, 0, pitch, yaw, roll, true, level,
+				new org.joml.Quaterniond(state.qx, state.qy, state.qz, state.qw), new Vector3d(state.vx, state.vy, state.vz),
+				new Vector3d(state.wx, state.wy, state.wz), mass.mass(), mass.inertia(), new Vector3d(0, 0, -1));
+			engine.applyForceAndTorque(id, command.force(), command.torque());
+			engine.step(0.05f, 3);
+		}
+		engine.readVessel(id, state);
+		return state;
+	}
+
+	private static double tiltDegrees(PhysicsEngine.BodyState state) {
+		return VesselPose.of(0, 0, 0, new org.joml.Quaterniond(state.qx, state.qy, state.qz, state.qw)).tiltDegrees();
+	}
+
+	@Test
+	void yawInputTurnsAnAsymmetricShipAboutTheVerticalWithLevelOff() {
+		try (JoltEngine engine = new JoltEngine(1)) {
+			BoxList boxes = asymmetricShip();
+			engine.setVesselShape(11L, boxes, VesselPose.at(BASE_X, 300, BASE_Z), new Vector3d(), new Vector3d());
+			PhysicsEngine.BodyState state = fly(engine, 11L, boxes, 60, 0.5, 0, 1, 0, false);
+			double heading = VesselPose.of(0, 0, 0, new org.joml.Quaterniond(state.qx, state.qy, state.qz, state.qw)).headingDegrees();
+			assertTrue(Math.abs(heading) > 20, "the ship turned: heading " + heading);
+			assertTrue(tiltDegrees(state) < 2.0, "yaw alone must not bank or pitch the ship: tilt " + tiltDegrees(state));
+		}
+	}
+
+	@Test
+	void anAsymmetricShipHoldsItsBankWhileTurningWithLevelOff() {
+		try (JoltEngine engine = new JoltEngine(1)) {
+			BoxList boxes = asymmetricShip();
+			engine.setVesselShape(12L, boxes, VesselPose.fromYawPitchRoll(BASE_X, 300, BASE_Z, 0, 0, 45), new Vector3d(), new Vector3d());
+			PhysicsEngine.BodyState state = fly(engine, 12L, boxes, 100, 0.4, 0, 0.6, 0, false);
+			assertEquals(45.0, tiltDegrees(state), 3.0, "the bank is held while turning");
+		}
+	}
+
 	@Test
 	void nonFiniteForcesAreIgnored() {
 		try (JoltEngine engine = new JoltEngine(1)) {

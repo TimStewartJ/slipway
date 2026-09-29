@@ -293,6 +293,11 @@ public final class SlipwayAgent implements ClientModInitializer {
 				case "slipway" -> this.report(id, "ok", slipway(words));
 				default -> this.report(id, "error", "unknown verb " + verb);
 			}
+		} catch (IllegalStateException | IllegalArgumentException refusal) {
+			// A command that does not apply right now (nothing under the crosshair, a bad argument): the harness gets
+			// the reason; it is not a fault of the game under test.
+			LOGGER.info("agent command refused: {}: {}", line, refusal.getMessage());
+			this.report(id, "error", "refused: " + refusal.getMessage());
 		} catch (Throwable error) {
 			LOGGER.error("agent command failed: {}", line, error);
 			this.report(id, "error", String.valueOf(error));

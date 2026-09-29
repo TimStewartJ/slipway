@@ -26,6 +26,8 @@ try {
 	New-SlipwayE2EDeck -X ($hx + 40) -Y $hy -Z $hz -HalfX 3 -HalfZ 3
 	Send-SlipwayE2ERcon -Command "setblock $($hx + 40) $hy $hz slipway:helm[facing=north]" | Out-Null
 	$b = Invoke-SlipwayE2EAssembleCommand -X ($hx + 40) -Y $hy -Z $hz
+	# Stand on vessel A's deck, just behind its helm.
+	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3} facing {1} {2} {4}" -f $c.Player, ($hx + 0.5), $hy, ($hz + 1.5), ($hz - 5)) | Out-Null
 	Start-Sleep -Seconds 2
 
 	# 1. Helm control while not at any helm.

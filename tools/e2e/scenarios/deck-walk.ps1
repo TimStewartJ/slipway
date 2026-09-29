@@ -52,6 +52,7 @@ try {
 
 	# 1. Walk while the vessel turns and moves forward.
 	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "lookAtLocal $id 3.5 1.6 3.5" | Out-Null
+	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "riderTraceStart $id" | Out-Null
 	Send-SlipwayE2ERcon -Command "slipway control $id 0.5 0 0 0 1 0 140" | Out-Null
 	Start-Sleep -Milliseconds 500
 	Invoke-SlipwayE2EAgent -Client $c -Verb hold -Argument 'key.keyboard.w 30' | Out-Null
@@ -60,35 +61,61 @@ try {
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '01-walking-during-turn' -Directory $run.Directory
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument first | Out-Null
 	$samples.AddRange((Watch-Rider -Id $id -Samples 10))
+	$trace = Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'riderTraceStop'
 	$turning = Get-SlipwayE2EVessel -Id $id
 	$sum = Get-Summary $samples $id
-	Add-SlipwayE2ECheck -Run $run -Title 'walking during a turn: carried, on the deck, never below it' -Condition ($sum.OnDeck -eq $sum.Total -and $sum.MinY -gt -0.05 -and $sum.MaxY -lt 1.3) -Detail "$($sum.Text); vessel speed $($turning.speed) spin $($turning.spin)" -Screenshot $shot | Out-Null
+	Add-SlipwayE2ECheck -Run $run -Title 'walking during a turn: carried, on the deck, never below it' -Condition ($sum.OnDeck -eq $sum.Total -and $sum.MinY -gt -0.05 -and $sum.MaxY -lt 1.3) -Detail "$($sum.Text); vessel speed $($turning.speed) spin $($turning.spin); trace: $trace" -Screenshot $shot | Out-Null
 	Start-Sleep -Seconds 4
 
-	# 2. Bank to about 45 degrees (roll) and walk across the slope.
+	# 2. Bank to about 45 degrees (roll), stand on the slope, then walk along it while the vessel turns.
 	$tilt = (Get-SlipwayE2EVessel -Id $id).tilt
-	for ($i = 0; $i -lt 40 -and $tilt -lt 43; $i++) {
-		Send-SlipwayE2ERcon -Command "slipway control $id 0 0 0 0 0 0.5 2" | Out-Null
+	for ($i = 0; $i -lt 60 -and $tilt -lt 40; $i++) {
+		Send-SlipwayE2ERcon -Command "slipway control $id 0 0 0 0 0 0.3 2" | Out-Null
 		Start-Sleep -Milliseconds 200
 		$tilt = (Get-SlipwayE2EVessel -Id $id).tilt
 	}
 	Start-Sleep -Seconds 2
+	for ($i = 0; $i -lt 10; $i++) {
+		$tilt = (Get-SlipwayE2EVessel -Id $id).tilt
+		if ($tilt -lt 42) { Send-SlipwayE2ERcon -Command "slipway control $id 0 0 0 0 0 0.2 1" | Out-Null }
+		elseif ($tilt -gt 48) { Send-SlipwayE2ERcon -Command "slipway control $id 0 0 0 0 0 -0.2 1" | Out-Null }
+		else { break }
+		Start-Sleep -Seconds 1
+	}
 	$banked = Get-SlipwayE2EVessel -Id $id
-	$bankOk = Add-SlipwayE2ECheck -Run $run -Title 'the vessel holds a bank of about 45 degrees' -Condition ($banked.tilt -gt 38 -and $banked.tilt -lt 52) -Detail ("tilt {0:N1} roll {1:N1}" -f $banked.tilt, $banked.roll)
-	$r = Get-SlipwayE2ERider -Client $c
-	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "lookAtLocal $id 3.5 1.6 -3.5" | Out-Null
+	Add-SlipwayE2ECheck -Run $run -Title 'the vessel holds a bank of about 45 degrees' -Condition ($banked.tilt -gt 41 -and $banked.tilt -lt 49) -Detail ("tilt {0:N1} roll {1:N1}" -f $banked.tilt, $banked.roll) | Out-Null
+	# Put the player on the slope, on a line along its contour (the local horizontal axis that stays level).
+	$o = ConvertTo-SlipwayE2EWorld -Vessel $banked -X 0 -Y 0 -Z 0
+	$ax = ConvertTo-SlipwayE2EWorld -Vessel $banked -X 1 -Y 0 -Z 0
+	$az = ConvertTo-SlipwayE2EWorld -Vessel $banked -X 0 -Y 0 -Z 1
+	$contourIsZ = [Math]::Abs($az.Y - $o.Y) -lt [Math]::Abs($ax.Y - $o.Y)
+	$from = if ($contourIsZ) { @(-3.5, 0.6, -4.5) } else { @(-4.5, 0.6, -3.5) }
+	$to = if ($contourIsZ) { @(-3.5, 1.2, 40) } else { @(40, 1.2, -3.5) }
+	$drop = ConvertTo-SlipwayE2EWorld -Vessel $banked -X $from[0] -Y $from[1] -Z $from[2]
+	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3}" -f $c.Player, $drop.X, $drop.Y, $drop.Z) | Out-Null
+	Start-Sleep -Milliseconds 1500
+	$a = Get-SlipwayE2ERider -Client $c
+	Start-Sleep -Seconds 2
+	$b = Get-SlipwayE2ERider -Client $c
+	$still = if ($a.Local -and $b.Local) { [Math]::Sqrt([Math]::Pow($b.Local[0] - $a.Local[0], 2) + [Math]::Pow($b.Local[1] - $a.Local[1], 2) + [Math]::Pow($b.Local[2] - $a.Local[2], 2)) } else { [double]::NaN }
+	Add-SlipwayE2ECheck -Run $run -Title 'the player stands on the 45 degree bank without sliding' -Condition ($a.Carrier -eq $id -and $b.Carrier -eq $id -and $b.Local[1] -gt -0.05 -and $b.Local[1] -lt 1.3 -and $still -lt 0.2) -Detail ("moved {0:N3} in 2 s; {1}" -f $still, $b.Text) | Out-Null
+	# Walk along the slope while the vessel turns about its (tilted) up axis.
+	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "riderTraceStart $id" | Out-Null
+	Send-SlipwayE2ERcon -Command "slipway control $id 0 0 0 0 0.4 0 100" | Out-Null
+	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument ("lookAtLocal $id {0} {1} {2}" -f $to[0], $to[1], $to[2]) | Out-Null
 	Invoke-SlipwayE2EAgent -Client $c -Verb hold -Argument 'key.keyboard.w 25' | Out-Null
-	$samples = Watch-Rider -Id $id -Samples 10
-	Send-SlipwayE2ERcon -Command "slipway control $id 0.4 0 0 0 0.6 0 100" | Out-Null
+	$samples = Watch-Rider -Id $id -Samples 8
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument back | Out-Null
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '02-banked-45' -Directory $run.Directory
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument first | Out-Null
 	$samples.AddRange((Watch-Rider -Id $id -Samples 12))
+	$trace = Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'riderTraceStop'
 	$sum = Get-Summary $samples $id
 	$after = Get-SlipwayE2EVessel -Id $id
-	Add-SlipwayE2ECheck -Run $run -Title 'on a 45 degree bank, while turning: stays on the deck, never below it' -Condition ($sum.OnDeck -eq $sum.Total -and $sum.MinY -gt -0.05 -and $sum.MaxY -lt 1.3) -Detail "$($sum.Text); tilt now $('{0:N1}' -f $after.tilt)" -Screenshot $shot | Out-Null
-	Start-Sleep -Seconds 5
-
+	$walked = [Math]::Sqrt([Math]::Pow($b.Local[0] - $samples[$samples.Count - 1].Local[0], 2) + [Math]::Pow($b.Local[2] - $samples[$samples.Count - 1].Local[2], 2))
+	$turned = [Math]::Abs((($after.yaw - $banked.yaw + 540) % 360) - 180)
+	Add-SlipwayE2ECheck -Run $run -Title 'walking on a 45 degree bank while the vessel turns: carried, on the deck, never below it' -Condition ($sum.OnDeck -eq $sum.Total -and $sum.MinY -gt -0.05 -and $sum.MaxY -lt 1.3 -and $walked -gt 1.5 -and $turned -gt 10) -Detail ("{0}; walked {1:N2} blocks on the deck while it turned {2:N1} degrees; tilt now {3:N1}; trace: {4}" -f $sum.Text, $walked, $turned, $after.tilt, $trace) -Screenshot $shot | Out-Null
+	Start-Sleep -Seconds 4
 	# 3. Steeper than walkable: the player slides off rather than clipping through.
 	$tilt = (Get-SlipwayE2EVessel -Id $id).tilt
 	$samples = [System.Collections.Generic.List[object]]::new()
@@ -98,11 +125,14 @@ try {
 		$tilt = (Get-SlipwayE2EVessel -Id $id).tilt
 	}
 	$samples.AddRange((Watch-Rider -Id $id -Samples 15))
-	$onDeck = @($samples | Where-Object { $_.Carrier -eq $id -and $_.Local })
-	$minY = if ($onDeck.Count) { ($onDeck | ForEach-Object { $_.Local[1] } | Measure-Object -Minimum).Minimum } else { 0 }
+	# Over the deck (feet at least a box half-width inside its edges) the player must never be below its surface;
+	# past the edge, sliding off, they fall below the deck's plane, which is fine.
+	$over = @($samples | Where-Object { $_.Carrier -eq $id -and $_.Local -and $_.Local[0] -gt -5.65 -and $_.Local[0] -lt 6.65 -and $_.Local[2] -gt -5.65 -and $_.Local[2] -lt 6.65 })
+	$lowest = $over | Sort-Object { $_.Local[1] } | Select-Object -First 1
+	$minY = if ($lowest) { $lowest.Local[1] } else { 0 }
 	$last = $samples[$samples.Count - 1]
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '03-steep' -Directory $run.Directory
-	Add-SlipwayE2ECheck -Run $run -Title 'on a 70 degree bank the player slides off instead of clipping through' -Condition ($minY -gt -0.05 -and ($last.Carrier -ne $id -or $last.Local[0] -gt 5 -or $last.Local[0] -lt -5)) -Detail ("tilt {0:N1}; lowest local y while on deck {1:N3}; last: {2}" -f $tilt, $minY, $last.Text) -Screenshot $shot | Out-Null
+	Add-SlipwayE2ECheck -Run $run -Title 'on a 70 degree bank the player slides off instead of clipping through' -Condition ($minY -gt -0.05 -and ($last.Carrier -ne $id -or $last.Local[0] -gt 5 -or $last.Local[0] -lt -5)) -Detail ("tilt {0:N1}; {1} samples over the deck, lowest local y {2:N3} ({3}); last: {4}" -f $tilt, $over.Count, $minY, $(if ($lowest) { $lowest.Text } else { 'none' }), $last.Text) -Screenshot $shot | Out-Null
 	Send-SlipwayE2ERcon -Command "slipway mode $id level true" | Out-Null
 	$pos = Get-SlipwayE2EPlayerPosition -Player $c.Player
 	$kicked = @(Read-SlipwayE2ELogSince -LogPath $s.LogPath -Offset $serverOffset | Where-Object { $_ -match 'Flying is not enabled|kicked|moved wrongly|moved too quickly' })

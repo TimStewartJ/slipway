@@ -367,6 +367,325 @@
         "pass: server log has no errors, exceptions or Slipway warnings",
         "pass: client log has no errors, exceptions or Slipway warnings"
       ]
+    },
+    {
+      "scenario": "deck-walk",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "deck-walk-20260929-133313",
+      "milestone": "M5",
+      "date": "2026-09-29T13:34:02",
+      "commit": "7a66ac1",
+      "slipwayJarSha256": "5F1E725928435CE84951AA1FA30CF9F68E3BE5BFAB5D3FB569980C36B3CC7AB6",
+      "report": "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\01-walking-during-turn.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\02-banked-45.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\03-steep.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\report.md",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-133313\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the player lands on the deck",
+        "fail: walking during a turn: carried, on the deck, never below it",
+        "pass: the vessel holds a bank of about 45 degrees",
+        "fail: on a 45 degree bank, while turning: stays on the deck, never below it",
+        "pass: on a 70 degree bank the player slides off instead of clipping through",
+        "fail: the server neither kicked nor corrected the walking player",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "deck-walk",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "deck-walk-20260929-134209",
+      "milestone": "M5",
+      "date": "2026-09-29T13:43:00",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "0DFE56A5B1FECF26154008313AB5A2DD98E17D4DD6CE98F112CCA4B408732B45",
+      "report": "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\01-walking-during-turn.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\02-banked-45.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\03-steep.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\report.md",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-134209\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the player lands on the deck",
+        "pass: walking during a turn: carried, on the deck, never below it",
+        "pass: the vessel holds a bank of about 45 degrees",
+        "pass: the player stays standing on the 45 degree bank",
+        "fail: walking along a 45 degree bank while turning: stays on the deck, never below it, does not slide",
+        "pass: on a 70 degree bank the player slides off instead of clipping through",
+        "pass: the server neither kicked nor corrected the walking player",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "deck-walk",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "deck-walk-20260929-135414",
+      "milestone": "M5",
+      "date": "2026-09-29T13:55:14",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "959915E409ABD9AC1100CBC6276AE149DF291FC3FC451103286208F9D6EFB66C",
+      "report": "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\01-walking-during-turn.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\02-banked-45.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\03-steep.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\report.md",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-135414\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the player lands on the deck",
+        "fail: walking during a turn: carried, on the deck, never below it",
+        "pass: the vessel holds a bank of about 45 degrees",
+        "fail: the player stands on the 45 degree bank without sliding",
+        "fail: walking on a 45 degree bank while the vessel turns: carried, on the deck, never below it",
+        "pass: on a 70 degree bank the player slides off instead of clipping through",
+        "fail: the server neither kicked nor corrected the walking player",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "deck-walk",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "deck-walk-20260929-140004",
+      "milestone": "M5",
+      "date": "2026-09-29T14:00:55",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "7709BA2115AAF231F3969CF94C496DF3EA8AA04BC1D434C2EA08511CBC1A044A",
+      "report": "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\01-walking-during-turn.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\02-banked-45.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\03-steep.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\report.md",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140004\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the player lands on the deck",
+        "pass: walking during a turn: carried, on the deck, never below it",
+        "pass: the vessel holds a bank of about 45 degrees",
+        "pass: the player stands on the 45 degree bank without sliding",
+        "pass: walking on a 45 degree bank while the vessel turns: carried, on the deck, never below it",
+        "fail: on a 70 degree bank the player slides off instead of clipping through",
+        "pass: the server neither kicked nor corrected the walking player",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "deck-walk",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed all 3 frames: player walking beside the helm while the vessel turns; player standing upright on the 43-degree banked deck (helm and mast tilted with it) while it turns; after the 70-degree bank the player has slid off into the sea (underwater view at y=49, matching the log). Trace shows no sub-deck samples.",
+      "runId": "deck-walk-20260929-140138",
+      "milestone": "M5",
+      "date": "2026-09-29T14:02:28",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "7709BA2115AAF231F3969CF94C496DF3EA8AA04BC1D434C2EA08511CBC1A044A",
+      "report": "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\01-walking-during-turn.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\02-banked-45.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\03-steep.png",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\report.md",
+        "E:\\slipway-e2e\\runs\\deck-walk-20260929-140138\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the player lands on the deck",
+        "pass: walking during a turn: carried, on the deck, never below it",
+        "pass: the vessel holds a bank of about 45 degrees",
+        "pass: the player stands on the 45 degree bank without sliding",
+        "pass: walking on a 45 degree bank while the vessel turns: carried, on the deck, never below it",
+        "pass: on a 70 degree bank the player slides off instead of clipping through",
+        "pass: the server neither kicked nor corrected the walking player",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "interaction",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "interaction-20260929-140256",
+      "milestone": "M5",
+      "date": "2026-09-29T14:03:26",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "7709BA2115AAF231F3969CF94C496DF3EA8AA04BC1D434C2EA08511CBC1A044A",
+      "report": "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\01-placed-top.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\02-chest-open.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\03-lamp-lit.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\report.md",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140256\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the vessel is turned about 30 degrees on two axes",
+        "pass: the player stands on the tilted deck",
+        "pass: placing on the deck top lands at the vessel-local position above the clicked block",
+        "fail: placing against a side face lands next to it in vessel space",
+        "pass: a log placed on a top face stands on the local Y axis",
+        "fail: a log placed on a side face lies along the local X axis",
+        "pass: breaking a vessel block in survival removes it",
+        "fail: the drop appears at the vessel, not in the plot",
+        "pass: the chest on the tilted vessel opens with its items",
+        "pass: the lever lights the redstone lamp",
+        "pass: the door opens",
+        "fail: scenario error",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "fail: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "interaction",
+      "result": "fail",
+      "automatedResult": "fail",
+      "visualReview": null,
+      "runId": "interaction-20260929-140700",
+      "milestone": "M5",
+      "date": "2026-09-29T14:07:33",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "7709BA2115AAF231F3969CF94C496DF3EA8AA04BC1D434C2EA08511CBC1A044A",
+      "report": "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\01-placed-top.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\02-placed-logs.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\03-chest-open.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\04-lamp-lit.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\05-flying-tilted.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\report.md",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140700\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the vessel is turned about 30 degrees on two axes",
+        "pass: the player stands on the tilted deck",
+        "pass: placing on the deck top lands at the vessel-local position above the clicked block",
+        "pass: placing against a side face lands next to it in vessel space",
+        "pass: a log placed on a top face stands on the local Y axis",
+        "pass: a log placed on a side face lies along that face's local axis (Z)",
+        "pass: breaking a vessel block in survival removes it",
+        "pass: the drop appears at the vessel (not in the plot) and can be picked up",
+        "pass: the chest on the tilted vessel opens with its items",
+        "pass: the lever lights the redstone lamp",
+        "pass: the door opens",
+        "fail: the lever switches the lamp off and on while the vessel flies",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "interaction",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed all 5 frames: stone placed on the 30/30-degree tilted deck is aligned with the deck grid; second stone and both logs placed with correct local orientation; chest GUI open showing the stored emerald; redstone lamp lit under the lever on the tilted deck; third-person view of the tilted vessel in flight with the opened door. Matches the plot-block checks.",
+      "runId": "interaction-20260929-140956",
+      "milestone": "M5",
+      "date": "2026-09-29T14:10:32",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "2FE2B7E33FB6EBBDBACA14EDABBEE8BF61E6C52A1999AC9903C0779A6704038E",
+      "report": "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\01-placed-top.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\02-placed-logs.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\03-chest-open.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\04-lamp-lit.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\05-flying-tilted.png",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\client-log-excerpt.txt",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\report.md",
+        "E:\\slipway-e2e\\runs\\interaction-20260929-140956\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: the vessel is turned about 30 degrees on two axes",
+        "pass: the player stands on the tilted deck",
+        "pass: placing on the deck top lands at the vessel-local position above the clicked block",
+        "pass: placing against a side face lands next to it in vessel space",
+        "pass: a log placed on a top face stands on the local Y axis",
+        "pass: a log placed on a side face lies along that face's local axis (Z)",
+        "pass: breaking a vessel block in survival removes it",
+        "pass: the drop appears at the vessel (not in the plot) and can be picked up",
+        "pass: the chest on the tilted vessel opens with its items",
+        "pass: the lever lights the redstone lamp",
+        "pass: the door opens",
+        "pass: the lever switches the lamp off and on while the vessel flies",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "collision",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": "pass: Viewed both frames: the cobblestone crate vessel rests flat on the smooth-stone pad after the drop (log: rest y 101.998, never below 101.988); the oak crate has driven into the wool crate and they touch without overlapping (closest centre distance 4.98 for 5-long boxes), after which the struck vessel was pushed 38 blocks.",
+      "runId": "collision-20260929-141054",
+      "milestone": "M3",
+      "date": "2026-09-29T14:11:26",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "2FE2B7E33FB6EBBDBACA14EDABBEE8BF61E6C52A1999AC9903C0779A6704038E",
+      "report": "E:\\slipway-e2e\\runs\\collision-20260929-141054\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\collision-20260929-141054\\01-landed.png",
+        "E:\\slipway-e2e\\runs\\collision-20260929-141054\\02-vessels-in-contact.png",
+        "E:\\slipway-e2e\\runs\\collision-20260929-141054\\report.md",
+        "E:\\slipway-e2e\\runs\\collision-20260929-141054\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: a falling vessel lands on the terrain and rests on top of it",
+        "pass: two vessels collide without overlapping",
+        "pass: the struck vessel is pushed away",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
+    },
+    {
+      "scenario": "forged-packets",
+      "result": "pass",
+      "automatedResult": "pass",
+      "visualReview": null,
+      "runId": "forged-packets-20260929-141155",
+      "milestone": "M6",
+      "date": "2026-09-29T14:12:15",
+      "commit": "7a66ac1+dirty",
+      "slipwayJarSha256": "2FE2B7E33FB6EBBDBACA14EDABBEE8BF61E6C52A1999AC9903C0779A6704038E",
+      "report": "E:\\slipway-e2e\\runs\\forged-packets-20260929-141155\\report.md",
+      "evidence": [
+        "E:\\slipway-e2e\\runs\\forged-packets-20260929-141155\\report.md",
+        "E:\\slipway-e2e\\runs\\forged-packets-20260929-141155\\server-log-excerpt.txt"
+      ],
+      "checks": [
+        "pass: helm control from a player who is not at a helm is refused",
+        "pass: the player pilots vessel A",
+        "pass: helm control for a vessel the player is not piloting is refused",
+        "pass: NaN and infinite axes are refused",
+        "pass: out-of-range axes are clamped to [-1, 1]",
+        "pass: a flood of control packets is rate limited",
+        "pass: a use packet on a vessel block out of reach is refused",
+        "pass: a break packet on a vessel block out of reach is refused",
+        "pass: the same packet on a vessel block within reach works",
+        "pass: refusals are logged, rate limited",
+        "pass: server log has no errors, exceptions or Slipway warnings",
+        "pass: client log has no errors, exceptions or Slipway warnings"
+      ]
     }
   ]
 }

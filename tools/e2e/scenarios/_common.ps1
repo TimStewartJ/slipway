@@ -62,6 +62,8 @@ function Enter-SlipwayE2EArea {
 		[double[]]$LookAt, [switch]$NoPlatform, [int]$SettleSeconds = 3)
 	$bx = [Math]::Floor($X); $by = [Math]::Floor($Y) - 1; $bz = [Math]::Floor($Z)
 	Send-SlipwayE2ERcon -Command "gamemode creative $($Client.Player)" | Out-Null
+	# Hover while the destination loads: falling into chunks that are still arriving trips the server's movement check.
+	try { Invoke-SlipwayE2EAgent -Client $Client -Verb fly -Argument on | Out-Null } catch { }
 	$face = if ($LookAt) { " facing $($LookAt[0]) $($LookAt[1]) $($LookAt[2])" } else { '' }
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3}{4}" -f $Client.Player, $X, ($Y + 0.5), $Z, $face) | Out-Null
 	Start-Sleep -Seconds $SettleSeconds
@@ -69,6 +71,7 @@ function Enter-SlipwayE2EArea {
 		Send-SlipwayE2ERcon -Command ("fill {0} {1} {2} {3} {1} {4} minecraft:glass" -f ($bx - 1), $by, ($bz - 1), ($bx + 1), ($bz + 1)) | Out-Null
 	}
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3}{4}" -f $Client.Player, $X, $Y, $Z, $face) | Out-Null
+	try { Invoke-SlipwayE2EAgent -Client $Client -Verb fly -Argument off | Out-Null } catch { }
 	Start-Sleep -Milliseconds 800
 }
 
