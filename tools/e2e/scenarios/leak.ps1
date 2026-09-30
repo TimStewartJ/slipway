@@ -84,7 +84,8 @@ print("level.dat updated")
 		Invoke-SlipwayE2EAgent -Client $c -Verb chat -Argument '/tp @s 0 100.5 -5' | Out-Null
 		Wait-Agent { $v = [string](Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'vessels'); ([regex]::Matches($v, 'ready=true').Count -ge 3) } 60 'the vessels to arrive' | Out-Null
 		$open = Get-Natives
-		foreach ($id in $ids) { Invoke-SlipwayE2EAgent -Client $c -Verb chat -Argument "/slipway control $id 0.3 0 0.1 0 0.4 0 100" | Out-Null }
+		# 200 ticks: the input must still be on when the speeds are read 5 s later (100 ticks ended right at the read).
+		foreach ($id in $ids) { Invoke-SlipwayE2EAgent -Client $c -Verb chat -Argument "/slipway control $id 0.3 0 0.1 0 0.4 0 200" | Out-Null }
 		Start-Sleep -Seconds 5
 		$flying = Get-Natives
 		$vessels = [string](Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'vessels')
