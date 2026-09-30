@@ -58,6 +58,10 @@ metres; double precision is why Slipway ships the Dp flavour.
   `ShadowRenderer.extractVisibleEntities` + `renderEntities` re-submit every visible entity into the shadow pass,
   so geometry submitted by an entity renderer is shaded as terrain and casts shadows with no Iris patch. Entities
   are kept when `levelRenderer.isSectionCompiledAndVisible(entity.blockPosition())`, the same test vanilla uses.
+  Only the vessel's blocks and block entities go into the shadow pass: the hovered-block outline and breaking
+  overlay are skipped while `IrisApi.isRenderingShadowPass()` (optional, by reflection). Iris has no shadow program
+  for `lines_translucent` and logs "Missing program minecraft:pipeline/lines_translucent in override list" once an
+  outline reaches its shadow pass (the soak setup reproduced it on the first release candidate).
 - Sodium 0.9.2 (tag `mc26.3-0.9.2`): terrain is meshed and drawn by `RenderSectionManager` for chunks in the client
   chunk cache; entity culling goes through `SodiumWorldRenderer.isEntityVisible` (large boxes are only frustum
   tested) and `isSectionReady` backs `isSectionCompiledAndVisible`. Sodium does not touch the entity feature

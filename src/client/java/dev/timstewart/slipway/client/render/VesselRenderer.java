@@ -190,7 +190,9 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		}
 
 		var models = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
-		for (int i = 0; i < state.breakingLocal.size(); i++) {
+		// Breaking progress and the hovered block's outline are main-pass only, like vanilla's (not into shadows).
+		boolean shadowPass = IrisShadowPass.active();
+		for (int i = 0; !shadowPass && i < state.breakingLocal.size(); i++) {
 			BlockPos local = state.breakingLocal.get(i);
 			BlockState blockState = state.breakingStates.get(i);
 			poseStack.pushPose();
@@ -201,7 +203,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 			poseStack.popPose();
 		}
 
-		if (state.outlineLocal != null && state.outlineShape != null) {
+		if (!shadowPass && state.outlineLocal != null && state.outlineShape != null) {
 			poseStack.pushPose();
 			poseStack.translate(state.outlineLocal.getX(), state.outlineLocal.getY(), state.outlineLocal.getZ());
 			float width = Minecraft.getInstance().gameRenderer.gameRenderState().windowRenderState.appropriateLineWidth;

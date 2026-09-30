@@ -44,6 +44,26 @@ try {	$iris = Invoke-SlipwayE2EAgent -Client $c -Verb iris -Argument status
 	Add-SlipwayE2ECheck -Run $run -Title 'after assembly Distant Horizons no longer has the ship at its build site' -Condition ($lod -match '^air') -Detail "LOD at the old deck block: $lod" | Out-Null
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '01-near-shaders' -Directory $run.Directory -HideHud -SettleMilliseconds 500
 	Add-SlipwayE2EStep -Run $run -Title 'screenshot: vessel near, Bliss shaders, morning sun (look for its shadow on the pad)' -Screenshot $shot
+	# The hovered block's outline on a vessel with shaders on, standing and then at the helm: outlines are main-pass
+	# only (VesselRenderer skips them in Iris's shadow pass, where Iris has no program for outline lines; the soak's
+	# setup reproduced that error, this step checks the outline draws without errors). Not with the HUD hidden: that
+	# hides outlines too.
+	Send-SlipwayE2ERcon -Command 'time set noon' | Out-Null
+	Enter-SlipwayE2EArea -Client $c -X ($hx + 0.5) -Y $hy -Z ($hz - 1.5) -NoPlatform -SettleSeconds 1
+	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "lookAtLocal $id 0.5 0.5 0.5" | Out-Null
+	Start-Sleep -Seconds 2
+	$hit = [string](Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'hit')
+	Add-SlipwayE2ECheck -Run $run -Title 'the crosshair is on a vessel block with shaders on (its outline is drawn)' -Condition ($hit -match "^vessel $id ") -Detail $hit | Out-Null
+	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '01b-outline-shaders' -Directory $run.Directory -SettleMilliseconds 300
+	Add-SlipwayE2EStep -Run $run -Title 'screenshot: block outline on the vessel with shaders on' -Screenshot $shot
+	Invoke-SlipwayE2EAgent -Client $c -Verb use | Out-Null
+	Start-Sleep -Seconds 2
+	$state = [string](Invoke-SlipwayE2EAgent -Client $c -Verb state)
+	Add-SlipwayE2ECheck -Run $run -Title 'the player takes the helm with shaders on' -Condition ($state -match 'vehicle=vessel') -Detail $state | Out-Null
+	Invoke-SlipwayE2EAgent -Client $c -Verb hold -Argument 'key.keyboard.left.shift 6' | Out-Null
+	Start-Sleep -Seconds 1
+	Send-SlipwayE2ERcon -Command 'time set 2500' | Out-Null
+	Enter-SlipwayE2EArea -Client $c -X ($hx + 14.5) -Y 132 -Z ($hz - 13.5) -LookAt @($hx, 123, $hz) -SettleSeconds 1
 	Send-SlipwayE2ERcon -Command "slipway mode $id level false" | Out-Null
 	Send-SlipwayE2ERcon -Command "slipway rotate $id 30 20 25" | Out-Null
 	Start-Sleep -Seconds 3
