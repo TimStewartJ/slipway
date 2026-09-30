@@ -88,7 +88,8 @@ try {
 					$nextSample += 30
 				}
 				if ($clock.Elapsed.TotalSeconds -ge $nextShot) {
-					Save-SlipwayE2EScreenshot -Client $c -Name ("soak-{0:D2}min" -f [int]$clock.Elapsed.TotalMinutes) -Directory $run.Directory | Out-Null
+					# Mid-flight frames: the terrain streams in continuously and no blocks change, so do not hold up the program.
+					Save-SlipwayE2EScreenshot -Client $c -Name ("soak-{0:D2}min" -f [int]$clock.Elapsed.TotalMinutes) -Directory $run.Directory -TerrainTimeoutSeconds 0 | Out-Null
 					$nextShot += 300
 				}
 				Start-Sleep -Milliseconds 250
