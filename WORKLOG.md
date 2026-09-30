@@ -27,6 +27,17 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+Series5 GREEN at 2485c6a: 3 consecutive FRESH-run-dir full runs with the 20-min soak, 36/36 passed (1702/1719/1699 s;
+E:\slipway-e2e\cgt\series5-fresh). DESIGN.md updated (runtime/flakiness with the full history, perf over 6 runs, soak
+criterion evidence, DH ChunkSaveIgnoreTimer observation). Failed first clean build reconstructed into
+E:\slipway-e2e\cgt\clean-build1-failed-assemble-race (results rebuilt from its log).
+Next: commit (E), final `gradlew clean build` -> E:\slipway-e2e\cgt\clean-build2 (results, junit, log, screenshots,
+packaged-check report, summary), recorder: --superseded series0 --superseded series1 --superseded series2
+--superseded series3-perf-1280 --superseded clean-build1-failed-assemble-race series5-fresh clean-build2; commit;
+Bridge task; final report.
+
+## Previous state (chain 8)
+
 Chain 8 found and fixed: jolt-jni PhysicsSystem static map (va2ps) kept every closed engine's PhysicsSystem (1..8 per
 cycle in dhfix6 histograms; bytecode: only forgetMe() removes). Fix: JoltEngine.close()/JoltSelfTest call forgetMe().
 Unit test JoltEngineTest.closingAnEngineReleasesItsPhysicsSystemFromJoltJni (fails without fix, passes with); leak

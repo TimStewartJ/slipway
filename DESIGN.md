@@ -370,6 +370,14 @@ kept growing because of chain 8.
 Before the `PhysicsSystem` fix (chain 8) that matrix run also kept one jolt-jni `PhysicsSystem` per cycle (1 to 8);
 with it the client GameTest `leak` finds none after any cycle.
 
+Observed and left alone (not a retained world, not growing): `DhChunkGenerator` creates a `DhInternalServerGenerator`
+per level, whose `java.util.Timer` ("DH-ChunkSaveIgnoreTimer") starts its thread at construction and is never
+cancelled (`DhChunkGenerator.close()` cancels only its own timer, patch L3). The thread ends when the generator
+becomes unreachable (the JDK's `Timer` stops its thread once the `Timer` is collected): the leak check saw none of them
+after most cycles and 3 after two consecutive cycles of one run, never more, with no world retained. Cancelling it from
+`DhChunkGenerator.close()` would be a one-line change on the DH branch; it was not made because it would have
+required re-validating the whole suite on a new DH build for a thread that already goes away.
+
 **The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
 world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
 every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
@@ -427,9 +435,10 @@ Both clients' vessel poses are compared with the server's pose for the same serv
 Perf measures at 1280x720, the M7 window size (resized through the test API; the other scenarios use the runner's
 854x480), in a superflat world at render distance 12 on the integrated server. Its absolute frame rates and tick times
 are therefore not comparable with M7's (a generated world, a dedicated server and a remote client); the cost of the
-flying barge relative to the warm baseline is. Three runs (series3, below): frame-rate drop 8.5%, 12.9% and 5.0%
-(M7 on Prism: 8 to 15%); server tick with the barge flying 0.64 to 0.68 ms mean, +0.06 to +0.12 ms over the warm
-baseline, worst single tick 1.9 to 2.7 ms; physics step 0.08 ms mean on its own thread.
+flying barge relative to the warm baseline is. Six runs (series3 and series5): frame-rate drop between -0.8% and
+12.9% (8.5, 12.9, 5.0, -0.8, 3.1 and 4.9%; the measurement is noisy at 750 to 900 frames per second; M7 on Prism:
+8 to 15%); server tick with the barge flying 0.44 to 0.68 ms mean, +0.03 to +0.12 ms over the warm baseline, worst
+single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
 
 **Harness facts learned the hard way** (each handled in the test code; none needs a Slipway change):
 - Fabric's `waitForChunksRender` asks vanilla's `LevelRenderer`, which Sodium replaces, and `waitForChunksDownload`
@@ -469,7 +478,8 @@ baseline, worst single tick 1.9 to 2.7 ms; physics step 0.08 ms mean on its own 
 GameTest run always contains Slipway (the test mod depends on it). So do the play-instance tools
 (`tools/verify-play-instance.ps1`, `tools/make-sandbox-world.ps1`), which work on the real play instance. The twelve
 Prism scenarios, their runner and deploy script were retired to `tools/e2e/legacy` (with a README mapping each to its
-client GameTest) after three consecutive green client-GameTest runs with the 20-minute soak (series2); the
+client GameTest) after three consecutive green client-GameTest runs with the 20-minute soak (series2), confirmed by
+series5 (three more, in fresh run directories, after the fixes described under "Runtime and flakiness"); the
 `e2eWatcher` Gradle run that only the Prism multiplayer scenario used was removed.
 
 **Server tick-time criterion (decided 2026-09-30).** The Prism perf and soak checks sampled `/slipway stats`, vanilla's
@@ -487,7 +497,8 @@ visible. Kept: the budget as a hard limit on every tick, which the old harness n
 soaks of series2 confirmed it: in every run the four worst ticks were exactly the four autosaves (ticks 6,000,
 12,000, 18,000 and 24,000; the first was the most expensive each time, 37.1 to 37.2 ms), the worst other tick was 7.6
 to 12.4 ms, the mean 0.78 to 0.79 ms, the 95th percentile 1.30 to 1.35 ms and the worst 100-tick average 1.35 to
-1.43 ms. That the save time is vanilla chunk writing rather than Slipway's vessel records is inferred (one vessel
+1.43 ms. Series5's three soaks showed the same (first autosave 30.0 to 38.6 ms, the worst other tick at most 12.9 ms,
+mean 0.79 to 0.82 ms). That the save time is vanilla chunk writing rather than Slipway's vessel records is inferred (one vessel
 record per save), not profiled.
 
 **Runtime and flakiness, before and after.** "Before" is the Prism harness (M1 to M7, 2026-09-29, from
@@ -495,19 +506,23 @@ record per save), not profiled.
 
 | | Prism harness | Client GameTests |
 | --- | --- | --- |
-| Full suite, 20-minute soak | 39 min wall-clock for the last batch (release jar, 19:02 to 19:41), including a 3.5-minute rerun of a failed leak run; then a manual review of every scenario's screenshots | 28.1, 28.1 and 28.1 min (series2: 1,689, 1,686 and 1,684 s; the 11 scenarios besides the soak take 7.5 min) |
-| Full suite, 2-minute soak (`check`) | not run that way | 9.9 min (series0) |
-| Scenario runs recorded | 112 | 36 in series2, plus 24 in two earlier series and 3 perf runs |
-| Failures | 36 by the automated checks (43 after review); 26 runs never reviewed | none in series2 or series3 |
-| Reruns of unchanged code that changed result | 7 of 29 (24%; 6.2% of all runs) | 0 of 24 in series2 (each scenario run three times); 0 of 2 in series3 |
+| Full suite, 20-minute soak | 39 min wall-clock for the last batch (release jar, 19:02 to 19:41), including a 3.5-minute rerun of a failed leak run; then a manual review of every scenario's screenshots | 28.4, 28.7 and 28.3 min (series5, each in a fresh run directory: 1,702, 1,719 and 1,699 s; the 11 scenarios besides the soak take 7.7 to 8.1 min); series2 before it: 28.1 min three times |
+| Full suite, 2-minute soak (`check`) | not run that way | about 10 min (series0: 9.9 min; the first clean build: 10.1 min) |
+| Scenario runs recorded | 112 | 36 in series5, 36 in series2, 24 in two earlier series, 12 in the first clean build, 3 perf runs, and the final clean build |
+| Failures | 36 by the automated checks (43 after review); 26 runs never reviewed | 3 runs with a failure before series5 (below); none in series2, series3 or series5 |
+| Reruns of unchanged code that changed result | 7 of 29 (24%; 6.2% of all runs) | 1 of 36 (2.8%) for the version that series2 retired: assemble-mixed failed in the first clean build after passing three times; after its fix 0 of 24 in series5 |
 | Harness failures | 14 runs ended in a "scenario error" (the script itself failed) | 0 |
 
 The Prism harness did not record script versions, so a result that changed on the same jar is either nondeterminism
-or a script fix between the runs; the two cannot be separated, which is itself one of its weaknesses. Two client
-GameTest runs failed before series2, both counted above: series0 failed once in assemble-mixed (the picture was
-compared before the client had meshed the whole vessel; a test race, fixed by `waitClientComplete` in f0293d0,
-passed in every run since), and series1's first run failed the soak's original every-tick 25 ms limit (see the criterion above; series1 was
-stopped there). Series runs: `E:\slipway-e2e\cgt\series*`, recorded in `validation.json`.
+or a script fix between the runs; the two cannot be separated, which is itself one of its weaknesses. Three client
+GameTest runs had a failure, all counted above. Series0 failed once in assemble-mixed: the picture was compared before
+the client had meshed the whole vessel, a test race fixed by `waitClientComplete` in f0293d0. Series1's first run
+failed the soak's original every-tick 25 ms limit (see the criterion above; series1 was stopped there). And the first
+`gradlew clean build` after series2 (13611e2) failed assemble-mixed again, a different race that three consecutive
+runs had not shown: its reference picture was taken while distant terrain was still arriving (see "Harness facts"),
+fixed in 95ee36b. That is why the final series (series5) ran three times in fresh run directories, as a clean build
+does, after that fix and after the `PhysicsSystem` fix (2485c6a); series4 was stopped in its first run for the
+latter. Series runs: `E:\slipway-e2e\cgt\series*` and `clean-build*`, recorded in `validation.json`.
 
 ## Known log noise (not Slipway)
 
