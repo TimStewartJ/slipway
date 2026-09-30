@@ -92,9 +92,11 @@ you remove, not touching the ground.
 - The Distant Horizons view of a far vessel is one coloured box per visible block, not the real models.
 - Very large ships: the cap is 4,096 blocks (configurable in `config/slipway.json`); larger ships cost more.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
-- Leaving and reopening worlds many times in one game session slowly grows memory. This was measured at about
-  175 MB per reopen, and the heap analysis traces the retention to Distant Horizons, not Slipway. Restart the game
-  after many world switches.
+- Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
+- Leaving and reopening worlds many times in one game session grows memory (about 130 to 175 MB per reopen). The
+  heap analysis (`DESIGN.md`, "World retention") traced it to Distant Horizons fork.6, and with a shader pack also to
+  Iris; Slipway holds none of it. The fixes exist (a Distant Horizons test branch and a Slipway cleanup after the
+  0.1.0 jar) but are not in this play instance yet. Restart the game after many world switches.
 - Pre-1.0: saves from this version may not load in later versions.
 
 ## Reporting issues

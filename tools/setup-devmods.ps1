@@ -2,12 +2,16 @@
 .SYNOPSIS Copies the integration mods Slipway builds and tests against into devmods/ (git-ignored).
 .DESCRIPTION Fabric API, Sodium, Iris and Distant Horizons are taken from the play instance so the build, the test
 instance and the final play instance all use exactly the jars of the user's play stack. Tellus and Tellus
-Expeditions are never copied.
+Expeditions are never copied. The client GameTests run with the leak-fixed Distant Horizons build (branch
+slipway-leak-fix of E:\distant-horizons, DESIGN.md "World retention"), copied to devmods/test when it has been built;
+with the play stack's fork.6 the client GameTest leak check fails, because fork.6 keeps every closed world.
 #>
 [CmdletBinding()]
 param(
 	[string]$SourceInstance = 'Tellus-Expeditions-MC-26.3-Fabric',
-	[string]$PrismRoot = "$env:APPDATA\PrismLauncher"
+	[string]$PrismRoot = "$env:APPDATA\PrismLauncher",
+	[string]$TestDhJar = (Get-ChildItem 'E:\distant-horizons\fabric\build\libs' -Filter 'DistantHorizons-fabric-*-leakfix.*-26.3.jar' -ErrorAction SilentlyContinue |
+		Sort-Object LastWriteTime | Select-Object -Last 1).FullName
 )
 $ErrorActionPreference = 'Stop'
 $source = Join-Path $PrismRoot "instances\$SourceInstance\.minecraft\mods"
@@ -24,6 +28,14 @@ foreach ($name in $wanted) {
 	if (-not (Test-Path -LiteralPath $from)) { throw "Missing $from" }
 	Copy-Item -LiteralPath $from -Destination $target -Force
 }
-Get-ChildItem $target -Filter *.jar | ForEach-Object {
-	[pscustomobject]@{ Jar = $_.Name; Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
+if ($TestDhJar -and (Test-Path -LiteralPath $TestDhJar)) {
+	$testDir = Join-Path $target 'test'
+	New-Item -ItemType Directory -Force $testDir | Out-Null
+	Get-ChildItem $testDir -Filter 'DistantHorizons-*.jar' | Remove-Item -Force
+	Copy-Item -LiteralPath $TestDhJar -Destination $testDir -Force
+} else {
+	Write-Warning 'No leak-fixed Distant Horizons build found; the client GameTests will use fork.6 and their leak check will fail.'
+}
+Get-ChildItem $target -Filter *.jar -Recurse | ForEach-Object {
+	[pscustomobject]@{ Jar = $_.FullName.Substring($target.Length + 1); Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
 }

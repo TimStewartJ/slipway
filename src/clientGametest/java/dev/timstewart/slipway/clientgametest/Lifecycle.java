@@ -23,6 +23,8 @@ final class Lifecycle {
 	static final Map<Long, Snapshot> LOADED = new ConcurrentHashMap<>();
 	/** Each vessel's record at the end of the first tick its physics body existed (before any step result applies). */
 	static final Map<Long, Snapshot> FIRST_BODY = new ConcurrentHashMap<>();
+	/** Server tick counts at which a running server saved (autosave, save-all). */
+	static final java.util.Queue<Integer> SAVE_TICKS = new java.util.concurrent.ConcurrentLinkedQueue<>();
 	private static boolean installed;
 
 	private Lifecycle() {
@@ -33,6 +35,11 @@ final class Lifecycle {
 			return;
 		}
 		installed = true;
+		ServerLifecycleEvents.BEFORE_SAVE.register((server, flush, force) -> {
+			if (server.isRunning()) {
+				SAVE_TICKS.add(server.getTickCount());
+			}
+		});
 		ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {
 			if (!server.isRunning()) {
 				SAVED.clear();

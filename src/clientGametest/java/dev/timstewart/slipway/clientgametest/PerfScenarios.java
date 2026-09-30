@@ -1,7 +1,6 @@
 package dev.timstewart.slipway.clientgametest;
 
 import dev.timstewart.slipway.physics.PhysicsWorld;
-import dev.timstewart.slipway.vessel.VesselPhysicsBridge;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -13,7 +12,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -26,7 +24,7 @@ final class PerfScenarios {
 	private PerfScenarios() {
 	}
 
-	record Phase(String name, double[] fps, double[] mspt, double[] physicsMs) {
+	record Phase(String name, double[] fps, TickTimes ticks, double[] physicsMs) {
 		double fpsMean() {
 			return Arrays.stream(this.fps).average().orElse(Double.NaN);
 		}
@@ -36,15 +34,15 @@ final class PerfScenarios {
 		}
 
 		double msptMean() {
-			return Arrays.stream(this.mspt).average().orElse(Double.NaN);
+			return this.ticks.mean();
 		}
 
 		double msptP95() {
-			return percentile(this.mspt, 95);
+			return this.ticks.p95();
 		}
 
 		double msptMax() {
-			return Arrays.stream(this.mspt).max().orElse(Double.NaN);
+			return this.ticks.worst();
 		}
 	}
 
@@ -117,44 +115,34 @@ final class PerfScenarios {
 		r.metric("fpsDropFlyingVsWarm", drop);
 		r.metric("msptAddedFlyingVsWarm", flying.msptMean() - warm.msptMean());
 		Check.atMost("server tick time while the barge flies, mean (ms)", flying.msptMean(), 15.0);
-		Check.atMost("server tick time while the barge flies, 95th percentile (ms)", flying.msptP95(), 20.0);
-		Check.atMost("server tick time while the barge flies, worst (ms)", flying.msptMax(), 25.0);
+		flying.ticks().check(r, "flying");
 		Check.atMost("frame-rate drop with the flying barge vs the warm baseline", drop, 0.5);
 	}
 
 	/** One measured phase: an FPS sample a second and every server tick's time. */
 	private static Phase phase(ClientGameTestContext ctx, TestServerContext server, String name, int ticks, long vessel) {
 		List<Double> fps = new ArrayList<>();
-		List<Double> mspt = new ArrayList<>();
+		TickTimes times = new TickTimes();
 		List<Double> physics = new ArrayList<>();
 		for (int i = 1; i <= ticks; i++) {
 			ctx.waitTick();
-			double[] tick = server.computeOnServer(s -> {
-				double ms = lastTickMs(s);
-				double step = Double.NaN;
-				if (vessel >= 0) {
-					VesselPhysicsBridge bridge = Game.manager(s).physics();
-					PhysicsWorld world = bridge.worldIfStarted();
-					step = world == null ? Double.NaN : world.lastStepNanos() / 1.0e6;
+			server.runOnServer(times::add);
+			double step = server.computeOnServer(s -> {
+				if (vessel < 0) {
+					return Double.NaN;
 				}
-				return new double[] {ms, step};
+				PhysicsWorld world = Game.manager(s).physics().worldIfStarted();
+				return world == null ? Double.NaN : world.lastStepNanos() / 1.0e6;
 			});
-			mspt.add(tick[0]);
-			if (!Double.isNaN(tick[1])) {
-				physics.add(tick[1]);
+			if (!Double.isNaN(step)) {
+				physics.add(step);
 			}
 			if (i % 20 == 0) {
 				fps.add((double)ctx.computeOnClient(mc -> mc.getFps()));
 			}
 		}
 		SlipwayClientGameTests.LOG.info("perf phase {}: {} ticks", name, ticks);
-		return new Phase(name, fps.stream().mapToDouble(Double::doubleValue).toArray(), mspt.stream().mapToDouble(Double::doubleValue).toArray(),
-			physics.stream().mapToDouble(Double::doubleValue).toArray());
-	}
-
-	static double lastTickMs(MinecraftServer server) {
-		long[] times = server.getTickTimesNanos();
-		return times[server.getTickCount() % times.length] / 1.0e6;
+		return new Phase(name, fps.stream().mapToDouble(Double::doubleValue).toArray(), times, physics.stream().mapToDouble(Double::doubleValue).toArray());
 	}
 
 	static double percentile(double[] values, double p) {

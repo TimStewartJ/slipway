@@ -60,6 +60,8 @@ final class SoakScenarios {
 	static void soak(ClientGameTestContext ctx, Report.Result r) {
 		double minutes = Double.parseDouble(System.getProperty("slipway.clientGametest.soakMinutes", "2"));
 		Check.that(minutes > 0 && minutes <= 180, "soak minutes out of range: %s", minutes);
+		Lifecycle.install();
+		Lifecycle.SAVE_TICKS.clear();
 		Game.options(ctx, o -> o.framerateLimit().set(120));
 		try (TestSingleplayerContext sp = Game.creativeWorld(ctx)) {
 			try {
@@ -91,7 +93,7 @@ final class SoakScenarios {
 		long totalTicks = Math.round(minutes * 60 * 20);
 		long tick = 0;
 		int samples = 0;
-		List<Double> mspt = new ArrayList<>();
+		TickTimes times = new TickTimes();
 		double heapStart = Double.NaN;
 		int shots = 0;
 		while (tick < totalTicks) {
@@ -120,7 +122,7 @@ final class SoakScenarios {
 					int stepTicks = (int)Math.round(step.seconds() * 20);
 					for (int i = 0; i < stepTicks && tick < totalTicks; i++, tick++) {
 						ctx.waitTick();
-						mspt.add(server.computeOnServer(PerfScenarios::lastTickMs));
+						server.runOnServer(times::add);
 						if (tick % 20 == 0) {
 							check(ctx, server, id, record.blockCount, tick);
 							samples++;
@@ -144,19 +146,14 @@ final class SoakScenarios {
 		}
 		double heapEnd = heapAfterGc();
 		Shots.take(ctx, r, "soak-end");
-		double[] times = mspt.stream().mapToDouble(Double::doubleValue).toArray();
 		r.metric("minutes", minutes);
 		r.metric("ticks", tick);
 		r.metric("samples", samples);
-		r.metric("msptMean", java.util.Arrays.stream(times).average().orElse(Double.NaN));
-		r.metric("msptP95", PerfScenarios.percentile(times, 95));
-		r.metric("msptMax", java.util.Arrays.stream(times).max().orElse(Double.NaN));
 		r.metric("heapAfterGcStartMb", heapStart);
 		r.metric("heapAfterGcEndMb", heapEnd);
 		Check.equal("ticks flown", tick, totalTicks);
 		Check.that(samples >= totalTicks / 20, "only %d of %d one-second samples were taken", samples, totalTicks / 20);
-		Check.atMost("server tick time, 95th percentile (ms)", PerfScenarios.percentile(times, 95), 20.0);
-		Check.atMost("server tick time, worst (ms)", java.util.Arrays.stream(times).max().orElse(Double.NaN), 25.0);
+		times.check(r, "soak");
 		if (!Double.isNaN(heapStart)) {
 			Check.atMost("heap growth after GC over the soak (MB)", heapEnd - heapStart, 256.0);
 		}

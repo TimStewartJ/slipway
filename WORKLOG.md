@@ -27,8 +27,31 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
-Goal 2 remainder: packaged-jar check, 3 consecutive green full client-GameTest runs (+ 20-min soak), retire Prism
-scenarios, runtime/flakiness numbers, validation.json cleanup; then RCA in DESIGN.md, Goal 3 docs, finish.
+Series2: 3 consecutive full client-GameTest runs with the 20-minute soak (E:\slipway-e2e\cgt\series2, script
+E:\slipway-e2e\cgt\series.ps1). Series1 run 1 failed only on the old per-tick soak limit (one 32.3 ms tick vs 25;
+directory renamed series1-aborted-soak-per-tick-limit). Criterion changed (DESIGN.md "Server tick-time criterion"):
+worst 100-tick average < 25 after every tick, p95 < 20, every tick < 50 ms budget (+ perf mean < 15); worst 5 ticks
+reported with save attribution. Evidence: 6-min soak worst tick 23.3 ms = tick 6000 (world save), next 10.2 ms.
+After series2: if all green -> retire Prism scenarios to tools/e2e/legacy (keep _common.ps1, leak-new.ps1,
+leak-matrix.ps1, mat.ps1, agent, module, contact_sheet.py as the leak-isolation diagnostic), run
+tools/e2e/record-client-gametests.py series2 to rewrite validation.json, fill runtime/flakiness numbers into DESIGN.md
+"Testing", final clean build (gradlew build), stop processes, Bridge task.
+
+## Done since last update
+
+- Tick-time criterion rework: TickTimes (every tick; worst 100-tick average, p95, worst, worst 5 with save
+  attribution via Lifecycle.SAVE_TICKS from BEFORE_SAVE), used by soak and perf. soak (6 min) passed: mean 0.92,
+  p95 1.79, worst 23.3 (autosave), worst avg100 2.09. perf passed: flying mean 0.68, p95 0.77, worst 1.83.
+- Commits: 33304f8 packaged-jar check (runPackagedJarCheck passes: exact play stack, audit, 0 errors, vessel
+  assembled in production); f0293d0 assemble-mixed waits for the complete mesh (series0 run 1 failed once: MSD 0.0078
+  with 156/928 vertices, a test race) + DESIGN.md RCA and Testing sections.
+- Goal 3 docs done: Bridge slipway/design (status + testing bullets), slipway/first-playable-prompt (steps 0.2, 6.3-6.6
+  and an update note), tellus-e2e SKILL.md section "New mods: start with Fabric client GameTests", new Bridge doc
+  modding/minecraft-testing-strategy (failure breakdown, levels, leak lessons, mc-testkit proposal).
+- Before numbers (Prism history, validation.json): 112 runs, 43 fail, 26 pending-review, 7 same-jar flips (6.2%),
+  14 harness "scenario error"; last full Prism batch at release commit 11943c1 took ~36 min (+3.5 min leak rerun)
+  with the 20-min soak (19:02 -> 19:41); scenario step durations sum 31-33 min. Client GameTest full suite: 596 s
+  with the 2-min soak (series0 run 1).
 
 ## Commits
 
@@ -88,6 +111,11 @@ scenarios, runtime/flakiness numbers, validation.json cleanup; then RCA in DESIG
   +15,+3,+2): the strict check must measure growth after a warm-up cycle.
 
 ## Next step
+
+Run series2 (3 x full suite with the 20-minute soak). Then retire the Prism scenarios, rewrite validation.json,
+fill DESIGN.md numbers, final clean build, Bridge task, final report.
+
+## Next step (old)
 
 Finish matrix4; run the leakfix.4 matrix (full x3, full-bliss x2, dhOnly x2 with dumps; controls). Meanwhile write
 the client GameTest scenarios (needs the scenario assertion inventory from the explore agent).

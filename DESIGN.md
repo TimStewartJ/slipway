@@ -413,6 +413,19 @@ Both clients' vessel poses are compared with the server's pose for the same serv
 GameTest run always contains Slipway (the test mod depends on it). The retired Prism scenarios are in
 `tools/e2e/legacy`.
 
+**Server tick-time criterion (decided 2026-09-30).** The Prism perf and soak checks sampled `/slipway stats`, vanilla's
+100-tick average, every 30 s and required the largest sample under 25 ms (perf also a mean under 15 ms). The client
+GameTests record every tick's own time (`MinecraftServer.getTickTimesNanos`, `TickTimes`), so the old check can be
+evaluated after every tick instead of every 600th: the worst 100-tick average must stay under 25 ms (the old check,
+now without sampling gaps), 95% of ticks under 20 ms, every single tick inside the 50 ms tick budget, and for perf the
+mean under 15 ms. A first version also required every single tick under 25 ms. That is stricter than anything the old
+harness measured, and the 20-minute soak failed it once with one 32.3 ms tick (mean 0.77 ms, p95 1.31 ms). A 6-minute
+soak with save tracking then showed where such ticks come from: its worst tick, 23.3 ms, was tick 6000, the vanilla
+autosave (`MinecraftServer` saves every 6,000 ticks; the next worst tick was 10.2 ms), and a save costs more the
+more chunks the flight has loaded. A lone long tick inside the budget is not a lag the player sees, and the check
+reports the five worst ticks with whether a world save ran in each, so a regression that moves the tail is still
+visible. Kept: the budget as a hard limit on every tick, which the old harness never checked.
+
 ## Known log noise (not Slipway)
 
 The harness ignores these, each checked to occur without Slipway or to be expected by a test:
