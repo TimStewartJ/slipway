@@ -64,7 +64,7 @@ final class AssemblyScenarios {
 			Map<BlockPos, CompoundTag> onVessel = server.computeOnServer(s -> Ships.plotBlockEntityData(s.overworld(), record, spec.keySet()));
 			Check.equal("block-entity data on the vessel", onVessel, before);
 
-			Game.waitClientMesh(ctx, id, 100);
+			Game.waitClientComplete(ctx, id, 200);
 			Game.ClientView view = Game.clientView(ctx, id);
 			Check.equal("blocks the client knows", view.blocks(), spec.size());
 			r.metric("meshVertices", view.vertices());

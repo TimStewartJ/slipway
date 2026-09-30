@@ -243,14 +243,10 @@ vertex copy of the cached mesh plus Iris's shadow pass drawing it a second time.
 
 **Native handles and leaks** (`leak.ps1`, release jar, run `leak-20260929-191726`): one client process opened and
 closed a singleplayer world with three flying vessels five times. With the world open: 1 Jolt engine, 3 bodies;
-after each close: 0 engines, 0 bodies, 0 Slipway level managers, 0 client vessels. Process private memory grew
-31 MB per cycle (allocator and cache growth; not unbounded in these cycles). Heap after GC did grow by about 120 MB
-per cycle (retained chunk sections and palettes, i.e. whole worlds; 170 MB per cycle in the earlier run
-`leak-20260929-181413`). JFR old-object samples with paths to GC roots show every retained world held by Distant
-Horizons: all 33 world-retaining samples pass through its `WorldGeneratorInjector.worldGeneratorByLevelWrapper`
-static map and `ServerLevelWrapper`, and none pass through Slipway or jolt-jni. That is a Distant Horizons (fork.6)
-issue: long singleplayer sessions that reopen worlds many times will accumulate heap until restart. The JUnit leak
-test (`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
+after each close: 0 engines, 0 bodies, 0 Slipway level managers, 0 client vessels. Heap after GC grew by about 120 MB
+per cycle: whole worlds stayed in memory. The attribution recorded here at the time (one Distant Horizons map) was
+not proven and was incomplete; the root-cause analysis below replaces it. The JUnit leak test
+(`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
 balance exactly over full engine lifecycles.
 
 **Soak** (`soak.ps1`, release jar, run `soak-20260929-192036`): a pilot flew the mixed ship (Iris + Bliss on) for
@@ -260,6 +256,162 @@ the pilot at the helm throughout, no block lost, the ship intact at the end; ser
 sample 6.43 ms; physics step at most 0.091 ms; client 65 fps average with the frame rate capped at 120; no Slipway
 error or warning in either log. An earlier soak on the first release candidate (`soak-20260929-182233`) flew just as
 cleanly but failed on the Iris outline error described under M0, which the final jar fixes.
+
+## World retention after closing a world: root-cause analysis (2026-09-30)
+
+**Symptom.** In the play stack (Sodium, Iris, Distant Horizons fork.6, Slipway), every world a client opened and
+closed stayed in memory: heap after GC grew by 120 to 160 MB per reopening, live `ServerLevel` objects went 3, 6,
+9, 12, 15 over five cycles, and with a shader pack one `ClientLevel` per cycle as well.
+
+**Method.** Isolation matrix: `tools/e2e/scenarios/leak-matrix.ps1` runs `leak-new.ps1` (one client process,
+identical open/close cycles of a cached world, `jcmd GC.class_histogram` after full GCs at the title screen) with
+each mod set; heap dumps of the failing configurations were analysed with Eclipse MAT's batch mode (`path2gc`,
+`merge_shortest_paths`, thread stacks; `tools/e2e/mat.ps1`); Native Memory Tracking splits native growth into JVM
+categories; thread dumps group live threads by name. Runs: `E:\slipway-e2e\runs\leak-matrix-*`.
+
+**Isolation (before any fix; 5 cycles of the same Slipway-free world; live objects at the title screen):**
+
+| Mods | ServerLevel per cycle | ClientLevel | Heap after GC per cycle |
+| --- | --- | --- | --- |
+| Sodium + Iris + DH + Slipway | 3, 6, 9, 12, 15 | 1 | +129 MB |
+| Sodium + Iris + DH (no Slipway) | 3, 6, 9, 12, 15 | 1 | +142 MB |
+| DH only | 3, 6, 9, 12, 15 | 1 | +133 MB |
+| Sodium + Iris + Slipway (no DH) | 0 | 0 | +1.2 MB |
+| Sodium + Iris | 0 | 0 | +2.2 MB |
+| vanilla; Slipway only | 0 | 1 (constant) | +1.5 / +0.8 MB |
+| full stack with Bliss shaders | 3, 6, 9, 12, 15 | 1, 2, 3, 4, 5 | +163 MB |
+| Sodium + Iris with Bliss (no DH, no Slipway) | 0 | 1, 2, 3, 4, 5 | +40 MB |
+
+Distant Horizons is necessary and sufficient for the server-side retention; Iris with a shader pack separately
+retains one client world per cycle; Slipway is in neither.
+
+**Reference chains and root causes** (each from a heap dump; the fix of one exposed the next):
+
+1. *DH world-gen thread parked forever* (the first chain the old JFR run pointed at). A "DH-World Gen Thread" waited in
+   `ServerChunkCache.getChunk(..).join()`: surface rules (`MaterialRuleContext.getBiome`) sampled biomes through a
+   `BiomeManager` DH built on the live `ServerLevel` (DH's 26.3 `StepTerrain`), which hands the lookup to the server
+   thread; after the server stopped nothing ran it, and the parked thread's stack held the level and the server.
+   Vanilla's `ChunkStatusTasks.buildTerrain` uses the `WorldGenRegion`'s biome manager.
+2. *A running batch joined a closed IOWorker.* `Blender.of` → `WorldGenRegion.isOldChunkAround` →
+   `IOWorker.isOldChunkAround(..).join()` never completed after vanilla closed the level's IOWorker, because DH's close
+   cancels futures without interrupting running work. Also a static `ThreadLocal` on pooled world-gen threads and a
+   static "previous params" held the last level, and a per-level timer thread was never cancelled.
+3. *Static per-level map.* `WorldGeneratorInjector.worldGeneratorByLevelWrapper` gained an entry per level and was
+   never unbound (its unsynchronised writes are also the play instance's intermittent `HashMap.get(Object) is null`).
+4. *Static last-frame render state* (`ClientApi.RENDER_PARAMS`, `RENDER_STATE`, and the reusable event parameters of
+   DH's terrain and generic-object renderers, which Slipway's DH proxies use) kept the closed client and server levels.
+5. *Unclosed player states.* A player state that was never closed kept its full-data sender's task on DH's static
+   upload timer (every 50 ms) and its config listeners on DH's static config, and through them the player, its
+   connection and the server: `removePlayer` returned early when the player's level was gone, replaced states were
+   not closed, world close did not sweep states, and the integrated-server world's `close()` (which does not call its
+   parent's) never swept them either (found by the client GameTests with a second player).
+6. *Iris (1.11.6).* `RenderSystem.iris$overrides`, a static map added by Iris's `MixinShaderManager_Overrides`, is
+   filled per shader program and never cleared; the programs' custom uniforms capture `Minecraft.getInstance().level`
+   (`IrisExclusiveUniforms.WorldInfoUniforms`), so every world opened with a shader pack stayed. Separately, Iris keeps
+   its current pipeline (static `Iris.pipelineManager`) after the world closes and rebuilds it only when the dimension
+   changes; that pipeline holds the newest world's `ClientLevel` until the next world loads (bounded: one).
+7. *Vanilla (bounded).* `LevelRenderer.visibleSections` keeps the last frame's render sections (and through their
+   compile tasks the `ClientLevel`) until the next world renders; Sodium replaces that renderer.
+
+**Fixes.**
+- Distant Horizons, at the source: local branch `slipway-leak-fix` of `E:\distant-horizons` (wrapper `aa2e97405`,
+  core `5e93372c4`, not pushed), patches L1-L8 in its `PATCHES.md`, with core unit tests for the injector
+  (`testWorldGeneratorUnbindReleasesTheLevel`, `testConcurrentWorldGeneratorBinding`, the latter failing on the old
+  map). The build `3.3.1-tellus-fork.6-leakfix.9` is used only by the client GameTests (`devmods/test`) and the test
+  instance; the play instance keeps fork.6. The same work fixed a DH thread leak (one "World Gen Progress Updater"
+  thread per level per world) and a DH bug that dropped every block-use packet when a client hosts a dedicated server
+  in-process.
+- Iris and vanilla, mitigated in Slipway: `ClosedWorldCleanup` (client, the first tick without a world) clears
+  vanilla's visible-section list and Iris's override cache through guarded reflection (hook `iris-overrides-cache` in
+  `patches.json`); Iris rebuilds cache entries on demand. Iris's current pipeline is left alone: destroying it would
+  make every world join recompile the shader pack.
+
+**Result** (strict leak check, below; and the matrix):
+
+| Stack | Server objects after close | ClientLevel after close | Heap after GC per cycle | Threads |
+| --- | --- | --- | --- | --- |
+| before: full stack, fork.6 | 5 servers, 15 levels after 5 cycles | 1 (5 with Bliss) | +129 MB (+163 with Bliss) | +6 per cycle |
+| after: client GameTest `leak`, no shaders (leakfix.9) | 0 every cycle | 0 | +0 to +0.7 MB | no group grows |
+| after: client GameTest `leak`, Bliss | 0 every cycle | 1 (the newest, Iris pipeline) | +2 MB | no group grows |
+| after: matrix, full stack with vessels, 8 cycles | 0 | 0 | +2.6 to +2.9 MB | Netty pool only |
+
+**The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
+world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
+every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
+be collected (weak references to those exact objects; with Bliss only the newest cycle's `ClientLevel` may stay, as
+explained in chain 6), no live `IntegratedServer` or `ServerLevel` at all, Slipway's Jolt engines, bodies, level
+managers and client vessels at zero, Iris's override cache empty, heap after GC growing under 16 MB per cycle, no
+thread group that keeps growing (Netty's local event-loop group is one static pool of at most two threads per core,
+started lazily), and without shaders native memory growing under 64 MB per cycle. Any surviving world writes a heap
+dump for the path to its GC roots. There is no attribution: anything retained fails, whoever holds it.
+
+**Native memory.** Windows private bytes do not include ZGC's heap (mapped as shared memory), so they measure native
+memory; NMT showed the JVM's own native memory flat across cycles. Without shaders the full stack grows 5 to 55 MB per
+cycle (noisy; Distant Horizons alone 31 to 50, Sodium + Iris alone 7 to 8); with Bliss about 160 to 200 MB per cycle,
+the same without Slipway and without DH (Sodium + Iris + Bliss: +162 MB outside the JVM). That growth is outside the
+JVM, in Iris or the graphics driver; it is reported by the leak check and not bounded with shaders on, and it is not a
+retained world. Finding its exact owner needs a native heap profiler; recorded as open.
+
+**Test-harness findings on the way** (not product bugs): Fabric's client GameTest waits assume vanilla's renderer; a
+singleplayer close can deadlock the GameTest threading when a mod's client close is slow; a test method's dead local
+variable kept a world alive (a JVM frame's dead locals are GC roots); a dedicated server hosted in the test game stays
+reachable through vanilla's watchdog thread and JVM shutdown hook. Each is handled in the test code; see "Testing".
+
+## Testing
+
+Four levels, all part of `gradlew check` (`build` runs them too):
+
+| Level | What | Where | Time |
+| --- | --- | --- | --- |
+| Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller, records, engine lifecycle with Debug natives) | `src/test` | seconds |
+| Server GameTests | assembly, physics, interaction and packets inside a headless server | `src/gametest`, `runGametest` | ~10 s |
+| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~9 min (2-minute soak) |
+| Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
+
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs twelve
+scenarios (`SlipwayClientGameTests`); each starts at the title screen with default options, a failure is recorded
+and the next scenario still runs, and the run fails at the end if any failed. Reports:
+`build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and
+evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`. Options:
+`-PslipwayClientGametestOnly=a,b`, `-PslipwaySoakMinutes=20` (the release soak; the default in `check` is 2),
+`-PslipwayRecordTemplates=true` (write missing reference images; otherwise a missing one fails),
+`-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`.
+The run uses Sodium, Iris with Bliss (copied into the run directory; shaders are switched on through Iris's API where
+a scenario needs them) and the leak-fixed Distant Horizons build from `devmods/test` (else fork.6).
+Checks read game state on the server and client threads (vessel records, client vessels, riders, block states,
+block entities, packets refused, tick times) and wait for conditions or a number of game ticks, never wall-clock time.
+Pixels are checked where they are the point: the assembled vessel against a picture of the blocks it came from,
+reference images for the Bliss near and far views (MSD 0 run to run with Bliss's clouds frozen), the outline pixels
+switched by vanilla's own outline switch, the shadow as ground brightness with and without the vessel (with and
+without shaders), and the far barge as a compact shape at the aim point.
+Multiplayer runs a dedicated server inside the test game and a second real client: the same game started again in its
+own process (`WatcherProcess`: same classpath and JVM options, its own directory and name, commands through files).
+Both clients' vessel poses are compared with the server's pose for the same server tick.
+
+**Harness facts learned the hard way** (each handled in the test code; none needs a Slipway change):
+- Fabric's `waitForChunksRender` asks vanilla's `LevelRenderer`, which Sodium replaces, and `waitForChunksDownload`
+  expects the full square of chunks while servers send a circle; `Game.waitChunks`/`waitTerrain` wait for the circle
+  and ask Sodium (`isTerrainRenderComplete`).
+- Closing a singleplayer world can deadlock the GameTest threading: the deferred `disconnect` runs at the start of a
+  tick phase and `IntegratedServer.halt` blocks on a task for the server thread; when a mod's client close (Distant
+  Horizons closing its databases) outlasts the server's tick, the server is parked at the phase barrier (thread dump:
+  render thread in `IntegratedServer.halt → executeBlocking`, server thread in `ThreadingImpl.enterPhase`). The test mods
+  carry a test-only mixin (`IntegratedServerHaltMixin`) that queues that task (removing non-owner players) instead.
+- Unattended runs need `-Dfabric.noGui=true` (Fabric Loader otherwise opens an error window and waits) and headless
+  AWT, decided before Distant Horizons sets it back to false for its dialogs (otherwise the in-process dedicated server
+  opens its GUI window). The SDL window is created without activation (`SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN=0`).
+- A dedicated server in the test game needs `eula.txt` in the run directory (written by `prepareClientGametestRun`,
+  as the Prism harness does for its server), a whitelist entry for the second client, no watchdog
+  (`max-tick-time=-1`), and vanilla's JVM shutdown hook removed after it stops (it references the server).
+- JVM frames keep dead local variables as GC roots: world steps of the leak test run in their own methods.
+- The idle frame limit (30 fps after a minute without input) is off (`inactivityFpsLimit=minimized`).
+- Bliss's clouds move with real time and cast shadows: the run's pack options freeze them (`Cloud_Speed=0.0`) and turn
+  their shadows off, so shaded pictures repeat.
+
+**What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
+`leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client
+GameTest run always contains Slipway (the test mod depends on it). The retired Prism scenarios are in
+`tools/e2e/legacy`.
 
 ## Known log noise (not Slipway)
 

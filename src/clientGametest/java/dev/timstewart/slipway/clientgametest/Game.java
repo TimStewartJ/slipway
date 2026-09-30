@@ -199,6 +199,31 @@ final class Game {
 		}, timeout);
 	}
 
+	/**
+	 * Waits until the client draws the whole vessel: every one of its blocks has arrived in the client's plot, the mesh
+	 * has nothing left to build, and that holds for five ticks in a row (light data can arrive a little later and
+	 * rebuild sections). The vessel must be in view (meshes are built when drawn).
+	 */
+	static void waitClientComplete(ClientGameTestContext ctx, long id, int timeout) {
+		int[] stable = {0};
+		ctx.waitFor(mc -> {
+			ClientVessel v = ClientVessels.get(id);
+			boolean complete = v != null && v.ready() && v.mesh.vertexCount() > 0 && !v.mesh.hasPendingWork() && plotBlocks(mc, v) == v.blocks;
+			stable[0] = complete ? stable[0] + 1 : 0;
+			return stable[0] >= 5;
+		}, timeout);
+	}
+
+	private static int plotBlocks(Minecraft mc, ClientVessel v) {
+		int count = 0;
+		for (net.minecraft.core.BlockPos local : net.minecraft.core.BlockPos.betweenClosed(v.localMin, v.localMax)) {
+			if (!mc.level.getBlockState(v.anchor.offset(local)).isAir()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	/** A key binding by its translation name, including mod bindings such as "key.slipway.pitch_up". */
 	static KeyMapping key(ClientGameTestContext ctx, String name) {
 		return ctx.computeOnClient(mc -> Arrays.stream(mc.options.keyMappings).filter(k -> k.getName().equals(name)).findFirst()
