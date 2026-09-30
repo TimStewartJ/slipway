@@ -1,5 +1,7 @@
 # Slipway
 
+[![CI](https://github.com/TimStewartJ/slipway/actions/workflows/ci.yml/badge.svg)](https://github.com/TimStewartJ/slipway/actions/workflows/ci.yml)
+
 Moving physics block structures for Minecraft 26.3 (Fabric). Build a structure from any blocks, place a Slipway
 Helm on it, assemble it into a vessel and fly it with full pitch, yaw and roll. The blocks stay real blocks: chests,
 furnaces, doors, levers and redstone keep working while the vessel moves, and you can walk on the deck and build on it
@@ -30,7 +32,11 @@ rules exclude primarily AI-generated projects.
 
 Optional, all supported: [Sodium](https://modrinth.com/mod/sodium), [Iris](https://modrinth.com/mod/iris) (shaders;
 tested with Bliss) and [Distant Horizons](https://modrinth.com/mod/distanthorizons) (far vessels stay visible). The
-jar bundles Jolt's native libraries for Windows, Linux and macOS (x86_64 and aarch64); Windows is the tested platform.
+jar bundles Jolt's native libraries for Windows, Linux and macOS (x86_64 and aarch64). Playing is tested on Windows;
+CI runs the server tests on Linux; macOS is untested.
+
+Checked combinations for 0.1.1 (production Minecraft, every mixin applied, a vessel assembled): Fabric API only;
+with Sodium and Iris; with Sodium, Iris and Distant Horizons 3.3.4.
 
 Install it on both the client and the server for multiplayer.
 
