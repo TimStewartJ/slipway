@@ -317,6 +317,29 @@ retains one client world per cycle; Slipway is in neither.
    changes; that pipeline holds the newest world's `ClientLevel` until the next world loads (bounded: one).
 7. *Vanilla (bounded).* `LevelRenderer.visibleSections` keeps the last frame's render sections (and through their
    compile tasks the `ClientLevel`) until the next world renders; Sodium replaces that renderer.
+8. *jolt-jni `PhysicsSystem` registry (Slipway's use of jolt-jni; not a world, found after the worlds were freed).*
+   With every world collected, the fixed stack's class histograms still gained one `com.github.stephengold.joltjni.
+   PhysicsSystem` per world reopening (1 to 8 over 8 cycles, run `leak-matrix-dhfix6\full-vessels-r1`), each with the
+   Java objects it references (2 `BatchBodyInterface`, 2 `NarrowPhaseQuery`, Slipway's three layer and filter
+   tables). jolt-jni 6.1.1's `PhysicsSystem` constructor puts the new system into a static map
+   (`PhysicsSystem.va2ps`, used by `PhysicsSystem.find(address)`), its freeing action only frees the native system,
+   and only `forgetMe()` removes the entry (read from the class's bytecode); Slipway's `JoltEngine.close()` and the
+   startup self-test never called it. The native memory was freed (the Debug-natives allocation test balances); the
+   Java objects stayed, a few hundred bytes per world load.
+
+**The "Render thread" GC roots of the first leak run** (`leak-20260929-191726`, JFR old-object samples): 81 of the 95
+samples are reported with the root "Threads, stack variable, Render thread", but every one of those chains ends
+`java.lang.Class ← ArrayList ← KnotClassLoader`: the objects are held by static fields of classes Fabric's class
+loader loaded, and JFR reached that loader through a local variable of a frame on the render thread and named the root
+after it. The render thread itself held no world. The static fields were Distant Horizons' `WorldGeneratorInjector.
+INSTANCE` (32 samples, all 32 passing through a `ServerLevel` or `MinecraftServer`: chain 3), `GlobalWorldGenParams.
+previousGlobalWorldGenParams` (4; 1 through a world: chain 2), DH's lighting array pool `lightArrayCache` (42, int
+arrays only) and Netty's default allocator (3, buffers). No Slipway or jolt-jni class is on any sampled path. JFR samples
+a subset of allocations and keeps one path per object, which is why that run named chain 3 and none of the others.
+The Slipway classes that grew in that run grew with the retained worlds: `VesselRegistry` went 3, 6, 9, 12, 15
+(one per retained `ServerLevel`), `VesselCollisions$Contact` 11 to 572 and jolt-jni's `PhysicsSystem` 1 to 5; after
+the fixes `VesselRegistry` and `VesselCollisions$Contact` have no instance after any cycle, and `PhysicsSystem` only
+kept growing because of chain 8.
 
 **Fixes.**
 - Distant Horizons, at the source: local branch `slipway-leak-fix` of `E:\distant-horizons` (wrapper `aa2e97405`,
@@ -330,24 +353,33 @@ retains one client world per cycle; Slipway is in neither.
   vanilla's visible-section list and Iris's override cache through guarded reflection (hook `iris-overrides-cache` in
   `patches.json`); Iris rebuilds cache entries on demand. Iris's current pipeline is left alone: destroying it would
   make every world join recompile the shader pack.
+- jolt-jni (chain 8), fixed in Slipway: `JoltEngine.close()` and `JoltSelfTest` call `PhysicsSystem.forgetMe()`
+  before closing the system. Unit test `JoltEngineTest.closingAnEngineReleasesItsPhysicsSystemFromJoltJni` (fails
+  without the fix: the closed engine's system is still found in jolt-jni's map), and the client GameTest `leak`
+  requires zero live `PhysicsSystem` objects after every close (it was 1 to 8 before the fix, 0 after).
 
 **Result** (strict leak check, below; and the matrix):
 
 | Stack | Server objects after close | ClientLevel after close | Heap after GC per cycle | Threads |
 | --- | --- | --- | --- | --- |
 | before: full stack, fork.6 | 5 servers, 15 levels after 5 cycles | 1 (5 with Bliss) | +129 MB (+163 with Bliss) | +6 per cycle |
-| after: client GameTest `leak`, no shaders (leakfix.9) | 0 every cycle | 0 | +0 to +0.7 MB | no group grows |
-| after: client GameTest `leak`, Bliss | 0 every cycle | 1 (the newest, Iris pipeline) | +2 MB | no group grows |
+| after: client GameTest `leak`, no shaders (leakfix.9) | 0 every cycle | 0 | +0 to +2.7 MB (ZGC counts used heap in 2 MB pages) | Netty pool only |
+| after: client GameTest `leak`, Bliss | 0 every cycle | 1 (the newest, Iris pipeline) | -0.7 to +2 MB | Netty pool only |
 | after: matrix, full stack with vessels, 8 cycles | 0 | 0 | +2.6 to +2.9 MB | Netty pool only |
+
+Before the `PhysicsSystem` fix (chain 8) that matrix run also kept one jolt-jni `PhysicsSystem` per cycle (1 to 8);
+with it the client GameTest `leak` finds none after any cycle.
 
 **The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
 world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
 every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
 be collected (weak references to those exact objects; with Bliss only the newest cycle's `ClientLevel` may stay, as
-explained in chain 6), no live `IntegratedServer` or `ServerLevel` at all, Slipway's Jolt engines, bodies, level
-managers and client vessels at zero, Iris's override cache empty, heap after GC growing under 16 MB per cycle, no
-thread group that keeps growing (Netty's local event-loop group is one static pool of at most two threads per core,
-started lazily), and without shaders native memory growing under 64 MB per cycle. Any surviving world writes a heap
+explained in chain 6), no live `IntegratedServer` or `ServerLevel` at all, no live jolt-jni `PhysicsSystem`,
+Slipway's Jolt engines, bodies, level managers and client vessels at zero, Iris's override cache empty, heap after
+GC growing under 16 MB per cycle, no thread group that keeps growing (Netty's local event-loop group is one static
+pool of at most two threads per core, started lazily: it gains three threads per world opening, the only group that
+grows, and the report lists every group that changed), and without shaders native memory growing under 64 MB per
+cycle. Any surviving world writes a heap
 dump for the path to its GC roots. There is no attribution: anything retained fails, whoever holds it.
 
 **Native memory.** Windows private bytes do not include ZGC's heap (mapped as shared memory), so they measure native

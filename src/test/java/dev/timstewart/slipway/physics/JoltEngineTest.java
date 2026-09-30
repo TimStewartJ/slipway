@@ -2,9 +2,12 @@ package dev.timstewart.slipway.physics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.PhysicsSystem;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.physics.jolt.JoltEngine;
 import dev.timstewart.slipway.physics.jolt.JoltRuntime;
@@ -184,6 +187,23 @@ class JoltEngineTest {
 			engine.setStaticSection(4L, new BoxList(), 0, 0, 0);
 			assertFalse(engine.hasStaticSection(4L));
 		}
+	}
+
+	/**
+	 * jolt-jni registers every PhysicsSystem in a static map (for PhysicsSystem.find) and removes it only in forgetMe(),
+	 * not when the native system is freed. A closed engine must leave nothing there; otherwise every world load keeps
+	 * its PhysicsSystem and the Java objects it holds (found by the leak matrix: one more per world reopening).
+	 */
+	@Test
+	void closingAnEngineReleasesItsPhysicsSystemFromJoltJni() throws ReflectiveOperationException {
+		JoltEngine engine = new JoltEngine(1);
+		java.lang.reflect.Field field = JoltEngine.class.getDeclaredField("system");
+		field.setAccessible(true);
+		PhysicsSystem system = (PhysicsSystem)field.get(engine);
+		long address = system.va();
+		assertSame(system, PhysicsSystem.find(address), "jolt-jni registers the engine's PhysicsSystem");
+		engine.close();
+		assertNull(PhysicsSystem.find(address), "the closed engine's PhysicsSystem is still in jolt-jni's static map");
 	}
 
 	/**

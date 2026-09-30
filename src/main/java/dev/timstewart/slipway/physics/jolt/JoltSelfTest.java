@@ -106,6 +106,7 @@ public final class JoltSelfTest {
 			deck.close();
 			mast.close();
 			floorShape.close();
+			system.forgetMe();
 			system.close();
 			jobs.close();
 			temp.close();

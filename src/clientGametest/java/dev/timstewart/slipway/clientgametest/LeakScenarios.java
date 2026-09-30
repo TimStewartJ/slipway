@@ -162,6 +162,8 @@ final class LeakScenarios {
 				Check.equal(phase + " cycle " + n + ": live IntegratedServer objects", row.live().get("IntegratedServer"), 0L);
 				Check.equal(phase + " cycle " + n + ": live ServerLevel objects", row.live().get("ServerLevel"), 0L);
 				Check.atMost(phase + " cycle " + n + ": live ClientLevel objects", row.live().get("ClientLevel"), shaders ? 1 : 0);
+				// jolt-jni's static PhysicsSystem map kept every closed engine's system until Slipway called forgetMe().
+				Check.equal(phase + " cycle " + n + ": live jolt-jni PhysicsSystem objects", row.live().get("PhysicsSystem"), 0L);
 			}
 			Cycle second = rows.get(1);
 			Cycle last = rows.getLast();
@@ -193,6 +195,17 @@ final class LeakScenarios {
 				}
 			}
 			r.metric(phase + ".threadGroupsThatGrew", grew.toString());
+			// Every group whose size changed, per cycle, so the report shows where the total went.
+			Map<String, List<Integer>> changing = new TreeMap<>();
+			java.util.Set<String> names = new java.util.TreeSet<>();
+			rows.forEach(c -> names.addAll(c.threads().keySet()));
+			for (String name : names) {
+				List<Integer> counts = rows.stream().map(c -> c.threads().getOrDefault(name, 0)).toList();
+				if (counts.stream().distinct().count() > 1) {
+					changing.put(name, counts);
+				}
+			}
+			r.metric(phase + ".threadGroupsThatChanged", changing.toString());
 			Check.that(grew.isEmpty(), "%s: thread groups kept growing across world loads: %s", phase, grew);
 			if (!shaders) {
 				Check.atMost(phase + ": native memory (private bytes) growth per cycle from cycle 2 (MB)", privatePerCycle, 64.0);
@@ -231,7 +244,8 @@ final class LeakScenarios {
 		String histogram = (String)ManagementFactory.getPlatformMBeanServer().invoke(new ObjectName("com.sun.management:type=DiagnosticCommand"), "gcClassHistogram",
 			new Object[] {new String[0]}, new String[] {String[].class.getName()});
 		Map<String, String> classes = Map.of("IntegratedServer", "net.minecraft.client.server.IntegratedServer", "ServerLevel", "net.minecraft.server.level.ServerLevel",
-			"ClientLevel", "net.minecraft.client.multiplayer.ClientLevel", "LevelChunk", "net.minecraft.world.level.chunk.LevelChunk");
+			"ClientLevel", "net.minecraft.client.multiplayer.ClientLevel", "LevelChunk", "net.minecraft.world.level.chunk.LevelChunk",
+			"PhysicsSystem", "com.github.stephengold.joltjni.PhysicsSystem");
 		classes.keySet().forEach(k -> live.put(k, 0L));
 		Matcher m = Pattern.compile("(?m)^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+(\\S+)").matcher(histogram);
 		while (m.find()) {

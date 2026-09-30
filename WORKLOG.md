@@ -27,6 +27,18 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+Chain 8 found and fixed: jolt-jni PhysicsSystem static map (va2ps) kept every closed engine's PhysicsSystem (1..8 per
+cycle in dhfix6 histograms; bytecode: only forgetMe() removes). Fix: JoltEngine.close()/JoltSelfTest call forgetMe().
+Unit test JoltEngineTest.closingAnEngineReleasesItsPhysicsSystemFromJoltJni (fails without fix, passes with); leak
+client GameTest requires live PhysicsSystem == 0 (verified 0 every cycle); per-group thread counts recorded (only
+Netty Local IO grows, +3 per world, cap 2 x 20 cores). JFR "Render thread" roots explained in DESIGN (statics via
+KnotClassLoader; 32/33 world paths via WorldGeneratorInjector.INSTANCE; no Slipway/jolt class on sampled paths).
+Series4 (fresh) aborted at run 1 (passed through multiplayer) because of the production-code fix.
+Next: commit (D), series5 = 3 consecutive FRESH full runs with the 20-min soak, then record (series0-4 superseded,
+series5 current), final clean build + record, Bridge task, report.
+
+## Earlier state
+
 FINAL BUILD at 13611e2 FAILED once: assemble-mixed "Screenshot does not contain template" (fresh run dir). Root cause
 (verified with per-frame data, E:\slipway-e2e\cgt\still-diagnosis): the reference picture was taken 5 ticks after the
 teleport while far terrain (vanilla chunk edge + DH LODs) was still arriving (frames 10 ticks apart differ by up to

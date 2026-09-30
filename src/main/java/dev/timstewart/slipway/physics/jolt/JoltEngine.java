@@ -341,6 +341,9 @@ public final class JoltEngine implements PhysicsEngine {
 		for (long key : this.staticBodies.keySet().toLongArray()) {
 			this.removeStaticSection(key);
 		}
+		// jolt-jni keeps every PhysicsSystem in a static map (for PhysicsSystem.find) until forgetMe(); freeing the
+		// native system does not remove it, so without this each closed engine stays reachable with its Java objects.
+		this.system.forgetMe();
 		this.system.close();
 		this.jobSystem.close();
 		this.tempAllocator.close();
