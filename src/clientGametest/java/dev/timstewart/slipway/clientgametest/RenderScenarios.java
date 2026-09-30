@@ -31,6 +31,8 @@ import net.minecraft.world.phys.AABB;
  * turned off or the HUD hidden (F1).</li>
  * <li>With Bliss on: the near view matches its reference image, and the vessel casts a shadow (the ground under it is
  * darker than with the vessel moved away; without shaders it is not).</li>
+ * <li>With Bliss on, near and far: Minecraft's per-draw-buffer blend and write-mask cache agrees with GL in every
+ * frame ({@link GlStateCheck}; Distant Horizons before 3.3.3 broke it and darkened world blocks in blotches).</li>
  * <li>A barge 350 blocks away, beyond vanilla's view, is drawn by its Distant Horizons proxy, which follows it when it
  * moves; the far view matches its reference image and shows the barge.</li>
  * </ul>
@@ -103,6 +105,7 @@ final class RenderScenarios {
 		Game.waitChunks(ctx, 1200);
 		Game.waitTerrain(ctx, 1200);
 		Shots.matchTemplate(ctx, r, "render-near-bliss", 0.02);
+		GlStateCheck.assertInSync(ctx, r, "nearBliss", 40);
 		Game.teleport(ctx, sp, 0.5, Game.GROUND_Y, 52.5, 180f, 7.7f);
 		double shadedRatio = shadowRatio(ctx, sp, r, id, helm, "04-ground-bliss");
 		r.metric("shadow.ratioWithBliss", shadedRatio);
@@ -126,6 +129,7 @@ final class RenderScenarios {
 		ctx.waitTicks(100);
 		Path present = Shots.take(ctx, r, "05-barge-far-bliss");
 		Shots.matchTemplate(ctx, r, "render-far-dh-bliss", 0.02);
+		GlStateCheck.assertInSync(ctx, r, "farBliss", 40);
 		// Out of view: straight up, 300 blocks above the camera's view cone, still in its loaded chunks.
 		server.runCommand(String.format(Locale.ROOT, "slipway pose %d 0 %d 400 0 0 0", barge, Game.GROUND_Y + 320));
 		ctx.waitTicks(60);

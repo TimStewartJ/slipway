@@ -46,6 +46,11 @@ public final class SlipwayClientGameTests implements FabricClientGameTest {
 			new Scenario("soak", SoakScenarios::soak));
 	}
 
+	/** Diagnostic scenarios: run only when named in {@code slipway.clientGametest.only}, never by default. */
+	static List<Scenario> diagnostics() {
+		return List.of(new Scenario("diag-plain-ship", DiagScenarios::plainShip));
+	}
+
 	static Path reportDir() {
 		return Path.of(System.getProperty("slipway.clientGametest.reportDir", "slipway-client-gametest")).toAbsolutePath();
 	}
@@ -58,8 +63,9 @@ public final class SlipwayClientGameTests implements FabricClientGameTest {
 		}
 		Set<String> only = Arrays.stream(System.getProperty("slipway.clientGametest.only", "").split(","))
 			.map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toCollection(LinkedHashSet::new));
-		List<Scenario> all = scenarios();
-		Set<String> known = all.stream().map(Scenario::name).collect(Collectors.toSet());
+		List<Scenario> all = new java.util.ArrayList<>(scenarios());
+		diagnostics().stream().filter(d -> only.contains(d.name())).forEach(all::add);
+		Set<String> known = java.util.stream.Stream.concat(scenarios().stream(), diagnostics().stream()).map(Scenario::name).collect(Collectors.toSet());
 		for (String name : only) {
 			Check.that(known.contains(name), "unknown scenario %s (known: %s)", name, known);
 		}
