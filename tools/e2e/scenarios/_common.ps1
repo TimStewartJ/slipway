@@ -83,14 +83,17 @@ function Enter-SlipwayE2EArea {
 }
 
 function Clear-SlipwayE2EVolume {
-	<# .SYNOPSIS Fills a box with air in slabs (fill is limited to 32768 blocks per command). #>
+	<# .SYNOPSIS Fills a box with air in slabs (fill is limited to 32768 blocks per command), without drops. #>
 	param([long]$X1, [long]$Y1, [long]$Z1, [long]$X2, [long]$Y2, [long]$Z2, [string]$Block = 'minecraft:air')
 	$area = ([Math]::Abs($X2 - $X1) + 1) * ([Math]::Abs($Z2 - $Z1) + 1)
 	$step = [Math]::Max(1, [Math]::Floor(32768 / $area))
 	for ($y = [Math]::Min($Y1, $Y2); $y -le [Math]::Max($Y1, $Y2); $y += $step) {
 		$top = [Math]::Min([Math]::Max($Y1, $Y2), $y + $step - 1)
-		Send-SlipwayE2ERcon -Command "fill $X1 $y $Z1 $X2 $top $Z2 $Block" | Out-Null
+		# strict: no block updates, so lanterns, torches and doors of earlier runs' ships do not pop off as items
+		# (a player standing nearby would pick one up and then place it instead of using a helm).
+		Send-SlipwayE2ERcon -Command "fill $X1 $y $Z1 $X2 $top $Z2 $Block strict" | Out-Null
 	}
+	Send-SlipwayE2ERcon -Command 'kill @e[type=item]' | Out-Null
 }
 
 function Remove-SlipwayE2EVessels {
