@@ -35,7 +35,22 @@ sourceSets {
 		compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
 		runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
 	}
+	// Fabric client GameTests: real client (and in-process dedicated server) runs driven tick by tick. See
+	// src/clientGametest and DESIGN.md, "Testing". Its classpath is set after loom's split source sets exist.
+	clientGametest {
+	}
 }
+
+// Distant Horizons for the client GameTests: the patched build from the leak fix (devmods/test, see DESIGN.md) when
+// present, else the play stack's jar. -PslipwayTestDhJar=<path> overrides both.
+def testDhJar = providers.gradleProperty('slipwayTestDhJar').map { file(it) }.orNull ?: ({
+	def testDir = file('devmods/test')
+	def found = testDir.isDirectory() ? testDir.listFiles().findAll { it.name.startsWith('DistantHorizons-fabric-') && it.name.endsWith('.jar') } : []
+	found.isEmpty() ? dhJar : found.sort { it.name }.last()
+})()
+// The client GameTests run with the play stack's render mods unless -PslipwayClientGametestMods lists a subset
+// (comma-separated: sodium, iris, dh; empty for none).
+def clientGametestMods = (providers.gradleProperty('slipwayClientGametestMods').orNull ?: 'sodium,iris,dh').split(',')*.trim().findAll { !it.isEmpty() }
 
 loom {
 	splitEnvironmentSourceSets()
@@ -47,6 +62,9 @@ loom {
 		}
 		slipway_gametest {
 			sourceSet sourceSets.gametest
+		}
+		slipway_client_gametest {
+			sourceSet sourceSets.clientGametest
 		}
 	}
 
@@ -84,9 +102,41 @@ loom {
 			vmArg '-Dfabric-api.gametest.report-file=' + file('build/gametest/junit.xml').absolutePath
 			vmArg '--enable-native-access=ALL-UNNAMED'
 		}
+		// Fabric client GameTests: the full play stack (Sodium, Iris with Bliss available, Distant Horizons) plus
+		// Slipway in a real client window that never takes focus (see ClientGametestPreLaunch). The JUnit-style report
+		// and the screenshots land in build/client-gametest. Reference images live in src/clientGametest/resources/templates.
+		// A missing reference image fails the test; -PslipwayRecordTemplates=true writes missing ones instead (review
+		// them before committing).
+		clientGametest {
+			client()
+			name = 'Slipway Client Game Tests'
+			source sourceSets.clientGametest
+			runDir 'build/client-gametest'
+			programArgs '--username', 'SlipwayTester'
+			vmArg '-Dfabric.client.gametest'
+			// unattended: Fabric Loader must not open its error window (it waits for someone to close it)
+			vmArg '-Dfabric.noGui=true'
+			if (providers.gradleProperty('slipwayRecordTemplates').orNull == 'true') {
+				vmArg '-Dfabric.client.gametest.testModResourcesPath=' + file('src/clientGametest/resources').absolutePath
+			}
+			vmArg '-Dslipway.clientGametest.reportDir=' + file('build/client-gametest').absolutePath
+			vmArg '-Dslipway.clientGametest.only=' + (providers.gradleProperty('slipwayClientGametestOnly').orNull ?: '')
+			vmArg '-Dslipway.clientGametest.soakMinutes=' + (providers.gradleProperty('slipwaySoakMinutes').orNull ?: '2')
+			vmArg '--enable-native-access=ALL-UNNAMED'
+			vmArg '-XX:StackShadowPages=32'
+			// the multiplayer test removes vanilla's dedicated-server shutdown hook once its server stopped
+			vmArg '--add-opens=java.base/java.lang=ALL-UNNAMED'
+			// the play instance's collector and a test-instance-sized heap, so memory measurements match play
+			vmArg '-XX:+UseZGC'
+			vmArg '-Xmx8G'
+		}
 	}
 }
 
+
+// The client GameTests see Slipway's common and client code (the client source set exists once loom split it).
+sourceSets.clientGametest.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
+sourceSets.clientGametest.runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
 
 configurations {
 	// Platform-specific jolt-jni native libraries; their binaries are copied into the mod jar's resources.
@@ -125,6 +175,15 @@ dependencies {
 	compileOnly files(dhJar)
 	if (providers.gradleProperty('slipwayRenderMods').orNull == 'true') {
 		[sodiumJar, irisJar, dhJar].findAll { it != null }.each { localRuntime files(it) }
+	}
+	// The client GameTests reach Iris and Distant Horizons through their public APIs, and ask Sodium whether its
+	// terrain is built.
+	clientGametestCompileOnly files(dhJar)
+	[irisJar, sodiumJar].findAll { it != null }.each { clientGametestCompileOnly files(it) }
+	[sodium: sodiumJar, iris: irisJar, dh: testDhJar].each { name, jar ->
+		if (clientGametestMods.contains(name) && jar != null) {
+			clientGametestRuntimeOnly files(jar)
+		}
 	}
 
 	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
@@ -245,6 +304,19 @@ def renderPatchesMarkdown = { Map registry ->
 		lines << "| `${e.mixin}` | ${e.side} | ${e.targetMod} | `${e.targetClass}` | ${(e.methods as List).collect { "`${it}`" }.join('<br>')} | ${e.feature} | ${e.reason} | ${(e.tests as List).collect { "`${it}`" }.join('<br>')} |".toString()
 	}
 	lines << ''
+	def extra = (registry.hooks ?: []) as List
+	lines << '## Other hooks'
+	lines << ''
+	lines << 'Code that reaches into another mod without a mixin, marked in its source with `slipway-hook: <id>`.'
+	lines << ''
+	lines << "**${extra.size()} hooks.**".toString()
+	lines << ''
+	lines << '| Hook | Source | Target mod | Target | Access | Feature | Reason | Covered by |'
+	lines << '| --- | --- | --- | --- | --- | --- | --- | --- |'
+	extra.sort { it.id }.each { h ->
+		lines << "| `${h.id}` | `${h.source}` | ${h.targetMod} | `${h.target}` | ${h.access} | ${h.feature} | ${h.reason} | ${(h.tests as List).collect { "`${it}`" }.join('<br>')} |".toString()
+	}
+	lines << ''
 	return lines.join('\n')
 }
 
@@ -274,6 +346,27 @@ def targetedMethods = { File src ->
 	(text =~ /@(?:Accessor|Invoker)\(\s*"([^"]+)"/).each { methods << it[1] }
 	(text =~ /@Overwrite[\s\S]*?\s(\w+)\s*\(/).each { methods << it[1] }
 	return methods
+}
+
+// A covering test id: Class#method (JUnit or server GameTest) or clientGametest:<scenario> (a Fabric client GameTest
+// scenario in SlipwayClientGameTests).
+def checkTestId = { String owner, String test, List problems ->
+	if (test.startsWith('clientGametest:')) {
+		def runner = file('src/clientGametest/java/dev/timstewart/slipway/clientgametest/SlipwayClientGameTests.java')
+		def scenario = test.substring('clientGametest:'.length())
+		if (!runner.isFile() || !(runner.getText('UTF-8').contains("new Scenario(\"${scenario}\"".toString()))) problems << "${owner}: client GameTest ${test} does not exist"
+		return
+	}
+	def parts = test.split('#')
+	def cls = parts[0]
+	def method = parts.length > 1 ? parts[1] : null
+	def rel = cls.replace('.', '/') + '.java'
+	def src2 = [file("src/test/java/${rel}"), file("src/gametest/java/${rel}"), file("src/clientGametest/java/${rel}")].find { it.isFile() }
+	if (src2 == null) {
+		problems << "${owner}: test class ${cls} does not exist"
+	} else if (method != null && !(src2.getText('UTF-8') =~ /void\s+${java.util.regex.Pattern.quote(method)}\s*\(/)) {
+		problems << "${owner}: test method ${test} does not exist"
+	}
 }
 
 tasks.register('generatePatches') {
@@ -314,25 +407,26 @@ tasks.register('checkPatches') {
 			}
 			def tests = (entry.tests ?: []) as List
 			if (tests.isEmpty()) problems << "${name}: no covering test"
-			tests.each { test ->
-				// A test id is Class#method (JUnit or GameTest) or scenario:<name> (in-game harness scenario).
-				if (test.startsWith('scenario:')) {
-					if (!file("tools/e2e/scenarios/${test.substring(9)}.ps1").isFile()) problems << "${name}: scenario ${test} does not exist"
-				} else {
-					def parts = test.split('#')
-					def cls = parts[0]
-					def method = parts.length > 1 ? parts[1] : null
-					def rel = cls.replace('.', '/') + '.java'
-					def src2 = [file("src/test/java/${rel}"), file("src/gametest/java/${rel}")].find { it.isFile() }
-					if (src2 == null) {
-						problems << "${name}: test class ${cls} does not exist"
-					} else if (method != null && !(src2.getText('UTF-8') =~ /void\s+${java.util.regex.Pattern.quote(method)}\s*\(/)) {
-						problems << "${name}: test method ${test} does not exist"
-					}
-				}
-			}
+			tests.each { test -> checkTestId(name, test, problems) }
 		}
 		entries.keySet().findAll { !mixins.containsKey(it) }.each { problems << "patches.json lists ${it}, which is not in any mixin config" }
+		// Non-mixin hooks into other code (reflection): each is marked in its source with "slipway-hook: <id>".
+		def hooks = ((registry.hooks ?: []) as List).collectEntries { [(it.id): it] }
+		def marked = [:]
+		fileTree('src').matching { include '**/*.java' }.each { f ->
+			(f.getText('UTF-8') =~ /slipway-hook:\s*([\w.-]+)/).each { marked[it[1]] = f }
+		}
+		marked.each { id, f -> if (!hooks.containsKey(id)) problems << "hook ${id} (${f.name}) is not registered in patches.json" }
+		hooks.each { id, hook ->
+			['source', 'targetMod', 'target', 'access', 'feature', 'reason'].each { key ->
+				if (!(hook[key] instanceof String) || hook[key].isBlank()) problems << "hook ${id}: '${key}' is empty"
+			}
+			if (!marked.containsKey(id)) problems << "hook ${id} is registered but no source is marked with 'slipway-hook: ${id}'"
+			else if (file(hook.source).canonicalPath != marked[id].canonicalPath) problems << "hook ${id}: marked in ${marked[id]}, registered as ${hook.source}"
+			def tests = (hook.tests ?: []) as List
+			if (tests.isEmpty()) problems << "hook ${id}: no covering test"
+			tests.each { test -> checkTestId("hook ${id}", test, problems) }
+		}
 		def expected = renderPatchesMarkdown(registry)
 		if (!patchesMarkdown.isFile() || patchesMarkdown.getText('UTF-8').replace('\r\n', '\n') != expected) {
 			problems << 'PATCHES.md is out of date; run gradlew generatePatches'
@@ -347,3 +441,44 @@ tasks.register('checkPatches') {
 tasks.named('check').configure { dependsOn 'checkPatches' }
 
 tasks.named('check').configure { dependsOn 'runGametest' }
+
+// The client GameTests use the Bliss shader pack, as the play instance does. It is copied from the author's Tellus 26.3
+// instance (-PslipwayShaderPack=<zip> overrides); a missing pack makes the shader tests fail, not skip.
+def shaderPackSource = providers.gradleProperty('slipwayShaderPack').map { file(it) }.orNull ?:
+	file("${System.getenv('APPDATA')}/PrismLauncher/instances/Tellus-Expeditions-MC-26.3-Fabric/.minecraft/shaderpacks/Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip")
+tasks.register('prepareClientGametestRun') {
+	group = 'slipway'
+	description = 'Puts the shader pack and a shaders-off Iris config into the client GameTest run directory.'
+	def runDir = file('build/client-gametest')
+	outputs.upToDateWhen { false }
+	doLast {
+		def packs = new File(runDir, 'shaderpacks')
+		packs.mkdirs()
+		if (shaderPackSource.isFile()) {
+			def target = new File(packs, shaderPackSource.name)
+			if (!target.isFile() || target.length() != shaderPackSource.length()) {
+				target.bytes = shaderPackSource.bytes
+			}
+		} else {
+			logger.warn("Shader pack not found at ${shaderPackSource}; the shader tests will fail")
+		}
+		def config = new File(runDir, 'config')
+		config.mkdirs()
+		// shaders start off; the tests turn them on through Iris's API where they need them
+		new File(config, 'iris.properties').setText([
+			'allowUnknownShaders=false', 'colorSpace=SRGB', 'disableUpdateMessage=true', 'enableDebugOptions=false',
+			'enableShaders=false', 'maxShadowRenderDistance=32', "shaderPack=${shaderPackSource.name}".toString()
+		].join('\n') + '\n', 'UTF-8')
+		// the multiplayer test starts a dedicated server in this directory (as the e2e harness does for its server)
+		new File(runDir, 'eula.txt').setText('eula=true\n', 'US-ASCII')
+		// Bliss's volumetric clouds drift with real time and cast shadows; frozen and without their shadows, the shaded
+		// views repeat exactly (the vessel's own shadow comes from the shadow map and stays).
+		new File(packs, "${shaderPackSource.name}.txt").setText('Cloud_Speed=0.0\nCLOUDS_SHADOWS=false\nVL_CLOUDS_SHADOWS=false\n', 'UTF-8')
+	}
+}
+tasks.matching { it.name == 'runClientGametest' }.configureEach {
+	dependsOn 'prepareClientGametestRun'
+	// the report file is written by the tests; a failing test also makes the game (and this task) exit non-zero
+	outputs.upToDateWhen { false }
+}
+tasks.named('check').configure { dependsOn 'runClientGametest' }

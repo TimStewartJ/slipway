@@ -158,6 +158,16 @@ public final class DhProxies {
 		return new int[] {groups, boxes};
 	}
 
+	/** A vessel's registered proxy: origin x, y, z, 1 if active (else 0) and its box count; null if none is registered. */
+	public static double @Nullable [] proxyState(long id) {
+		Proxy proxy = PROXIES.get(id);
+		if (proxy == null || proxy.group == null) {
+			return null;
+		}
+		DhApiVec3d origin = proxy.group.getOriginBlockPos();
+		return new double[] {origin.x, origin.y, origin.z, proxy.group.isActive() ? 1 : 0, proxy.group.size()};
+	}
+
 	/** Diagnostics: what the proxies know and what DH offers. */
 	public static String describe() {
 		int withData = 0;

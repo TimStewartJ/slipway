@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "dev.timstewart.slipway.clientgametest.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"IntegratedServerHaltMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

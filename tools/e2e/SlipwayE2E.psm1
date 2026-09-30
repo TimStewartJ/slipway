@@ -68,15 +68,15 @@ function Get-SlipwayE2EServerProcess {
 }
 
 function Set-SlipwayE2EServerMods {
-	<# .SYNOPSIS Puts Fabric API and the given Slipway jar (and nothing else) into the server's mods folder. #>
+	<# .SYNOPSIS Puts Fabric API and, when given, the Slipway jar (and nothing else) into the server's mods folder. #>
 	[CmdletBinding()]
-	param([Parameter(Mandatory)][string]$SlipwayJar)
+	param([string]$SlipwayJar)
 	if (Get-SlipwayE2EServerProcess) { throw 'The e2e server is running; stop it before replacing mods.' }
 	$mods = Join-Path (Get-SlipwayE2EServerDir) 'mods'
 	New-Item -ItemType Directory -Force $mods | Out-Null
 	Get-ChildItem $mods -Filter *.jar | Remove-Item -Force
 	Copy-Item (Join-Path $script:Repo 'devmods\fabric-api-0.160.7+26.3.jar') $mods
-	Copy-Item $SlipwayJar $mods
+	if ($SlipwayJar) { Copy-Item $SlipwayJar $mods }
 	Get-ChildItem $mods -Filter *.jar | ForEach-Object { [pscustomobject]@{ Jar = $_.Name; Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash } }
 }
 
@@ -287,6 +287,36 @@ function Set-SlipwayE2EInstanceMods {
 	Copy-Item $SlipwayJar $mods
 	if ($AgentJar) { Copy-Item $AgentJar $mods }
 	Get-ChildItem $mods -Filter *.jar | ForEach-Object { [pscustomobject]@{ Jar = $_.Name; Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash } }
+}
+
+function Set-SlipwayE2EModSet {
+	<#
+	.SYNOPSIS Replaces an instance's mods with exactly Fabric API plus the named mods (sodium, iris, dh, slipway) and,
+	optionally, the agent. Used by the leak isolation matrix to run identical cycles with and without each mod.
+	#>
+	[CmdletBinding()]
+	param([string]$InstanceId = $script:InstanceA, [ValidateSet('sodium', 'iris', 'dh', 'slipway')][string[]]$Mods = @(), [string]$SlipwayJar,
+		[string]$DhJar, [string]$AgentJar)
+	if ($script:DesktopHelper -and (Get-Command Get-CopilotPrismMinecraftProcess -ErrorAction SilentlyContinue) -and (Get-CopilotPrismMinecraftProcess -InstanceId $InstanceId)) {
+		throw "Prism instance '$InstanceId' is running; stop it before replacing mods."
+	}
+	$target = Join-Path (Get-SlipwayE2EInstanceDir $InstanceId) '.minecraft\mods'
+	New-Item -ItemType Directory -Force $target | Out-Null
+	Get-ChildItem $target -Filter *.jar | Remove-Item -Force
+	$devmods = Join-Path $script:Repo 'devmods'
+	Copy-Item (Join-Path $devmods 'fabric-api-0.160.7+26.3.jar') $target
+	if ($Mods -contains 'sodium') { Copy-Item (Join-Path $devmods 'sodium-fabric-0.9.2+mc26.3.jar') $target }
+	if ($Mods -contains 'iris') { Copy-Item (Join-Path $devmods 'iris-fabric-1.11.6+mc26.3.jar') $target }
+	if ($Mods -contains 'dh') {
+		$dh = if ($DhJar) { $DhJar } else { Join-Path $devmods 'DistantHorizons-fabric-3.3.1-tellus-fork.6-26.3.jar' }
+		Copy-Item $dh $target
+	}
+	if ($Mods -contains 'slipway') {
+		if (-not $SlipwayJar) { throw 'The slipway mod set needs -SlipwayJar' }
+		Copy-Item $SlipwayJar $target
+	}
+	if ($AgentJar) { Copy-Item $AgentJar $target }
+	Get-ChildItem $target -Filter *.jar | ForEach-Object { [pscustomobject]@{ Jar = $_.Name; Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash } }
 }
 
 function Set-SlipwayE2EShaders {

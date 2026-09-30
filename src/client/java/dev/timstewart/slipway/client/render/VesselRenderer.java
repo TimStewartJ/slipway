@@ -127,8 +127,9 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 			}
 		}
 
-		// The block under the crosshair, when it belongs to this vessel.
-		if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK && vessel.containsPlotPos(hit.getBlockPos())) {
+		// The block under the crosshair, when it belongs to this vessel and vanilla would outline a block now.
+		if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK && vessel.containsPlotPos(hit.getBlockPos())
+			&& ((dev.timstewart.slipway.client.mixin.GameRendererAccessor)mc.gameRenderer).slipway$shouldRenderBlockOutline()) {
 			BlockState hitState = mc.level.getBlockState(hit.getBlockPos());
 			if (!hitState.isAir()) {
 				state.outlineLocal = hit.getBlockPos().subtract(vessel.anchor);

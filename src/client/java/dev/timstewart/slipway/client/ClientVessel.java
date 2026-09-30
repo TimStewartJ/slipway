@@ -170,6 +170,11 @@ public final class ClientVessel {
 		return this.tickPose;
 	}
 
+	/** The server game time (with fraction) that {@link #tickPose()} shows; NaN before the first pose. */
+	public double playbackTick() {
+		return this.playbackTick;
+	}
+
 	@Nullable
 	public VesselPose previousTickPose() {
 		return this.previousTickPose;
