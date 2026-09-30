@@ -27,6 +27,23 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+2026-09-30 afternoon (user awake, approved 14:5x): move every 26.x instance to one Distant Horizons build,
+`3.3.4-tellus-fork.7` = upstream DH 3.3.4 + Tellus patches P1-P9 + leak fixes A-G (plan and decisions: Bridge doc
+`distant-horizons/fork7-3.3.4-plan`). User decisions: full plan (fork.7 in Slipway play and the 26.2 instance too);
+GPU work (launches, client GameTests) only once the film run (other session, E:\Slipway-film) looks finished (final
+videos written and 30+ min idle); interim irisfix.1 in the play instance; push Slipway commits (now, and the fork.7
+pin/docs commits once green); cleanup: Slipway-Test2, e2e scratch, superseded DH jars now; heap dumps, trial clones,
+leakfix/irisfix jars, 0.1.0 backup and the two local DH branches (as archive tags) after fork.7. Ask again before
+pushing or tagging the DH fork. Builds during the film run with `gradlew --priority low`; never `gradlew --stop` on
+Gradle 9.4.0 (the film's daemon).
+Progress:
+- 15:01 play instance: DH leakfix.9 -> irisfix.1 (SHA256 B9FE6130...A79E), all 5 jars match
+  E:\slipway-e2e\play-instance-expected-sha256.json; backup E:\slipway-e2e\play-instance-backups\Slipway-MC-26.3-Fabric-0.1.1-leakfix.9-20260930-150107.
+  No native launch yet (film run uses the GPU); the same jar set passed the packaged-jar check earlier today.
+Next: push; cleanup (now items); Phase 1 (fork.7 branches `rebase-3.3.4` in both DH repos, builds, tests, PATCHES.md).
+
+## Previous goal (shader blotches)
+
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
 looked right) and asked for the cause and a fix. DONE so far:
 - Cause found and proven: Distant Horizons up to 3.3.2 (and the Tellus fork) desyncs Minecraft 26.2+'s per-draw-buffer
