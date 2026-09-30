@@ -476,7 +476,9 @@ function Get-SlipwayE2EWatcherProcess {
 
 function Start-SlipwayE2EWatcher {
 	<#
-	.SYNOPSIS Starts a second player as an offline Loom dev client (the e2eWatcher run in build.gradle: vanilla
+	.SYNOPSIS LEGACY: used only by the retired Prism multiplayer scenario (tools/e2e/legacy); the e2eWatcher run it
+	starts was removed from build.gradle with that scenario's retirement, so this function no longer works as is.
+	Started a second player as an offline Loom dev client (the e2eWatcher run: vanilla
 	renderer, game directory build\e2e-watcher, player name SlipwayWatcher) and waits until it is in the world. Prism
 	8.3 can only launch with a Microsoft account, and a second one is not always logged in; the e2e server runs in
 	offline mode, so an offline dev client is an equally real second player.

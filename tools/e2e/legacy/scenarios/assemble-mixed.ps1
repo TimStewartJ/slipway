@@ -3,7 +3,7 @@
 # block-entity data, the player pilots it to a new place and heading, and disassembles it with sneak + use; every
 # block comes back with its state turned by the snapped heading and identical block-entity data.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

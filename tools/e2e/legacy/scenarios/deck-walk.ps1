@@ -2,7 +2,7 @@
 # they are carried along and never fall through. On a deck banked steeper than walkable (70 degrees) they slide off
 # instead of clipping through. The vessel is flown by /slipway control (no pilot) so the player is free to walk.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

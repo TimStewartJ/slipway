@@ -78,6 +78,7 @@ public final class SlipwayClientGameTests implements FabricClientGameTest {
 			long start = System.nanoTime();
 			try {
 				Check.that(Game.clean(ctx), "the game is not on the title screen before %s", scenario.name());
+				Shots.clear(result);
 				Game.applyTestOptions(ctx);
 				scenario.body().run(ctx, result);
 				Check.that(Game.clean(ctx), "%s did not end on the title screen with no world open", scenario.name());

@@ -3,7 +3,7 @@
 # there, then with the barge flying a slow circle in view. Each phase records client frame rate (uncapped, average and
 # 5th percentile) and the server's tick time, Slipway's main-thread exchange time and its physics step time.
 param([switch]$StopAfter, [int]$PhaseSeconds = 15)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -Shaders $true
 $s = $session.Server; $c = $session.Client

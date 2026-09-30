@@ -27,21 +27,28 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
-Series2: 3 consecutive full client-GameTest runs with the 20-minute soak (E:\slipway-e2e\cgt\series2, script
-E:\slipway-e2e\cgt\series.ps1). Series1 run 1 failed only on the old per-tick soak limit (one 32.3 ms tick vs 25;
-directory renamed series1-aborted-soak-per-tick-limit). Criterion changed (DESIGN.md "Server tick-time criterion"):
-worst 100-tick average < 25 after every tick, p95 < 20, every tick < 50 ms budget (+ perf mean < 15); worst 5 ticks
-reported with save attribution. Evidence: 6-min soak worst tick 23.3 ms = tick 6000 (world save), next 10.2 ms.
-After series2: if all green -> retire Prism scenarios to tools/e2e/legacy (keep _common.ps1, leak-new.ps1,
-leak-matrix.ps1, mat.ps1, agent, module, contact_sheet.py as the leak-isolation diagnostic), run
-tools/e2e/record-client-gametests.py series2 to rewrite validation.json, fill runtime/flakiness numbers into DESIGN.md
-"Testing", final clean build (gradlew build), stop processes, Bridge task.
+Series2 GREEN: 3 consecutive full client-GameTest runs with the 20-minute soak at fb16469, 36/36 passed
+(1689/1686/1684 s; E:\slipway-e2e\cgt\series2). Perf changed afterwards to measure at 1280x720 (M7 window size):
+series3-perf-1280, 3/3 passed (drop 8.5/12.9/5.0%). Screenshots now cleared per scenario at start (Shots.clear).
+Prism scenarios retired to tools/e2e/legacy (README maps each to its client GameTest); e2eWatcher run removed.
+Next: commit (A), set series3 summary Note with A, run the recorder (--superseded series0 --superseded series1
+series2 --replacing series3-perf-1280), commit validation.json (B), final `gradlew build` at B, record the final
+build as its own series + packaged check (C), stop processes, Bridge task, final report.
 
 ## Done since last update
 
 - Tick-time criterion rework: TickTimes (every tick; worst 100-tick average, p95, worst, worst 5 with save
   attribution via Lifecycle.SAVE_TICKS from BEFORE_SAVE), used by soak and perf. soak (6 min) passed: mean 0.92,
   p95 1.79, worst 23.3 (autosave), worst avg100 2.09. perf passed: flying mean 0.68, p95 0.77, worst 1.83.
+  Commit fb16469.
+- Series2 run 1 (fb16469): 12/12 passed in 1689 s. Soak 20 min: mean 0.78, p95 1.30, worst avg100 1.38; the four
+  worst ticks are exactly the four autosaves (37.1 ms @6000, 20.8 @18000, 18.4 @12000, 17.4 @24000), next 12.4 ms.
+- Series2 runs 2 and 3: 12/12 each (1686 s, 1684 s); autosaves again the four worst ticks (37.2 / 37.1 ms first).
+- Series3 (perf only, 1280x720, working tree fb16469 + perf/Shots changes): 3/3 passed, 120 s each.
+- Recorder rewritten (tools/e2e/record-client-gametests.py): --superseded series, run ids from startedAt, commit from
+  summary or git, per-run screenshots, idempotent; dry run OK (137 entries, 0 pending).
+- Deleted 15 intermediate heap dumps + 91 MAT index files (15.7 GB); kept leak-matrix-before-full-plain-r1.hprof and
+  leak-matrix-dhfix6-full-vessels-r1.hprof and every MAT text report (*_Query.zip).
 - Commits: 33304f8 packaged-jar check (runPackagedJarCheck passes: exact play stack, audit, 0 errors, vessel
   assembled in production); f0293d0 assemble-mixed waits for the complete mesh (series0 run 1 failed once: MSD 0.0078
   with 156/928 vertices, a test race) + DESIGN.md RCA and Testing sections.

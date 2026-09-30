@@ -4,7 +4,7 @@
 # time and memory, Slipway's exchange and physics step times, the client's frame rate and the vessel's state. It passes
 # when neither process crashed, no errors were logged, every sample was finite and in bounds, and the ship is intact.
 param([int]$Minutes = 20, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -Shaders $true
 $s = $session.Server; $c = $session.Client

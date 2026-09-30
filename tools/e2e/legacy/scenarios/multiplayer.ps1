@@ -4,7 +4,7 @@
 # both clients agree with the server's pose, and when B walks onto the flying vessel's deck B is carried along on B's
 # own client and on the server. Screenshots from both clients.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

@@ -210,6 +210,8 @@ the real ship until it moved). No DH fork change was needed.
   in offline mode, so `Start-SlipwayE2EWatcher` launches a Loom dev client (`e2eWatcher` run, vanilla renderer) as
   player `SlipwayWatcher`. It is a real second connection; it also covers the no-Sodium render path. The dev client
   needs `-XX:StackShadowPages=32`, which Mojang's 26.3 metadata adds for launchers; without it the JVM can crash.
+  (Retired with the Prism multiplayer scenario; the client GameTest's second client is `WatcherProcess`, a second
+  process of the test game itself.)
 - **e2e screenshots wait for the terrain renderer.** A freshly started client (Sodium plus Distant Horizons) needed 6
   to 12 s before blocks placed next to it were drawn, so early frames showed "invisible" ships although the client
   had the blocks. This happens with plain `setblock` and no vessel involved. `Enter-SlipwayE2EArea` and
@@ -223,7 +225,10 @@ the real ship until it moved). No DH fork change was needed.
 
 ## M7 — measurements (2026-09-29, this machine)
 
-**Performance** (`tools/e2e/scenarios/perf.ps1`, release jar, run `perf-20260929-191053`): Iris + Bliss, Sodium,
+Measured with the Prism harness, which has since been retired (`tools/e2e/legacy`); the client GameTests' perf, leak
+and soak measurements are under "Testing".
+
+**Performance** (`tools/e2e/legacy/scenarios/perf.ps1`, release jar, run `perf-20260929-191053`): Iris + Bliss, Sodium,
 Distant Horizons, render distance 10, 1280x720 window, frame rate uncapped, a 961-block barge (20x3x16 concrete plus
 helm) seen from 30 blocks, compared with a warm baseline of the same view without it:
 
@@ -241,7 +246,7 @@ Against the second baseline, the flying 961-block vessel cost 11.9% of frame rat
 +0.2 to +0.4 ms of server tick; the server stays near 3 ms of its 50 ms budget. The frame cost is the per-frame
 vertex copy of the cached mesh plus Iris's shadow pass drawing it a second time.
 
-**Native handles and leaks** (`leak.ps1`, release jar, run `leak-20260929-191726`): one client process opened and
+**Native handles and leaks** (`tools/e2e/legacy/scenarios/leak.ps1`, release jar, run `leak-20260929-191726`): one client process opened and
 closed a singleplayer world with three flying vessels five times. With the world open: 1 Jolt engine, 3 bodies;
 after each close: 0 engines, 0 bodies, 0 Slipway level managers, 0 client vessels. Heap after GC grew by about 120 MB
 per cycle: whole worlds stayed in memory. The attribution recorded here at the time (one Distant Horizons map) was
@@ -249,7 +254,7 @@ not proven and was incomplete; the root-cause analysis below replaces it. The JU
 (`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
 balance exactly over full engine lifecycles.
 
-**Soak** (`soak.ps1`, release jar, run `soak-20260929-192036`): a pilot flew the mixed ship (Iris + Bliss on) for
+**Soak** (`tools/e2e/legacy/scenarios/soak.ps1`, release jar, run `soak-20260929-192036`): a pilot flew the mixed ship (Iris + Bliss on) for
 20.7 minutes through a repeating one-minute program (fast runs, turns, climbs and dives, a full roll through
 inverted, strafing, hover-off drops, return legs) with an altitude hold between rounds. 42 samples, every one finite,
 the pilot at the helm throughout, no block lost, the ship intact at the end; server tick 2.72 ms on average, worst
@@ -365,7 +370,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller, records, engine lifecycle with Debug natives) | `src/test` | seconds |
 | Server GameTests | assembly, physics, interaction and packets inside a headless server | `src/gametest`, `runGametest` | ~10 s |
-| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~9 min (2-minute soak) |
+| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~10 min (2-minute soak, as in `check`); ~28 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
 **Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs twelve
@@ -387,6 +392,12 @@ without shaders), and the far barge as a compact shape at the aim point.
 Multiplayer runs a dedicated server inside the test game and a second real client: the same game started again in its
 own process (`WatcherProcess`: same classpath and JVM options, its own directory and name, commands through files).
 Both clients' vessel poses are compared with the server's pose for the same server tick.
+Perf measures at 1280x720, the M7 window size (resized through the test API; the other scenarios use the runner's
+854x480), in a superflat world at render distance 12 on the integrated server. Its absolute frame rates and tick times
+are therefore not comparable with M7's (a generated world, a dedicated server and a remote client); the cost of the
+flying barge relative to the warm baseline is. Three runs (series3, below): frame-rate drop 8.5%, 12.9% and 5.0%
+(M7 on Prism: 8 to 15%); server tick with the barge flying 0.64 to 0.68 ms mean, +0.06 to +0.12 ms over the warm
+baseline, worst single tick 1.9 to 2.7 ms; physics step 0.08 ms mean on its own thread.
 
 **Harness facts learned the hard way** (each handled in the test code; none needs a Slipway change):
 - Fabric's `waitForChunksRender` asks vanilla's `LevelRenderer`, which Sodium replaces, and `waitForChunksDownload`
@@ -410,8 +421,11 @@ Both clients' vessel poses are compared with the server's pose for the same serv
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client
-GameTest run always contains Slipway (the test mod depends on it). The retired Prism scenarios are in
-`tools/e2e/legacy`.
+GameTest run always contains Slipway (the test mod depends on it). So do the play-instance tools
+(`tools/verify-play-instance.ps1`, `tools/make-sandbox-world.ps1`), which work on the real play instance. The twelve
+Prism scenarios, their runner and deploy script were retired to `tools/e2e/legacy` (with a README mapping each to its
+client GameTest) after three consecutive green client-GameTest runs with the 20-minute soak (series2); the
+`e2eWatcher` Gradle run that only the Prism multiplayer scenario used was removed.
 
 **Server tick-time criterion (decided 2026-09-30).** The Prism perf and soak checks sampled `/slipway stats`, vanilla's
 100-tick average, every 30 s and required the largest sample under 25 ms (perf also a mean under 15 ms). The client
@@ -424,7 +438,31 @@ soak with save tracking then showed where such ticks come from: its worst tick, 
 autosave (`MinecraftServer` saves every 6,000 ticks; the next worst tick was 10.2 ms), and a save costs more the
 more chunks the flight has loaded. A lone long tick inside the budget is not a lag the player sees, and the check
 reports the five worst ticks with whether a world save ran in each, so a regression that moves the tail is still
-visible. Kept: the budget as a hard limit on every tick, which the old harness never checked.
+visible. Kept: the budget as a hard limit on every tick, which the old harness never checked. The three 20-minute
+soaks of series2 confirmed it: in every run the four worst ticks were exactly the four autosaves (ticks 6,000,
+12,000, 18,000 and 24,000; the first was the most expensive each time, 37.1 to 37.2 ms), the worst other tick was 7.6
+to 12.4 ms, the mean 0.78 to 0.79 ms, the 95th percentile 1.30 to 1.35 ms and the worst 100-tick average 1.35 to
+1.43 ms. That the save time is vanilla chunk writing rather than Slipway's vessel records is inferred (one vessel
+record per save), not profiled.
+
+**Runtime and flakiness, before and after.** "Before" is the Prism harness (M1 to M7, 2026-09-29, from
+`validation.json`); "after" is the client GameTests (2026-09-30).
+
+| | Prism harness | Client GameTests |
+| --- | --- | --- |
+| Full suite, 20-minute soak | 39 min wall-clock for the last batch (release jar, 19:02 to 19:41), including a 3.5-minute rerun of a failed leak run; then a manual review of every scenario's screenshots | 28.1, 28.1 and 28.1 min (series2: 1,689, 1,686 and 1,684 s; the 11 scenarios besides the soak take 7.5 min) |
+| Full suite, 2-minute soak (`check`) | not run that way | 9.9 min (series0) |
+| Scenario runs recorded | 112 | 36 in series2, plus 24 in two earlier series and 3 perf runs |
+| Failures | 36 by the automated checks (43 after review); 26 runs never reviewed | none in series2 or series3 |
+| Reruns of unchanged code that changed result | 7 of 29 (24%; 6.2% of all runs) | 0 of 24 in series2 (each scenario run three times); 0 of 2 in series3 |
+| Harness failures | 14 runs ended in a "scenario error" (the script itself failed) | 0 |
+
+The Prism harness did not record script versions, so a result that changed on the same jar is either nondeterminism
+or a script fix between the runs; the two cannot be separated, which is itself one of its weaknesses. Two client
+GameTest runs failed before series2, both counted above: series0 failed once in assemble-mixed (the picture was
+compared before the client had meshed the whole vessel; a test race, fixed by `waitClientComplete` in f0293d0,
+passed in every run since), and series1's first run failed the soak's original every-tick 25 ms limit (see the criterion above; series1 was
+stopped there). Series runs: `E:\slipway-e2e\cgt\series*`, recorded in `validation.json`.
 
 ## Known log noise (not Slipway)
 

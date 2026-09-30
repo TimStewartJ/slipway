@@ -18,9 +18,13 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * perf: frame rate and server tick time with Bliss shaders on, in four phases of equal length: no vessel, a 961-block
  * barge hovering in view, the barge flying and turning, and no vessel again (warm). Frames are counted by the game
- * (one FPS sample a second); server tick times are read for every tick.
+ * (one FPS sample a second); server tick times are read for every tick. Measured at 1280x720, the window size of the
+ * M7 measurements, instead of the test runner's default size.
  */
 final class PerfScenarios {
+	static final int WIDTH = 1280;
+	static final int HEIGHT = 720;
+
 	private PerfScenarios() {
 	}
 
@@ -54,16 +58,23 @@ final class PerfScenarios {
 			o.renderDistance().set(12);
 		});
 		Game.hud(ctx, false);
+		int[] size = ctx.computeOnClient(mc -> new int[] {mc.getWindow().getWidth(), mc.getWindow().getHeight()});
+		ctx.getInput().resizeWindow(WIDTH, HEIGHT);
 		try (TestSingleplayerContext sp = Game.creativeWorld(ctx)) {
 			try {
 				measure(ctx, sp, r, phaseTicks);
 			} finally {
 				RenderScenarios.shaders(ctx, r, false);
 			}
+		} finally {
+			ctx.getInput().resizeWindow(size[0], size[1]);
 		}
 	}
 
 	private static void measure(ClientGameTestContext ctx, TestSingleplayerContext sp, Report.Result r, int phaseTicks) {
+		String window = ctx.computeOnClient(mc -> mc.getWindow().getWidth() + "x" + mc.getWindow().getHeight());
+		r.metric("window", window);
+		Check.equal("window size while measuring", window, WIDTH + "x" + HEIGHT);
 		TestServerContext server = sp.getServer();
 		server.runCommand("time set 6000");
 		RenderScenarios.shaders(ctx, r, true);

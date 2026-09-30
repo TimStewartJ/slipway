@@ -3,7 +3,7 @@
 # axes, out-of-range axes (clamped), a flood above the rate limit, and use/break packets aimed at vessel blocks from
 # far away (reach is measured to where the vessel is).
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

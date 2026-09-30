@@ -3,7 +3,7 @@
 # the clicked face), breaks a block in survival (it drops where the vessel is), opens a chest, pulls a lever that
 # lights a redstone lamp, opens a door, and toggles the lamp again while the vessel is flying.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

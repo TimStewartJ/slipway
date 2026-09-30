@@ -83,18 +83,6 @@ loom {
 			// Mojang's 26.3 client version metadata adds this; without it the dev client can crash inside the JVM.
 			vmArg '-XX:StackShadowPages=32'
 		}
-		// Second player for the end-to-end multiplayer scenario: an offline dev client (vanilla renderer, no Sodium)
-		// with its own game directory, where the harness installs its agent mod; it joins the e2e test server.
-		e2eWatcher {
-			client()
-			name = 'Slipway e2e watcher'
-			runDir 'build/e2e-watcher'
-			programArgs '--username', 'SlipwayWatcher', '--quickPlayMultiplayer', 'localhost:25601'
-			vmArg '--enable-native-access=ALL-UNNAMED'
-			vmArg '-XX:StackShadowPages=32'
-			vmArg '-Dslipway.e2e.watcher=true'
-			vmArg '-Xmx3G'
-		}
 		// Fabric GameTests on a headless test server; the JUnit-style report lands in build/gametest.
 		gametest {
 			server()

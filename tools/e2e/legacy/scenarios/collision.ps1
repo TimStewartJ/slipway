@@ -2,7 +2,7 @@
 # without sinking in; (2) one hovering vessel is driven into another: they collide, never overlap, and the struck one
 # is pushed away.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

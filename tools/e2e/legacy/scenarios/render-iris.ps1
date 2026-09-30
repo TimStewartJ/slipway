@@ -2,7 +2,7 @@
 # (lit, and casting a shadow in the shadow pass), also when it is rotated; a large vessel 320 blocks away, beyond the
 # vanilla render distance, is still visible through its Distant Horizons proxy, which follows the vessel when it moves.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld -Shaders $true
 $s = $session.Server; $c = $session.Client

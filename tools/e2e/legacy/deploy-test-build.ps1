@@ -1,9 +1,9 @@
-# Builds Slipway (and the e2e agent), stops the running e2e session and installs the new jars into the e2e server
-# and the Prism test instances. Usage: tools\e2e\deploy-test-build.ps1 [-SkipTests]
+# LEGACY (retired with the Prism scenarios, see README.md). Builds Slipway (and the e2e agent), stops the running e2e session and installs the new jars into the e2e server
+# and the Prism test instances. Usage: tools\e2e\legacy\deploy-test-build.ps1 [-SkipTests]
 param([switch]$SkipTests, [switch]$SkipAgent)
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'scenarios\_common.ps1')
-$repo = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+. (Join-Path $PSScriptRoot '..\scenarios\_common.ps1')
+$repo = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
 $env:JAVA_HOME = "$env:USERPROFILE\.jdks\jdk-25.0.3+9"
 $tasks = @(if ($SkipTests) { 'jar' } else { 'jar'; 'test' })
 & (Join-Path $repo 'gradlew.bat') -p $repo @tasks --console=plain -q

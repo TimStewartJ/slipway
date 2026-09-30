@@ -2,7 +2,7 @@
 # record (pose, rotation, velocity) is exactly what was saved, and once the player reconnects the vessel is back,
 # drawn and moving, with its blocks and chest contents intact.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

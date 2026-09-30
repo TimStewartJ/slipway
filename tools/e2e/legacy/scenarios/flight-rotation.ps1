@@ -2,7 +2,7 @@
 # real client controls (scripted axes through HelmControls), including a full pitch loop through vertical and fully
 # inverted flight, then turns level mode back on, lets it right itself, and disassembles it.
 param([switch]$NewWorld, [switch]$StopAfter)
-. (Join-Path $PSScriptRoot '_common.ps1')
+. (Join-Path $PSScriptRoot '..\..\scenarios\_common.ps1')
 
 $session = Start-SlipwayE2ESession -NewWorld:$NewWorld
 $s = $session.Server; $c = $session.Client

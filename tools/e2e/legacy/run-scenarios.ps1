@@ -1,4 +1,4 @@
-# Runs end-to-end scenarios one after another and prints a summary line per scenario. Scenarios that need shaders
+# LEGACY (retired with the Prism scenarios, see README.md). Runs end-to-end scenarios one after another and prints a summary line per scenario. Scenarios that need shaders
 # restart the session with Iris on, so list shader-off scenarios first to avoid needless restarts.
 param(
 	[string[]]$Scenarios = @('assemble-mixed', 'flight-rotation', 'deck-walk', 'interaction', 'collision', 'forged-packets', 'save-reload',
@@ -21,7 +21,7 @@ foreach ($name in $Scenarios) {
 	Write-Host "    -> $($results[-1].Result) in $($results[-1].Minutes) min: $($results[-1].Run)"
 }
 if ($StopAfter) {
-	. (Join-Path $PSScriptRoot 'scenarios\_common.ps1')
+	. (Join-Path $PSScriptRoot '..\scenarios\_common.ps1')
 	Stop-SlipwayE2ESession | Out-Null
 }
 $results | Format-Table Scenario, Result, Minutes, Run -AutoSize | Out-String -Width 220

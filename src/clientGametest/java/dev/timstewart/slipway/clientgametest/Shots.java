@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Stream;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.screenshot.TestScreenshotComparisonAlgorithm;
 import net.fabricmc.fabric.api.client.gametest.v1.screenshot.TestScreenshotComparisonOptions;
@@ -24,6 +26,18 @@ final class Shots {
 
 	static Path dir(Report.Result result) {
 		return SlipwayClientGameTests.reportDir().resolve("screenshots").resolve(result.name);
+	}
+
+	/** Removes the scenario's screenshots from an earlier run, so its folder holds only this run's evidence. */
+	static void clear(Report.Result result) throws IOException {
+		Path dir = dir(result);
+		if (Files.isDirectory(dir)) {
+			try (Stream<Path> paths = Files.walk(dir)) {
+				for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+					Files.delete(path);
+				}
+			}
+		}
 	}
 
 	/** Takes and keeps a screenshot as evidence. */
