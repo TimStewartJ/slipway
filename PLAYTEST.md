@@ -51,9 +51,9 @@ You spawn on a small glass platform (0 85 -12) facing south, with two identical 
 (366 blocks each: oak deck, spruce hull, dark oak keel, railings, a mast with a sail and a red flag, a doorway with
 a door, a chest with spare helms and blocks, a redstone lamp with a lever, a sign and a lantern):
 
-- **Left: vessel #1**, already assembled. Walk or fly onto its stern (the open end facing you), use the helm to take
-  it, and fly. `/slipway info 1` shows its state.
-- **Right: the plain copy** (helm at 8 85 0). Use its helm to assemble it yourself; it becomes vessel #2.
+- **On your right: vessel #1** (helm at -8 85 0), already assembled. Fly onto its stern (the open end facing you),
+  use the helm to take it, and fly. `/slipway info 1` shows its state and position.
+- **On your left: the plain copy** (helm at 8 85 0). Use its helm to assemble it yourself; it becomes vessel #2.
 
 The world is creative with cheats on, difficulty peaceful, and the ground is about 20 blocks below. The chest on each
 skiff holds four more Slipway Helms (also in the creative inventory under Functional Blocks, `/give @s slipway:helm`,

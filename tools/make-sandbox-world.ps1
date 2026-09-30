@@ -1,7 +1,8 @@
 # Builds the "Slipway Sandbox" world for the play instance with the e2e dedicated server: a fresh world, a glass
 # spawn platform facing south, and two identical demo skiffs in front of it (366 blocks: deck, hull, keel, railings,
 # mast and sail, a doorway with a door, a chest with items, a redstone lamp with a lever, a sign and a lantern).
-# The left one is assembled into a vessel; the right one is plain blocks to assemble yourself. Then copies the world
+# Seen from spawn (facing south), the one on the right (x -8) is assembled into a vessel and the one on the left (x 8)
+# is plain blocks to assemble yourself. Then copies the world
 # into the play instance's saves as a creative world with cheats on. The e2e session must not be running.
 param(
 	[string]$InstanceId = 'Slipway-MC-26.3-Fabric',
