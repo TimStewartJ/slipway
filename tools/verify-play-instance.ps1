@@ -1,6 +1,7 @@
 # Launches the play instance natively (no test agent) straight into the sandbox world, checks that Slipway loads with
-# no mod or mixin errors, that the world opens and the demo vessel is there with Bliss on, takes a window screenshot,
-# closes the game cleanly and verifies every installed mod jar against the expected checksums. The instance is never
+# no mod or mixin errors, that the world opens and the demo vessel is there with Bliss on, keeps the world icon the game
+# renders from its own frame (the old icon is moved aside first; window captures of the background OpenGL window come
+# out black), closes the game cleanly and verifies every installed mod jar against the expected checksums. The instance is never
 # given focus. Minecraft's own quick-play argument opens the world: Prism 8.3 cannot pass it, so a temporary Prism
 # component adds it for this one launch and is removed afterwards.
 param(
@@ -19,6 +20,9 @@ $pack = Join-Path $dir 'mmc-pack.json'
 $patchDir = Join-Path $dir 'patches'
 $patch = Join-Path $patchDir 'slipway.quickplay.json'
 $packBackup = Get-Content $pack -Raw
+$icon = Join-Path $mc "saves\$WorldFolder\icon.png"
+$iconBefore = Join-Path $OutDir 'icon-before.png'
+if (Test-Path $icon) { Move-Item $icon $iconBefore -Force }
 $result = [ordered]@{}
 
 # 1. Mods on disk are exactly the expected ones.
@@ -61,31 +65,6 @@ try {
 	# Let chunks, the vessel's mesh, Iris and Distant Horizons settle, then look.
 	Start-Sleep -Seconds 40
 	try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
-	$shot = Join-Path $OutDir 'play-instance-sandbox.png'
-	try {
-		# The window's own content (PrintWindow with full-content rendering), never a grab of the screen.
-		Add-Type -AssemblyName System.Drawing
-		if (-not ('SlipwayWindowCapture' -as [type])) {
-			Add-Type -TypeDefinition @"
-using System; using System.Runtime.InteropServices;
-public static class SlipwayWindowCapture {
-	[StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
-	[DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
-	[DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
-}
-"@
-		}
-		$hwnd = (Get-Process -Id $game).MainWindowHandle
-		$rect = New-Object SlipwayWindowCapture+RECT
-		[void][SlipwayWindowCapture]::GetClientRect($hwnd, [ref]$rect)
-		$bmp = New-Object System.Drawing.Bitmap ([Math]::Max(1, $rect.Right)), ([Math]::Max(1, $rect.Bottom))
-		$g = [System.Drawing.Graphics]::FromImage($bmp)
-		$hdc = $g.GetHdc()
-		$ok = [SlipwayWindowCapture]::PrintWindow($hwnd, $hdc, 3)
-		$g.ReleaseHdc($hdc); $g.Dispose()
-		$bmp.Save($shot, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
-		$result.Screenshot = if ($ok) { $shot } else { "PrintWindow failed" }
-	} catch { $result.Screenshot = "capture failed: $($_.Exception.Message)" }
 	$log = Get-Content $logPath
 	$result.Slipway = @($log | Select-String -Pattern 'Loading \d+ mods|slipway 0\.1\.0|jolt-jni .* loaded|Assembled|\[Slipway' | ForEach-Object { $_.Line } | Select-Object -First 8)
 	$result.Iris = @($log | Select-String -Pattern 'Using shaderpack|shaderPackInUse|Bliss' | ForEach-Object { $_.Line } | Select-Object -First 3)
@@ -93,7 +72,8 @@ public static class SlipwayWindowCapture {
 	$result.MixinErrors = @($log | Select-String -Pattern 'Mixin apply|InvalidInjection|InjectionError|Critical injection failure|mixin.*[Ff]ailed' | ForEach-Object { $_.Line })
 } finally {
 	if ($game -and (Get-Process -Id $game -ErrorAction SilentlyContinue)) {
-		$result.ClosedCleanly = [bool](Close-CopilotWindowGracefully -ProcessId $game -TimeoutSeconds 120)
+		# WM_CLOSE, then wait for the exit; the helper returns nothing on success and throws on a timeout.
+		try { Close-CopilotWindowGracefully -ProcessId $game -TimeoutSeconds 120; $result.ClosedCleanly = $true } catch { $result.ClosedCleanly = $false; $result.CloseError = $_.Exception.Message }
 		$wait = (Get-Date).AddSeconds(120)
 		while ((Get-Process -Id $game -ErrorAction SilentlyContinue) -and (Get-Date) -lt $wait) { Start-Sleep -Seconds 1 }
 		$result.Exited = -not (Get-Process -Id $game -ErrorAction SilentlyContinue)
@@ -103,6 +83,13 @@ public static class SlipwayWindowCapture {
 	Remove-Item $patch -Force -ErrorAction SilentlyContinue
 	if (-not (Get-ChildItem $patchDir -ErrorAction SilentlyContinue)) { Remove-Item $patchDir -Force -ErrorAction SilentlyContinue }
 	$result.InstanceRestored = (Get-Content $pack -Raw) -eq $packBackup -and -not (Test-Path $patch)
+	if (Test-Path $icon) {
+		Copy-Item $icon (Join-Path $OutDir 'world-icon.png') -Force
+		$result.WorldIcon = Join-Path $OutDir 'world-icon.png'
+	} elseif (Test-Path $iconBefore) {
+		Copy-Item $iconBefore $icon
+		$result.WorldIcon = 'none written; the previous icon was restored'
+	}
 }
 if (Test-Path (Join-Path $mc 'logs\latest.log')) {
 	$saved = @(Select-String -LiteralPath (Join-Path $mc 'logs\latest.log') -Pattern 'Saved \d+ vessels|Stopping server|Saving chunks' | ForEach-Object { $_.Line })
