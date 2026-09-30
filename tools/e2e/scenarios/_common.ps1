@@ -78,6 +78,8 @@ function Enter-SlipwayE2EArea {
 	Send-SlipwayE2ERcon -Command ("tp {0} {1} {2} {3}{4}" -f $Client.Player, $X, $Y, $Z, $face) | Out-Null
 	try { Invoke-SlipwayE2EAgent -Client $Client -Verb fly -Argument off | Out-Null } catch { }
 	Start-Sleep -Milliseconds 800
+	# Let the terrain around the new place finish building, so block changes made next are drawn promptly.
+	if (-not (Wait-SlipwayE2ETerrain -Client $Client -StableMilliseconds 1500 -TimeoutSeconds 30)) { Write-Host 'note: terrain still building 30 s after entering the area' }
 }
 
 function Clear-SlipwayE2EVolume {

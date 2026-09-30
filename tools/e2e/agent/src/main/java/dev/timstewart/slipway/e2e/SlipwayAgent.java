@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * answer is appended to {@code results.txt} as {@code <id> ok|error <detail>}. Only lines written after the game
  * started run. Everything works with the game window in the background.
  *
- * <p>Verbs: session, screen, state, screenshot FILE, hud hide|show, chat TEXT, connect HOST:PORT, disconnect,
+ * <p>Verbs: session, screen, state, terrain, screenshot FILE, hud hide|show, chat TEXT, connect HOST:PORT, disconnect,
  * key NAME, hold NAME TICKS, look YAW PITCH, lookat X Y Z, select SLOT, use, useitem, destroy TICKS, close,
  * iris on|off|status, fly on|off, perspective first|back|front, fps, perf start|stop, forgeuse X Y Z FACE,
  * forgebreak X Y Z (raw packets for the validation scenario), slipway METHOD [ARGS...]
@@ -152,6 +152,8 @@ public final class SlipwayAgent implements ClientModInitializer {
 				case "session" -> this.report(id, "ok", session(mc));
 				case "screen" -> this.report(id, "ok", mc.gui.screen() == null ? "none" : mc.gui.screen().getClass().getName() + " | " + mc.gui.screen().getTitle().getString());
 				case "state" -> this.report(id, "ok", state(mc));
+				// The terrain renderer (Sodium's when loaded) has no section build queued: frames show recent block changes.
+				case "terrain" -> this.report(id, "ok", "complete=" + mc.levelRenderer.hasRenderedAllSections());
 				case "screenshot" -> Screenshot.grab(mc.gameDirectory, argument, mc.gameRenderer.mainRenderTarget(), 1,
 					message -> this.report(id, "ok", message.getString()));
 				case "hud" -> {

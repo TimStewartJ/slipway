@@ -113,7 +113,10 @@ and block-entity data into the plot, erases the originals without drops, and cre
 Disassembly requires the vessel to be within `disassemblyTiltDegrees` (default 20 degrees) of level, snaps the
 heading to the nearest quarter turn, rotates every block state with `BlockState.rotate`, refuses (with a message)
 when a target is occupied, outside the world or unloaded, and moves entities standing on the deck onto the placed
-blocks.
+blocks. Each relocation is pushed out of the placed blocks with the same strict depenetration the decks use: float
+rounding in the pose can otherwise put a rider a few microns inside the deck, and vanilla collision ignores a floor
+that a box already overlaps by more than 1e-7, so the player would fall through the new blocks (seen in the release
+regression run; `InteractionGameTests#entitiesAboardMoveWithTheSnappedBlocks` models it).
 
 ### Physics
 
@@ -203,6 +206,11 @@ the real ship until it moved). No DH fork change was needed.
   in offline mode, so `Start-SlipwayE2EWatcher` launches a Loom dev client (`e2eWatcher` run, vanilla renderer) as
   player `SlipwayWatcher`. It is a real second connection; it also covers the no-Sodium render path. The dev client
   needs `-XX:StackShadowPages=32`, which Mojang's 26.3 metadata adds for launchers; without it the JVM can crash.
+- **e2e screenshots wait for the terrain renderer.** A freshly started client (Sodium plus Distant Horizons) needed 6
+  to 12 s before blocks placed next to it were drawn, so early frames showed "invisible" ships although the client
+  had the blocks. This happens with plain `setblock` and no vessel involved. `Enter-SlipwayE2EArea` and
+  `Save-SlipwayE2EScreenshot` now wait until `LevelRenderer.hasRenderedAllSections()` (Sodium's build queue) has
+  stayed true for 1 to 1.5 s, with a bounded timeout.
 - **Pilot's view does not roll.** The pilot rides eye-anchored at the helm and turns with the vessel's heading, but
   vanilla cameras cannot roll; when the vessel rolls or loops, the pilot's view stays upright relative to the world
   while the vessel rotates around them.

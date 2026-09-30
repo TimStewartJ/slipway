@@ -66,7 +66,7 @@ try {
 	$y = [long][Math]::Max(80, $ground + 9)
 	Write-Host "surface heights: $($heights -join ', '); ships at y $y"
 	Clear-SlipwayE2EVolume -16 ($y - 4) -18 16 ($y + 8) 18
-	# Spawn: a glass platform south-facing, 6 blocks behind the ships' sterns.
+	# Spawn: a glass platform south-facing, 6 blocks behind the ships' sterns (26.3's setworldspawn takes yaw and pitch).
 	Send-SlipwayE2ERcon -Command ("fill -3 {0} -15 3 {0} -9 minecraft:glass" -f ($y - 1)) | Out-Null
 	Build-Skiff -8 $y 0
 	Build-Skiff 8 $y 0
@@ -74,7 +74,7 @@ try {
 	if ($assembled -notmatch 'id=(\d+)') { throw "Assembly failed: $assembled" }
 	Write-Host "demo vessel: $assembled"
 	Send-SlipwayE2ERcon -Command 'forceload remove all' | Out-Null
-	foreach ($cmd in "setworldspawn 0 $y -12 0", 'gamerule respawn_radius 0', 'time set 1000', 'weather clear', 'difficulty peaceful', 'save-all flush') {
+	foreach ($cmd in "setworldspawn 0 $y -12 0 0", 'gamerule respawn_radius 0', 'time set 1000', 'weather clear', 'difficulty peaceful', 'save-all flush') {
 		Send-SlipwayE2ERcon -Command $cmd | Out-Null
 	}
 	Start-Sleep -Seconds 3
@@ -90,7 +90,8 @@ $dest = Join-Path $saves $Folder
 if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
 Copy-Item (Join-Path (Get-SlipwayE2EServerDir) 'sandbox') $dest -Recurse
 Remove-Item (Join-Path $dest 'session.lock') -Force -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $dest 'playerdata'), (Join-Path $dest 'stats'), (Join-Path $dest 'advancements') -Recurse -Force -ErrorAction SilentlyContinue
+# 26.3 keeps player data under players/; without it the player spawns at the world spawn (yaw and pitch included).
+Remove-Item (Join-Path $dest 'players'), (Join-Path $dest 'playerdata'), (Join-Path $dest 'stats'), (Join-Path $dest 'advancements'), (Join-Path $dest 'singleplayer_uuid') -Recurse -Force -ErrorAction SilentlyContinue
 @'
 import sys, nbtlib
 f = nbtlib.load(sys.argv[1])

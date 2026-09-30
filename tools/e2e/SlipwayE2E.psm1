@@ -513,10 +513,34 @@ function Stop-SlipwayE2EAll {
 	[pscustomobject]$result
 }
 
+function Wait-SlipwayE2ETerrain {
+	<# .SYNOPSIS Waits until the client's terrain renderer has had no section build queued for StableMilliseconds; false on timeout. #>
+	param([Parameter(Mandatory)]$Client, [int]$StableMilliseconds = 1000, [int]$TimeoutSeconds = 20)
+	# The queue can be empty for a moment between chunk batches, so one reading is not enough.
+	$deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+	$since = $null
+	while ((Get-Date) -lt $deadline) {
+		if ([string](Invoke-SlipwayE2EAgent -Client $Client -Verb terrain) -match 'complete=true') {
+			if (-not $since) { $since = Get-Date }
+			if (((Get-Date) - $since).TotalMilliseconds -ge $StableMilliseconds) { return $true }
+		} else {
+			$since = $null
+		}
+		Start-Sleep -Milliseconds 100
+	}
+	$false
+}
+
 function Save-SlipwayE2EScreenshot {
 	<# .SYNOPSIS Captures the game's own frame to <Directory>\<Name>.png. #>
-	param([Parameter(Mandatory)]$Client, [Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Directory, [switch]$HideHud, [int]$SettleMilliseconds = 0)
+	param([Parameter(Mandatory)]$Client, [Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$Directory, [switch]$HideHud, [int]$SettleMilliseconds = 0,
+		[int]$TerrainTimeoutSeconds = 20)
 	if ($SettleMilliseconds -gt 0) { Start-Sleep -Milliseconds $SettleMilliseconds }
+	# A client that just joined or moved has many terrain sections to build, and until its queue drains, frames miss
+	# recent block changes (a freshly started client needed 6 to 12 s before blocks placed next to it were drawn).
+	if ($TerrainTimeoutSeconds -gt 0 -and -not (Wait-SlipwayE2ETerrain -Client $Client -TimeoutSeconds $TerrainTimeoutSeconds)) {
+		Write-Host "note: terrain still building after $TerrainTimeoutSeconds s; screenshot $Name may miss recent block changes"
+	}
 	New-Item -ItemType Directory -Force $Directory | Out-Null
 	$path = Join-Path $Directory ("{0}.png" -f ($Name -replace '[^\w\-\.]', '_'))
 	if ($HideHud) { Invoke-SlipwayE2EAgent -Client $Client -Verb hud -Argument hide | Out-Null; Start-Sleep -Milliseconds 300 }
