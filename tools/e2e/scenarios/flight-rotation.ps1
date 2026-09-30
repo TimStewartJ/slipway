@@ -99,7 +99,8 @@ try {
 		$samples.Add($v.tilt)
 		if (-not $loopShot -and $v.tilt -gt 80 -and $v.tilt -lt 100) {
 			$loopShot = $true
-			$shot = Save-SlipwayE2EScreenshot -Client $c -Name '05-vertical' -Directory $run.Directory
+			# Mid-manoeuvre: capture now (waiting for the terrain renderer would catch the loop past vertical).
+			$shot = Save-SlipwayE2EScreenshot -Client $c -Name '05-vertical' -Directory $run.Directory -TerrainTimeoutSeconds 0
 			Add-SlipwayE2EStep -Run $run -Title 'screenshot: nose straight up during the loop' -Detail (Get-Attitude $id) -Screenshot $shot
 		}
 	}
