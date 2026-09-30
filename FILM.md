@@ -17,7 +17,7 @@ python tools/film/assemble.py build/film/out/reddit-1080x1350 --out slipway-4x5.
 ```
 
 Each render is a separate run at its native size (framing is widened for the portrait cut, not cropped). A run takes
-about 5 to 8 minutes including game start, world generation and a 60 s wait for Distant Horizons.
+about 6 to 9 minutes including game start, world generation and a 60 s wait for Distant Horizons.
 
 ## Gradle properties
 
@@ -32,10 +32,10 @@ Frames go to `build/film/out/<shot>-<w>x<h>/f000000.png ...` with `frames.csv` (
 tick, frames per tick, `cut`, `segment`, camera, vessel centre, tilt, heading, settle renders, milliseconds) and, for
 `reddit`, `segments.json` (the frame of each shot and event).
 
-Common options: `seed` (world seed, default `sunsetcoast`), `daytime` (default 12000, late afternoon), `rd` (render
+Common options: `seed` (world seed, default `sunsetcoast`), `daytime` (default 11700, late afternoon; the sun is low, so the ship's shadow falls far from it, on the water only in low shots), `rd` (render
 distance in chunks), `dhWait` (seconds to let Distant Horizons build far terrain before recording, default 60).
 `reddit` also takes timing options (`hookTicks`, `flybyTicks`, `rollFrames`, `preRoll`, `deckTicks`, `bank`,
-`returnGain`, `returnSpeed`, `returnRunUp`, `holdTicks`); `stills` takes `times=t1+t2` for a time-of-day sweep.
+`returnGain`, `returnSpeed`, `returnRunUp`, `holdTicks`, `shotSettle`: unfilmed ticks at each shot's first camera so Distant Horizons can update, default 100); `stills` takes `times=t1+t2` for a time-of-day sweep (at `sweepAngle`, default the Reddit opening view).
 
 ## Shots
 
@@ -66,7 +66,7 @@ The ship returns to within a few centimetres of where it was assembled, disassem
 the last shot ends on the first shot's camera, so the video loops. Slow motion is real: more frames rendered per game
 tick (partials k/6 instead of k/3), and the shader clock follows film time, so clouds and water slow down too.
 
-The hero ship (`FilmShips.hero()`, 2,430 blocks) is a three-masted galleon: curved dark-oak hull with a birch stripe
+The hero ship (`FilmShips.hero()`, 2,430 blocks, all assembled) is a three-masted galleon: curved dark-oak hull with a birch stripe
 and a keel, spruce decks, forecastle, a two-storey stern castle with windows and a quarterdeck, wool sails with red
 foot bands, yards, crow's nest, flags, bowsprit and jib, railings and lanterns; on the castle's front wall a spruce
 door, a chest (with a map, compass, emeralds and bread) and a redstone lamp with a lever. The helm faces south: a

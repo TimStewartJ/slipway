@@ -137,8 +137,8 @@ final class RedditShot {
 				FilmCamera.set((t, p) -> {
 					double s = Math.max(0, t - b2) / flybyTicks;
 					Vec3 ship = FilmScene.centre(id, p, P2);
-					Vec3 pos = new Vec3(P2.x - 32 * k, 85, FilmCamera.lerp(5915, 5872, FilmCamera.ease(s)));
-					return FilmCamera.Frame.lookAt(pos, ship.add(0, 2, -4), 0);
+					Vec3 pos = new Vec3(P2.x - 32 * k, k > 1 ? FilmRig.optDouble("flybyY", 83.5) : 85, FilmCamera.lerp(5915, 5872, FilmCamera.ease(s)));
+					return FilmCamera.Frame.lookAt(pos, ship.add(0, k > 1 ? FilmRig.optDouble("flybyAim", 4.5) : 2, -4), 0);
 				});
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 3000);
@@ -156,6 +156,9 @@ final class RedditShot {
 					rec.tick(3);
 				}
 				logState(server, id, "flyby end");
+				if (FilmRig.opt("stopAfter", "").equals("flyby")) {
+					return;
+				}
 
 				// ---- 3. roll (slow motion, level off) ----
 				gap(ctx, server, id, rec);
