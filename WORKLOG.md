@@ -27,14 +27,18 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+DONE. Final `gradlew clean build` from clean commit 5d1d85b passed in 678 s (E:\slipway-e2e\cgt\clean-build2):
+unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-min soak), packaged-jar check pass (exact play
+stack, 0 mixin/loader errors or warnings, vessel assembled), checkPatches 13 mixin classes. validation.json rewritten
+(236 entries; current: series5 36 + clean-build2 13; 0 pending-review; every superseded entry names its replacement).
+Remaining: stop processes (gradle daemons), Bridge task notes/history/momentum, final report.
+
+## Before the final build
+
 Series5 GREEN at 2485c6a: 3 consecutive FRESH-run-dir full runs with the 20-min soak, 36/36 passed (1702/1719/1699 s;
 E:\slipway-e2e\cgt\series5-fresh). DESIGN.md updated (runtime/flakiness with the full history, perf over 6 runs, soak
 criterion evidence, DH ChunkSaveIgnoreTimer observation). Failed first clean build reconstructed into
 E:\slipway-e2e\cgt\clean-build1-failed-assemble-race (results rebuilt from its log).
-Next: commit (E), final `gradlew clean build` -> E:\slipway-e2e\cgt\clean-build2 (results, junit, log, screenshots,
-packaged-check report, summary), recorder: --superseded series0 --superseded series1 --superseded series2
---superseded series3-perf-1280 --superseded clean-build1-failed-assemble-race series5-fresh clean-build2; commit;
-Bridge task; final report.
 
 ## Previous state (chain 8)
 

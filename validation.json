@@ -4664,7 +4664,7 @@
   },
   {
    "scenario": "assemble-mixed",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-assemble-mixed",
    "harness": "client-gametest",
    "series": "series2",
@@ -4693,11 +4693,13 @@
     "rest.tiltDegrees = 0.0001",
     "landing.quarterTurns = 2",
     "feetAboveDeck = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-assemble-mixed"
   },
   {
    "scenario": "flight-rotation",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-flight-rotation",
    "harness": "client-gametest",
    "series": "series2",
@@ -4730,11 +4732,13 @@
     "levelling.ticks = 25",
     "rest.clientServerOffset = 0.0009",
     "rest.clientServerDegrees = 0.0594"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-flight-rotation"
   },
   {
    "scenario": "deck-walk",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-deck-walk",
    "harness": "client-gametest",
    "series": "series2",
@@ -4761,11 +4765,13 @@
     "steep.tiltDegrees = 72.7333",
     "steep.lowestLocalY = 0.2151",
     "steep.slidBlocks = 30.0785"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-deck-walk"
   },
   {
    "scenario": "interaction",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-interaction",
    "harness": "client-gametest",
    "series": "series2",
@@ -4791,11 +4797,13 @@
     "mining.dropsAtBlock = 1",
     "mining.pickedUp = 1",
     "flight.speed = 2.5152"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-interaction"
   },
   {
    "scenario": "collision",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-collision",
    "harness": "client-gametest",
    "series": "series2",
@@ -4821,11 +4829,13 @@
     "ram.minCentreGap = 4.929",
     "ram.pushedBlocks = 20.1912",
     "ram.maxPushSpeed = 5.9693"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-collision"
   },
   {
    "scenario": "forged-packets",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-forged-packets",
    "harness": "client-gametest",
    "series": "series2",
@@ -4843,11 +4853,13 @@
    "checks": [
     "burst.refused = 162",
     "refusedTotal = 169"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-forged-packets"
   },
   {
    "scenario": "save-reload",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-save-reload",
    "harness": "client-gametest",
    "series": "series2",
@@ -4873,11 +4885,13 @@
     "firstBody.horizontalVelocityDelta = 0.0",
     "firstBody.verticalVelocityDelta = 0.0",
     "firstBody.angularVelocityDelta = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-save-reload"
   },
   {
    "scenario": "render-iris",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-render-iris",
    "harness": "client-gametest",
    "series": "series2",
@@ -4920,11 +4934,13 @@
     "far.blob = 20x12 at -1,-1 from the aim point",
     "far.blobLuminance = 107.5 with the barge, 164.2 without",
     "proxy.afterMove = 24.00,-30.00,420.00"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-render-iris"
   },
   {
    "scenario": "multiplayer",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-multiplayer",
    "harness": "client-gametest",
    "series": "series2",
@@ -4955,7 +4971,9 @@
     "server.movementCorrections = 0",
     "server.kicks = 0",
     "vanillaServerShutdownHooksRemoved = 1"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-multiplayer"
   },
   {
    "scenario": "perf",
@@ -5015,7 +5033,7 @@
   },
   {
    "scenario": "leak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-leak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5043,11 +5061,13 @@
     "bliss.heapPerCycleMb = 0.6667",
     "bliss.privatePerCycleMb = 59.5677",
     "bliss.threadGroupsThatGrew = {}"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-leak"
   },
   {
    "scenario": "soak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-032900-soak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5080,11 +5100,13 @@
     "soak.msptMax = 37.1382",
     "soak.msptWorst100TickAverage = 1.3805",
     "soak.worstTicks = 37.1 ms at tick 6000 (world save), 20.8 ms at tick 18000 (world save), 18.4 ms at tick 12000 (world save), 17.4 ms at tick 24000 (world save), 12.4 ms at tick 10895"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-soak"
   },
   {
    "scenario": "assemble-mixed",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-assemble-mixed",
    "harness": "client-gametest",
    "series": "series2",
@@ -5113,11 +5135,13 @@
     "rest.tiltDegrees = 0.0001",
     "landing.quarterTurns = 2",
     "feetAboveDeck = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-assemble-mixed"
   },
   {
    "scenario": "flight-rotation",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-flight-rotation",
    "harness": "client-gametest",
    "series": "series2",
@@ -5150,11 +5174,13 @@
     "levelling.ticks = 25",
     "rest.clientServerOffset = 0.0009",
     "rest.clientServerDegrees = 0.0594"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-flight-rotation"
   },
   {
    "scenario": "deck-walk",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-deck-walk",
    "harness": "client-gametest",
    "series": "series2",
@@ -5181,11 +5207,13 @@
     "steep.tiltDegrees = 72.7333",
     "steep.lowestLocalY = 0.2151",
     "steep.slidBlocks = 30.0785"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-deck-walk"
   },
   {
    "scenario": "interaction",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-interaction",
    "harness": "client-gametest",
    "series": "series2",
@@ -5211,11 +5239,13 @@
     "mining.dropsAtBlock = 1",
     "mining.pickedUp = 0",
     "flight.speed = 2.5152"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-interaction"
   },
   {
    "scenario": "collision",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-collision",
    "harness": "client-gametest",
    "series": "series2",
@@ -5241,11 +5271,13 @@
     "ram.minCentreGap = 4.929",
     "ram.pushedBlocks = 20.1912",
     "ram.maxPushSpeed = 5.9693"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-collision"
   },
   {
    "scenario": "forged-packets",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-forged-packets",
    "harness": "client-gametest",
    "series": "series2",
@@ -5263,11 +5295,13 @@
    "checks": [
     "burst.refused = 162",
     "refusedTotal = 169"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-forged-packets"
   },
   {
    "scenario": "save-reload",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-save-reload",
    "harness": "client-gametest",
    "series": "series2",
@@ -5293,11 +5327,13 @@
     "firstBody.horizontalVelocityDelta = 0.0",
     "firstBody.verticalVelocityDelta = 0.0",
     "firstBody.angularVelocityDelta = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-save-reload"
   },
   {
    "scenario": "render-iris",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-render-iris",
    "harness": "client-gametest",
    "series": "series2",
@@ -5340,11 +5376,13 @@
     "far.blob = 20x12 at -1,-1 from the aim point",
     "far.blobLuminance = 106.5 with the barge, 164.4 without",
     "proxy.afterMove = 24.00,-30.00,420.00"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-render-iris"
   },
   {
    "scenario": "multiplayer",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-multiplayer",
    "harness": "client-gametest",
    "series": "series2",
@@ -5375,7 +5413,9 @@
     "server.movementCorrections = 0",
     "server.kicks = 0",
     "vanillaServerShutdownHooksRemoved = 1"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-multiplayer"
   },
   {
    "scenario": "perf",
@@ -5435,7 +5475,7 @@
   },
   {
    "scenario": "leak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-leak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5463,11 +5503,13 @@
     "bliss.heapPerCycleMb = -0.6667",
     "bliss.privatePerCycleMb = 51.3008",
     "bliss.threadGroupsThatGrew = {}"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-leak"
   },
   {
    "scenario": "soak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-035709-soak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5500,11 +5542,13 @@
     "soak.msptMax = 37.1805",
     "soak.msptWorst100TickAverage = 1.3534",
     "soak.worstTicks = 37.2 ms at tick 6000 (world save), 28.6 ms at tick 18000 (world save), 20.0 ms at tick 12000 (world save), 17.8 ms at tick 24000 (world save), 9.4 ms at tick 8487"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-soak"
   },
   {
    "scenario": "assemble-mixed",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-assemble-mixed",
    "harness": "client-gametest",
    "series": "series2",
@@ -5533,11 +5577,13 @@
     "rest.tiltDegrees = 0.0001",
     "landing.quarterTurns = 2",
     "feetAboveDeck = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-assemble-mixed"
   },
   {
    "scenario": "flight-rotation",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-flight-rotation",
    "harness": "client-gametest",
    "series": "series2",
@@ -5570,11 +5616,13 @@
     "levelling.ticks = 26",
     "rest.clientServerOffset = 0.0011",
     "rest.clientServerDegrees = 0.0769"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-flight-rotation"
   },
   {
    "scenario": "deck-walk",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-deck-walk",
    "harness": "client-gametest",
    "series": "series2",
@@ -5601,11 +5649,13 @@
     "steep.tiltDegrees = 72.7333",
     "steep.lowestLocalY = 0.2151",
     "steep.slidBlocks = 30.0785"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-deck-walk"
   },
   {
    "scenario": "interaction",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-interaction",
    "harness": "client-gametest",
    "series": "series2",
@@ -5631,11 +5681,13 @@
     "mining.dropsAtBlock = 1",
     "mining.pickedUp = 0",
     "flight.speed = 2.5152"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-interaction"
   },
   {
    "scenario": "collision",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-collision",
    "harness": "client-gametest",
    "series": "series2",
@@ -5661,11 +5713,13 @@
     "ram.minCentreGap = 4.929",
     "ram.pushedBlocks = 20.1912",
     "ram.maxPushSpeed = 5.9693"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-collision"
   },
   {
    "scenario": "forged-packets",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-forged-packets",
    "harness": "client-gametest",
    "series": "series2",
@@ -5683,11 +5737,13 @@
    "checks": [
     "burst.refused = 162",
     "refusedTotal = 169"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-forged-packets"
   },
   {
    "scenario": "save-reload",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-save-reload",
    "harness": "client-gametest",
    "series": "series2",
@@ -5713,11 +5769,13 @@
     "firstBody.horizontalVelocityDelta = 0.0",
     "firstBody.verticalVelocityDelta = 0.0",
     "firstBody.angularVelocityDelta = 0.0"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-save-reload"
   },
   {
    "scenario": "render-iris",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-render-iris",
    "harness": "client-gametest",
    "series": "series2",
@@ -5760,11 +5818,13 @@
     "far.blob = 20x12 at -1,-1 from the aim point",
     "far.blobLuminance = 107.0 with the barge, 164.2 without",
     "proxy.afterMove = 24.00,-30.00,420.00"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-render-iris"
   },
   {
    "scenario": "multiplayer",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-multiplayer",
    "harness": "client-gametest",
    "series": "series2",
@@ -5795,7 +5855,9 @@
     "server.movementCorrections = 0",
     "server.kicks = 0",
     "vanillaServerShutdownHooksRemoved = 1"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-multiplayer"
   },
   {
    "scenario": "perf",
@@ -5855,7 +5917,7 @@
   },
   {
    "scenario": "leak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-leak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5883,11 +5945,13 @@
     "bliss.heapPerCycleMb = -0.6667",
     "bliss.privatePerCycleMb = 54.3503",
     "bliss.threadGroupsThatGrew = {}"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-leak"
   },
   {
    "scenario": "soak",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-042516-soak",
    "harness": "client-gametest",
    "series": "series2",
@@ -5920,11 +5984,13 @@
     "soak.msptMax = 37.0676",
     "soak.msptWorst100TickAverage = 1.4251",
     "soak.worstTicks = 37.1 ms at tick 6000 (world save), 24.8 ms at tick 12000 (world save), 19.7 ms at tick 24000 (world save), 13.1 ms at tick 18000 (world save), 7.6 ms at tick 6077"
-   ]
+   ],
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-soak"
   },
   {
    "scenario": "perf",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-045450-perf",
    "harness": "client-gametest",
    "series": "series3-perf-1280",
@@ -5976,11 +6042,13 @@
     "flying.msptWorst100TickAverage = 0.6729",
     "flying.worstTicks = 2.2 ms at tick 1364, 1.4 ms at tick 1296, 0.8 ms at tick 1367, 0.8 ms at tick 1280, 0.8 ms at tick 1220"
    ],
-   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba"
+   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-perf"
   },
   {
    "scenario": "perf",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-045650-perf",
    "harness": "client-gametest",
    "series": "series3-perf-1280",
@@ -6032,11 +6100,13 @@
     "flying.msptWorst100TickAverage = 0.6533",
     "flying.worstTicks = 2.7 ms at tick 1364, 1.4 ms at tick 1243, 1.2 ms at tick 1301, 0.9 ms at tick 1381, 0.8 ms at tick 1211"
    ],
-   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba"
+   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-perf"
   },
   {
    "scenario": "perf",
-   "result": "pass",
+   "result": "superseded",
    "runId": "clientgametest-20260930-045851-perf",
    "harness": "client-gametest",
    "series": "series3-perf-1280",
@@ -6088,7 +6158,2135 @@
     "flying.msptWorst100TickAverage = 0.6952",
     "flying.worstTicks = 1.9 ms at tick 1364, 1.2 ms at tick 1151, 1.1 ms at tick 1238, 1.1 ms at tick 1128, 1.1 ms at tick 1426"
    ],
-   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba"
+   "note": "ran from the working tree on fb16469 with the perf 1280x720 and per-scenario screenshot-clearing changes, which were committed unchanged in 721b7ba",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-perf"
+  },
+  {
+   "scenario": "assemble-mixed",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-assemble-mixed",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 14.9,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "vesselId = 1",
+    "meshVertices = 1008",
+    "msd.02-assembled = 0.0012232659019534812"
+   ],
+   "message": "RuntimeException: java.util.concurrent.ExecutionException: java.lang.AssertionError: Screenshot does not contain template",
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "fail",
+   "supersededBy": "clientgametest-20260930-054751-assemble-mixed"
+  },
+  {
+   "scenario": "flight-rotation",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-flight-rotation",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 32.1,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "climb.blocks = 9.631178786512464",
+    "levelTurn.yawDegrees = 102.30373661741196",
+    "levelTurn.maxTiltDegrees = 0.005607054666949301",
+    "pitch.maxDegrees = 30.230295967794888",
+    "inverted.ticksHeld = 30",
+    "inverted.maxTiltDegrees = 179.846116308355",
+    "loop.maxTiltDegrees = 167.2386271494278",
+    "loop.pitchAxisShare = 0.9958897840736167",
+    "levelling.ticks = 25",
+    "rest.clientServerOffset = 8.526450733364908E-4",
+    "rest.clientServerDegrees = 0.05715684214343971"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-flight-rotation"
+  },
+  {
+   "scenario": "deck-walk",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-deck-walk",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 33.3,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "turnWalk.localBlocks = 5.565256118626367",
+    "bank.tiltDegrees = 44.23964541934235",
+    "bank.slipBlocks = 0.00316748069267483",
+    "bankWalk.localBlocks = 3.844027923539359",
+    "bankWalk.vesselYawDegrees = 28.32644423232415",
+    "steep.tiltDegrees = 72.73325278584045",
+    "steep.lowestLocalY = 0.21511684443119364",
+    "steep.slidBlocks = 30.078537978743537"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-deck-walk"
+  },
+  {
+   "scenario": "interaction",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-interaction",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 15.2,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "attitude.pitch = -29.999999367088094",
+    "attitude.roll = 29.999999358112767",
+    "attitude.tilt = 41.40962127471892",
+    "mining.dropsAtBlock = 1",
+    "mining.pickedUp = 0",
+    "flight.speed = 2.5152158045919664"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-interaction"
+  },
+  {
+   "scenario": "collision",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-collision",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 20.5,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "fall.ticks = 42",
+    "fall.restY = -47.99999957753657",
+    "fall.lowestY = -48.04806646727957",
+    "fall.restSpeed = 2.5653642412517174E-5",
+    "fall.restTilt = 1.1581149199548762E-5",
+    "ram.minCentreGap = 4.928983166683821",
+    "ram.pushedBlocks = 20.191232636961956",
+    "ram.maxPushSpeed = 5.969297885894775"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-collision"
+  },
+  {
+   "scenario": "forged-packets",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-forged-packets",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 11.6,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "burst.refused = 162",
+    "refusedTotal = 169"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-forged-packets"
+  },
+  {
+   "scenario": "save-reload",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-save-reload",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 17.7,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "saved.speed = 9.558643232941943",
+    "saved.spin = 0.16427624158115997",
+    "loaded.positionDelta = 0.0",
+    "loaded.rotationDot = 1.0",
+    "loaded.velocityDelta = 0.0",
+    "firstBody.horizontalVelocityDelta = 0.0",
+    "firstBody.verticalVelocityDelta = 0.0",
+    "firstBody.angularVelocityDelta = 0.0"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-save-reload"
+  },
+  {
+   "scenario": "render-iris",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-render-iris",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 57.7,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "outline.pixels = 4944",
+    "outline.pixelsWithHudHidden = 1",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 4.1548315100889455E-5",
+    "shadow.ratioWithBliss = 0.6132400435915076",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 4.43661178175331E-5",
+    "far.changedPixels = 237",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 107.5 with the barge, 164.4 without",
+    "proxy.afterMove = 24.00,-30.00,420.00"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-render-iris"
+  },
+  {
+   "scenario": "multiplayer",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-multiplayer",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 35.2,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "server.ticksRecorded = 142",
+    "pilot.matchedTicks = 138",
+    "pilot.maxPositionError = 0.0",
+    "pilot.maxDegreesError = 5.915117333884393E-6",
+    "watcher.matchedTicks = 133",
+    "watcher.maxPositionError = 5.917349137137201E-5",
+    "watcher.maxDegreesError = 0.013179005321911453",
+    "watcher.trace = frames=405 ticks=135.76 meanSpeed=0.8215 maxDeltaV=0.1209 maxStep=0.4653 reversals=0 maxTurnDeg=1.274 stalls=0 maxGapTicks=0.62",
+    "watcherRider = carried 60 of 60 ticks, local y 1.747776989140991E-7..1.747777423244033E-7",
+    "watcherServerLocal = 1.339,-0.000,-0.587",
+    "server.movementCorrections = 0",
+    "server.kicks = 0",
+    "vanillaServerShutdownHooksRemoved = 1"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-multiplayer"
+  },
+  {
+   "scenario": "perf",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-perf",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 93.8,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "window = 1280x720",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "barge.blocks = 961",
+    "flying.speed = 2.0025953249108435",
+    "flying.spin = 0.2699993848800659",
+    "baseline.fpsMean = 774.1333333333333",
+    "baseline.fpsLow5 = 767.0",
+    "baseline.msptMean = 0.39163766666666666",
+    "baseline.msptP95 = 0.4464",
+    "baseline.msptMax = 1.1192",
+    "static.fpsMean = 764.2",
+    "static.fpsLow5 = 755.0",
+    "static.msptMean = 0.43724199999999996",
+    "static.msptP95 = 0.4875",
+    "static.msptMax = 2.2866",
+    "static.physicsStepMsMean = 0.06558933333333333",
+    "static.physicsStepMsMax = 0.1286",
+    "flying.fpsMean = 773.5333333333333",
+    "flying.fpsLow5 = 640.0",
+    "flying.msptMean = 0.4317783333333333",
+    "flying.msptP95 = 0.5185",
+    "flying.msptMax = 0.9997",
+    "flying.physicsStepMsMean = 0.06674766666666666",
+    "flying.physicsStepMsMax = 0.2251",
+    "warm.fpsMean = 754.6",
+    "warm.fpsLow5 = 736.0",
+    "warm.msptMean = 0.38039433333333333",
+    "warm.msptP95 = 0.4507",
+    "warm.msptMax = 0.5262",
+    "fpsDropFlyingVsWarm = -0.0250905557028005",
+    "msptAddedFlyingVsWarm = 0.051383999999999985",
+    "flying.msptWorst100TickAverage = 0.445141",
+    "flying.worstTicks = 1.0 ms at tick 1356, 0.8 ms at tick 1354, 0.6 ms at tick 1304, 0.6 ms at tick 1360, 0.6 ms at tick 1151"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-perf"
+  },
+  {
+   "scenario": "leak",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-leak",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 119.3,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [612, 620, 614, 622, 620]",
+    "plain.privateMb = [2231, 2238, 2240, 2232, 2203]",
+    "plain.heapPerCycleMb = 0.0",
+    "plain.privatePerCycleMb = -11.518229166666666",
+    "plain.threadGroupsThatGrew = {}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [658, 662, 662, 666, 666]",
+    "bliss.privateMb = [2469, 2554, 2610, 2662, 2713]",
+    "bliss.heapPerCycleMb = 1.3333333333333333",
+    "bliss.privatePerCycleMb = 53.041666666666664",
+    "bliss.threadGroupsThatGrew = {}"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-leak"
+  },
+  {
+   "scenario": "soak",
+   "result": "superseded",
+   "runId": "clientgametest-20260930-050557-soak",
+   "harness": "client-gametest",
+   "series": "clean-build1-failed-assemble-race",
+   "run": 1,
+   "date": "2026-09-30T05:05:57",
+   "commit": "13611e2",
+   "seconds": 128.4,
+   "report": null,
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-050557\\run1.log"
+   ],
+   "checks": [
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "minutes = 2.0",
+    "ticks = 2400",
+    "samples = 120",
+    "heapAfterGcStartMb = 924.0",
+    "heapAfterGcEndMb = 878.0",
+    "soak.msptMean = 0.8533426666666666",
+    "soak.msptP95 = 1.5092",
+    "soak.msptMax = 4.725",
+    "soak.msptWorst100TickAverage = 1.1311360000000035",
+    "soak.worstTicks = 4.7 ms at tick 152, 4.1 ms at tick 1384, 4.0 ms at tick 281, 3.8 ms at tick 137, 3.8 ms at tick 104"
+   ],
+   "note": "gradlew clean build at 13611e2 (fresh run directory); failed in assemble-mixed: the reference picture raced far-terrain streaming (see DESIGN.md, Testing); results reconstructed from the build log",
+   "originalResult": "pass",
+   "supersededBy": "clientgametest-20260930-054751-soak"
+  },
+  {
+   "scenario": "assemble-mixed",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-assemble-mixed",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 26.6,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\assemble-mixed\\01-built.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\assemble-mixed\\02-assembled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\assemble-mixed\\03-piloting.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\assemble-mixed\\04-disassembled.png"
+   ],
+   "checks": [
+    "still.built.ticks = 90",
+    "vesselId = 1",
+    "meshVertices = 1008",
+    "still.assembled.ticks = 80",
+    "msd.02-assembled = 0.0001",
+    "flight.distance = 25.1131",
+    "flight.yawDegrees = 134.0734",
+    "flight.maxTiltDegrees = 0.0018",
+    "rest.tiltDegrees = 0.0001",
+    "landing.quarterTurns = 2",
+    "feetAboveDeck = 0.0"
+   ]
+  },
+  {
+   "scenario": "flight-rotation",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-flight-rotation",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 31.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\01-after-yaw.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\02-pitched.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\03-inverted.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\04-loop.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\05-levelled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\flight-rotation\\06-disassembled.png"
+   ],
+   "checks": [
+    "climb.blocks = 9.6312",
+    "levelTurn.yawDegrees = 102.3037",
+    "levelTurn.maxTiltDegrees = 0.0056",
+    "pitch.maxDegrees = 30.2303",
+    "inverted.ticksHeld = 30",
+    "inverted.maxTiltDegrees = 179.8461",
+    "loop.maxTiltDegrees = 167.2386",
+    "loop.pitchAxisShare = 0.9959",
+    "levelling.ticks = 26",
+    "rest.clientServerOffset = 0.0011",
+    "rest.clientServerDegrees = 0.0769"
+   ]
+  },
+  {
+   "scenario": "deck-walk",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-deck-walk",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 33.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\deck-walk\\01-walking-during-turn.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\deck-walk\\02-banked-45.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\deck-walk\\03-steep.png"
+   ],
+   "checks": [
+    "turnWalk.localBlocks = 5.5653",
+    "bank.tiltDegrees = 44.2396",
+    "bank.slipBlocks = 0.0032",
+    "bankWalk.localBlocks = 3.844",
+    "bankWalk.vesselYawDegrees = 28.3265",
+    "steep.tiltDegrees = 72.7333",
+    "steep.lowestLocalY = 0.2151",
+    "steep.slidBlocks = 30.0785"
+   ]
+  },
+  {
+   "scenario": "interaction",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-interaction",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 16.8,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\interaction\\01-placed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\interaction\\02-chest-open.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\interaction\\03-lamp-lit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\interaction\\04-flying-tilted.png"
+   ],
+   "checks": [
+    "attitude.pitch = -30.0",
+    "attitude.roll = 30.0",
+    "attitude.tilt = 41.4096",
+    "mining.dropsAtBlock = 1",
+    "mining.pickedUp = 1",
+    "flight.speed = 2.5152"
+   ]
+  },
+  {
+   "scenario": "collision",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-collision",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 19.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\collision\\01-landed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\collision\\02-vessels-after.png"
+   ],
+   "checks": [
+    "fall.ticks = 42",
+    "fall.restY = -48.0",
+    "fall.lowestY = -48.0481",
+    "fall.restSpeed = 0.0",
+    "fall.restTilt = 0.0",
+    "ram.minCentreGap = 4.929",
+    "ram.pushedBlocks = 20.1912",
+    "ram.maxPushSpeed = 5.9693"
+   ]
+  },
+  {
+   "scenario": "forged-packets",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-forged-packets",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 11.4,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log"
+   ],
+   "checks": [
+    "burst.refused = 162",
+    "refusedTotal = 169"
+   ]
+  },
+  {
+   "scenario": "save-reload",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-save-reload",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 14.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\save-reload\\01-before-quit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\save-reload\\02-after-reload.png"
+   ],
+   "checks": [
+    "saved.speed = 9.5586",
+    "saved.spin = 0.1643",
+    "loaded.positionDelta = 0.0",
+    "loaded.rotationDot = 1.0",
+    "loaded.velocityDelta = 0.0",
+    "firstBody.horizontalVelocityDelta = 0.0",
+    "firstBody.verticalVelocityDelta = 0.0",
+    "firstBody.angularVelocityDelta = 0.0"
+   ]
+  },
+  {
+   "scenario": "render-iris",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-render-iris",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 65.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\01-outline-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\01-outline-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\02-outline-f1-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\02-outline-f1-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\03-ground-plain-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\03-ground-plain-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\04-ground-bliss-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\04-ground-bliss-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\05-barge-far-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\06-barge-moved-away.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\render-far-dh-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\render-iris\\render-near-bliss.png"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "still.outline.ticks = 30",
+    "outline.pixels = 959",
+    "still.outline-f1.ticks = 30",
+    "outline.pixelsWithHudHidden = 1",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 0.0",
+    "shadow.ratioWithBliss = 0.6136",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 0.0",
+    "far.changedPixels = 238",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 106.7 with the barge, 164.3 without",
+    "proxy.afterMove = 24.00,-30.00,420.00"
+   ]
+  },
+  {
+   "scenario": "multiplayer",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-multiplayer",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 41.6,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\multiplayer\\02-pilot-view.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\multiplayer\\03-pilot-sees-watcher-on-deck.png"
+   ],
+   "checks": [
+    "server.ticksRecorded = 142",
+    "pilot.matchedTicks = 138",
+    "pilot.maxPositionError = 0.0",
+    "pilot.maxDegreesError = 0.0",
+    "watcher.matchedTicks = 133",
+    "watcher.maxPositionError = 0.0001",
+    "watcher.maxDegreesError = 0.0127",
+    "watcher.trace = frames=409 ticks=136.60 meanSpeed=0.8150 maxDeltaV=0.0920 maxStep=0.4632 reversals=0 maxTurnDeg=1.020 stalls=0 maxGapTicks=0.36",
+    "watcherRider = carried 60 of 60 ticks, local y 1.193206594336338E-7..1.1932068426017584E-7",
+    "watcherServerLocal = 1.379,-0.000,-0.522",
+    "server.movementCorrections = 0",
+    "server.kicks = 0",
+    "vanillaServerShutdownHooksRemoved = 1"
+   ]
+  },
+  {
+   "scenario": "perf",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-perf",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 94.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\perf\\01-barge-flying-bliss.png"
+   ],
+   "checks": [
+    "window = 1280x720",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "barge.blocks = 961",
+    "flying.speed = 2.0026",
+    "flying.spin = 0.27",
+    "baseline.fpsMean = 778.3333",
+    "baseline.fpsLow5 = 768.0",
+    "baseline.msptMean = 0.3968",
+    "baseline.msptP95 = 0.475",
+    "baseline.msptMax = 1.144",
+    "static.fpsMean = 769.0667",
+    "static.fpsLow5 = 758.0",
+    "static.msptMean = 0.432",
+    "static.msptP95 = 0.4878",
+    "static.msptMax = 0.6767",
+    "static.physicsStepMsMean = 0.0699",
+    "static.physicsStepMsMax = 0.2424",
+    "flying.fpsMean = 758.4667",
+    "flying.fpsLow5 = 637.0",
+    "flying.msptMean = 0.4375",
+    "flying.msptP95 = 0.4915",
+    "flying.msptMax = 0.9775",
+    "flying.physicsStepMsMean = 0.0669",
+    "flying.physicsStepMsMax = 0.1894",
+    "warm.fpsMean = 752.7333",
+    "warm.fpsLow5 = 742.0",
+    "warm.msptMean = 0.3627",
+    "warm.msptP95 = 0.4087",
+    "warm.msptMax = 0.8124",
+    "fpsDropFlyingVsWarm = -0.0076",
+    "msptAddedFlyingVsWarm = 0.0747",
+    "flying.msptWorst100TickAverage = 0.4407",
+    "flying.worstTicks = 1.0 ms at tick 1370, 0.8 ms at tick 1369, 0.5 ms at tick 1123, 0.5 ms at tick 1220, 0.5 ms at tick 1219"
+   ]
+  },
+  {
+   "scenario": "leak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-leak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 113.4,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [610, 614, 616, 618, 616]",
+    "plain.privateMb = [2085, 2217, 2214, 2230, 2205]",
+    "plain.heapPerCycleMb = 0.6667",
+    "plain.privatePerCycleMb = -3.8841",
+    "plain.threadGroupsThatGrew = {}",
+    "plain.threadGroupsThatChanged = {Download-#=[1, 1, 1, 2, 2], IO-Worker-#=[9, 9, 9, 9, 6], Keep-Alive-Timer=[0, 0, 1, 1, 1], Netty Local IO ##=[36, 39, 40, 40, 40]}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [658, 660, 658, 664, 664]",
+    "bliss.privateMb = [2388, 2335, 2507, 2591, 2648]",
+    "bliss.heapPerCycleMb = 1.3333",
+    "bliss.privatePerCycleMb = 104.5404",
+    "bliss.threadGroupsThatGrew = {}",
+    "bliss.threadGroupsThatChanged = {DH-ChunkSaveIgnoreTimer=[0, 0, 0, 3, 3], Download-#=[2, 2, 2, 2, 1], IO-Worker-#=[6, 6, 6, 5, 5]}"
+   ]
+  },
+  {
+   "scenario": "soak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-054751-soak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 1,
+   "date": "2026-09-30T05:47:51",
+   "commit": "2485c6a",
+   "seconds": 1214.0,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\soak\\soak-01min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\soak\\soak-06min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\soak\\soak-11min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\soak\\soak-16min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-054751\\screenshots\\soak\\soak-end.png"
+   ],
+   "checks": [
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "minutes = 20.0",
+    "ticks = 24000",
+    "samples = 1200",
+    "heapAfterGcStartMb = 896.0",
+    "heapAfterGcEndMb = 876.0",
+    "soak.msptMean = 0.7904",
+    "soak.msptP95 = 1.2969",
+    "soak.msptMax = 37.2844",
+    "soak.msptWorst100TickAverage = 1.3715",
+    "soak.worstTicks = 37.3 ms at tick 6000 (world save), 29.3 ms at tick 18000 (world save), 15.7 ms at tick 24000 (world save), 14.6 ms at tick 12000 (world save), 8.6 ms at tick 9690"
+   ]
+  },
+  {
+   "scenario": "assemble-mixed",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-assemble-mixed",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 41.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\assemble-mixed\\01-built.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\assemble-mixed\\02-assembled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\assemble-mixed\\03-piloting.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\assemble-mixed\\04-disassembled.png"
+   ],
+   "checks": [
+    "still.built.ticks = 170",
+    "vesselId = 1",
+    "meshVertices = 1008",
+    "still.assembled.ticks = 270",
+    "msd.02-assembled = 0.0001",
+    "flight.distance = 25.1131",
+    "flight.yawDegrees = 134.0734",
+    "flight.maxTiltDegrees = 0.0018",
+    "rest.tiltDegrees = 0.0001",
+    "landing.quarterTurns = 2",
+    "feetAboveDeck = 0.0"
+   ]
+  },
+  {
+   "scenario": "flight-rotation",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-flight-rotation",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 31.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\01-after-yaw.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\02-pitched.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\03-inverted.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\04-loop.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\05-levelled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\flight-rotation\\06-disassembled.png"
+   ],
+   "checks": [
+    "climb.blocks = 9.6312",
+    "levelTurn.yawDegrees = 102.3037",
+    "levelTurn.maxTiltDegrees = 0.0056",
+    "pitch.maxDegrees = 30.2303",
+    "inverted.ticksHeld = 30",
+    "inverted.maxTiltDegrees = 179.8461",
+    "loop.maxTiltDegrees = 167.2386",
+    "loop.pitchAxisShare = 0.9959",
+    "levelling.ticks = 26",
+    "rest.clientServerOffset = 0.0011",
+    "rest.clientServerDegrees = 0.0769"
+   ]
+  },
+  {
+   "scenario": "deck-walk",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-deck-walk",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 33.9,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\deck-walk\\01-walking-during-turn.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\deck-walk\\02-banked-45.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\deck-walk\\03-steep.png"
+   ],
+   "checks": [
+    "turnWalk.localBlocks = 5.5653",
+    "bank.tiltDegrees = 44.2396",
+    "bank.slipBlocks = 0.0032",
+    "bankWalk.localBlocks = 3.844",
+    "bankWalk.vesselYawDegrees = 28.3264",
+    "steep.tiltDegrees = 72.7333",
+    "steep.lowestLocalY = 0.2151",
+    "steep.slidBlocks = 30.0785"
+   ]
+  },
+  {
+   "scenario": "interaction",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-interaction",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 15.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\interaction\\01-placed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\interaction\\02-chest-open.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\interaction\\03-lamp-lit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\interaction\\04-flying-tilted.png"
+   ],
+   "checks": [
+    "attitude.pitch = -30.0",
+    "attitude.roll = 30.0",
+    "attitude.tilt = 41.4096",
+    "mining.dropsAtBlock = 1",
+    "mining.pickedUp = 1",
+    "flight.speed = 2.5152"
+   ]
+  },
+  {
+   "scenario": "collision",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-collision",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 20.0,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\collision\\01-landed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\collision\\02-vessels-after.png"
+   ],
+   "checks": [
+    "fall.ticks = 42",
+    "fall.restY = -48.0",
+    "fall.lowestY = -48.0481",
+    "fall.restSpeed = 0.0",
+    "fall.restTilt = 0.0",
+    "ram.minCentreGap = 4.929",
+    "ram.pushedBlocks = 20.1912",
+    "ram.maxPushSpeed = 5.9693"
+   ]
+  },
+  {
+   "scenario": "forged-packets",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-forged-packets",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 11.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log"
+   ],
+   "checks": [
+    "burst.refused = 162",
+    "refusedTotal = 169"
+   ]
+  },
+  {
+   "scenario": "save-reload",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-save-reload",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 17.5,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\save-reload\\01-before-quit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\save-reload\\02-after-reload.png"
+   ],
+   "checks": [
+    "saved.speed = 9.5586",
+    "saved.spin = 0.1643",
+    "loaded.positionDelta = 0.0",
+    "loaded.rotationDot = 1.0",
+    "loaded.velocityDelta = 0.0",
+    "firstBody.horizontalVelocityDelta = 0.0",
+    "firstBody.verticalVelocityDelta = 0.0",
+    "firstBody.angularVelocityDelta = 0.0"
+   ]
+  },
+  {
+   "scenario": "render-iris",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-render-iris",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 58.8,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\01-outline-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\01-outline-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\02-outline-f1-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\02-outline-f1-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\03-ground-plain-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\03-ground-plain-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\04-ground-bliss-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\04-ground-bliss-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\05-barge-far-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\06-barge-moved-away.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\render-far-dh-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\render-iris\\render-near-bliss.png"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "still.outline.ticks = 30",
+    "outline.pixels = 958",
+    "still.outline-f1.ticks = 10",
+    "outline.pixelsWithHudHidden = 1",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 0.0",
+    "shadow.ratioWithBliss = 0.6161",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 0.0",
+    "far.changedPixels = 239",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 107.7 with the barge, 164.3 without",
+    "proxy.afterMove = 24.00,-30.00,420.00"
+   ]
+  },
+  {
+   "scenario": "multiplayer",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-multiplayer",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 41.7,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\multiplayer\\02-pilot-view.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\multiplayer\\03-pilot-sees-watcher-on-deck.png"
+   ],
+   "checks": [
+    "server.ticksRecorded = 142",
+    "pilot.matchedTicks = 138",
+    "pilot.maxPositionError = 0.0",
+    "pilot.maxDegreesError = 0.0",
+    "watcher.matchedTicks = 135",
+    "watcher.maxPositionError = 0.0001",
+    "watcher.maxDegreesError = 0.0127",
+    "watcher.trace = frames=410 ticks=137.52 meanSpeed=0.8119 maxDeltaV=0.0812 maxStep=0.4665 reversals=0 maxTurnDeg=1.350 stalls=0 maxGapTicks=0.72",
+    "watcherRider = carried 60 of 60 ticks, local y 1.1931566612841246E-7..1.1931568866224934E-7",
+    "watcherServerLocal = 1.379,-0.000,-0.522",
+    "server.movementCorrections = 0",
+    "server.kicks = 0",
+    "vanillaServerShutdownHooksRemoved = 1"
+   ]
+  },
+  {
+   "scenario": "perf",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-perf",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 93.6,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\perf\\01-barge-flying-bliss.png"
+   ],
+   "checks": [
+    "window = 1280x720",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "barge.blocks = 961",
+    "flying.speed = 2.0026",
+    "flying.spin = 0.27",
+    "baseline.fpsMean = 768.2667",
+    "baseline.fpsLow5 = 762.0",
+    "baseline.msptMean = 0.4389",
+    "baseline.msptP95 = 0.5571",
+    "baseline.msptMax = 1.0406",
+    "static.fpsMean = 758.6",
+    "static.fpsLow5 = 748.0",
+    "static.msptMean = 0.4715",
+    "static.msptP95 = 0.5664",
+    "static.msptMax = 0.7169",
+    "static.physicsStepMsMean = 0.0679",
+    "static.physicsStepMsMax = 0.1688",
+    "flying.fpsMean = 766.1333",
+    "flying.fpsLow5 = 738.0",
+    "flying.msptMean = 0.4736",
+    "flying.msptP95 = 0.5464",
+    "flying.msptMax = 1.0014",
+    "flying.physicsStepMsMean = 0.0667",
+    "flying.physicsStepMsMax = 0.2154",
+    "warm.fpsMean = 790.3333",
+    "warm.fpsLow5 = 770.0",
+    "warm.msptMean = 0.4401",
+    "warm.msptP95 = 0.5349",
+    "warm.msptMax = 1.4411",
+    "fpsDropFlyingVsWarm = 0.0306",
+    "msptAddedFlyingVsWarm = 0.0335",
+    "flying.msptWorst100TickAverage = 0.4878",
+    "flying.worstTicks = 1.0 ms at tick 1161, 0.7 ms at tick 1125, 0.7 ms at tick 1169, 0.7 ms at tick 1301, 0.7 ms at tick 1224"
+   ]
+  },
+  {
+   "scenario": "leak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-leak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 120.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [622, 622, 624, 618, 622]",
+    "plain.privateMb = [2169, 2218, 2239, 2220, 2236]",
+    "plain.heapPerCycleMb = 0.0",
+    "plain.privatePerCycleMb = 6.0169",
+    "plain.threadGroupsThatGrew = {}",
+    "plain.threadGroupsThatChanged = {IO-Worker-#=[9, 9, 9, 6, 6], Keep-Alive-Timer=[0, 0, 0, 1, 1], Netty Local IO ##=[36, 39, 40, 40, 40]}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [668, 664, 670, 666, 664]",
+    "bliss.privateMb = [2438, 2495, 2559, 2619, 2664]",
+    "bliss.heapPerCycleMb = 0.0",
+    "bliss.privatePerCycleMb = 56.5247",
+    "bliss.threadGroupsThatGrew = {}",
+    "bliss.threadGroupsThatChanged = {}"
+   ]
+  },
+  {
+   "scenario": "soak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-061612-soak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 2,
+   "date": "2026-09-30T06:16:12",
+   "commit": "2485c6a",
+   "seconds": 1214.7,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\run2.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\soak\\soak-01min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\soak\\soak-06min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\soak\\soak-11min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\soak\\soak-16min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-061612\\screenshots\\soak\\soak-end.png"
+   ],
+   "checks": [
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "minutes = 20.0",
+    "ticks = 24000",
+    "samples = 1200",
+    "heapAfterGcStartMb = 906.0",
+    "heapAfterGcEndMb = 888.0",
+    "soak.msptMean = 0.8086",
+    "soak.msptP95 = 1.3566",
+    "soak.msptMax = 30.0024",
+    "soak.msptWorst100TickAverage = 1.3137",
+    "soak.worstTicks = 30.0 ms at tick 6000 (world save), 28.3 ms at tick 18000 (world save), 15.5 ms at tick 12000 (world save), 12.9 ms at tick 9689, 12.9 ms at tick 24000 (world save)"
+   ]
+  },
+  {
+   "scenario": "assemble-mixed",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-assemble-mixed",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 29.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\assemble-mixed\\01-built.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\assemble-mixed\\02-assembled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\assemble-mixed\\03-piloting.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\assemble-mixed\\04-disassembled.png"
+   ],
+   "checks": [
+    "still.built.ticks = 50",
+    "vesselId = 1",
+    "meshVertices = 1008",
+    "still.assembled.ticks = 160",
+    "msd.02-assembled = 0.0001",
+    "flight.distance = 25.1131",
+    "flight.yawDegrees = 134.0734",
+    "flight.maxTiltDegrees = 0.0018",
+    "rest.tiltDegrees = 0.0001",
+    "landing.quarterTurns = 2",
+    "feetAboveDeck = 0.0"
+   ]
+  },
+  {
+   "scenario": "flight-rotation",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-flight-rotation",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 32.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\01-after-yaw.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\02-pitched.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\03-inverted.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\04-loop.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\05-levelled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\flight-rotation\\06-disassembled.png"
+   ],
+   "checks": [
+    "climb.blocks = 9.6312",
+    "levelTurn.yawDegrees = 102.3037",
+    "levelTurn.maxTiltDegrees = 0.0056",
+    "pitch.maxDegrees = 30.2303",
+    "inverted.ticksHeld = 30",
+    "inverted.maxTiltDegrees = 179.8461",
+    "loop.maxTiltDegrees = 167.2386",
+    "loop.pitchAxisShare = 0.9959",
+    "levelling.ticks = 26",
+    "rest.clientServerOffset = 0.0011",
+    "rest.clientServerDegrees = 0.0769"
+   ]
+  },
+  {
+   "scenario": "deck-walk",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-deck-walk",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 32.6,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\deck-walk\\01-walking-during-turn.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\deck-walk\\02-banked-45.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\deck-walk\\03-steep.png"
+   ],
+   "checks": [
+    "turnWalk.localBlocks = 5.5653",
+    "bank.tiltDegrees = 44.2396",
+    "bank.slipBlocks = 0.0032",
+    "bankWalk.localBlocks = 3.844",
+    "bankWalk.vesselYawDegrees = 28.3264",
+    "steep.tiltDegrees = 72.7333",
+    "steep.lowestLocalY = 0.2151",
+    "steep.slidBlocks = 30.0785"
+   ]
+  },
+  {
+   "scenario": "interaction",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-interaction",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 15.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\interaction\\01-placed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\interaction\\02-chest-open.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\interaction\\03-lamp-lit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\interaction\\04-flying-tilted.png"
+   ],
+   "checks": [
+    "attitude.pitch = -30.0",
+    "attitude.roll = 30.0",
+    "attitude.tilt = 41.4096",
+    "mining.dropsAtBlock = 1",
+    "mining.pickedUp = 0",
+    "flight.speed = 2.5152"
+   ]
+  },
+  {
+   "scenario": "collision",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-collision",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 19.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\collision\\01-landed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\collision\\02-vessels-after.png"
+   ],
+   "checks": [
+    "fall.ticks = 42",
+    "fall.restY = -48.0",
+    "fall.lowestY = -48.0481",
+    "fall.restSpeed = 0.0",
+    "fall.restTilt = 0.0",
+    "ram.minCentreGap = 4.929",
+    "ram.pushedBlocks = 20.1912",
+    "ram.maxPushSpeed = 5.9693"
+   ]
+  },
+  {
+   "scenario": "forged-packets",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-forged-packets",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 13.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log"
+   ],
+   "checks": [
+    "burst.refused = 162",
+    "refusedTotal = 169"
+   ]
+  },
+  {
+   "scenario": "save-reload",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-save-reload",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 14.4,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\save-reload\\01-before-quit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\save-reload\\02-after-reload.png"
+   ],
+   "checks": [
+    "saved.speed = 9.5586",
+    "saved.spin = 0.1643",
+    "loaded.positionDelta = 0.0",
+    "loaded.rotationDot = 1.0",
+    "loaded.velocityDelta = 0.0",
+    "firstBody.horizontalVelocityDelta = 0.0",
+    "firstBody.verticalVelocityDelta = 0.0",
+    "firstBody.angularVelocityDelta = 0.0"
+   ]
+  },
+  {
+   "scenario": "render-iris",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-render-iris",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 59.7,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\01-outline-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\01-outline-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\02-outline-f1-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\02-outline-f1-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\03-ground-plain-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\03-ground-plain-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\04-ground-bliss-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\04-ground-bliss-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\05-barge-far-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\06-barge-moved-away.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\render-far-dh-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\render-iris\\render-near-bliss.png"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "still.outline.ticks = 30",
+    "outline.pixels = 959",
+    "still.outline-f1.ticks = 10",
+    "outline.pixelsWithHudHidden = 0",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 0.0",
+    "shadow.ratioWithBliss = 0.6146",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 0.0",
+    "far.changedPixels = 238",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 107.5 with the barge, 164.2 without",
+    "proxy.afterMove = 24.00,-30.00,420.00"
+   ]
+  },
+  {
+   "scenario": "multiplayer",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-multiplayer",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 36.5,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\multiplayer\\02-pilot-view.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\multiplayer\\03-pilot-sees-watcher-on-deck.png"
+   ],
+   "checks": [
+    "server.ticksRecorded = 142",
+    "pilot.matchedTicks = 138",
+    "pilot.maxPositionError = 0.0",
+    "pilot.maxDegreesError = 0.0",
+    "watcher.matchedTicks = 135",
+    "watcher.maxPositionError = 0.0001",
+    "watcher.maxDegreesError = 0.0128",
+    "watcher.trace = frames=410 ticks=137.44 meanSpeed=0.8118 maxDeltaV=0.1029 maxStep=0.4617 reversals=0 maxTurnDeg=1.303 stalls=0 maxGapTicks=0.64",
+    "watcherRider = carried 60 of 60 ticks, local y 7.497342328724747E-8..7.497346373409413E-8",
+    "watcherServerLocal = 1.455,-0.000,-0.400",
+    "server.movementCorrections = 0",
+    "server.kicks = 0",
+    "vanillaServerShutdownHooksRemoved = 1"
+   ]
+  },
+  {
+   "scenario": "perf",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-perf",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 92.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\perf\\01-barge-flying-bliss.png"
+   ],
+   "checks": [
+    "window = 1280x720",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "barge.blocks = 961",
+    "flying.speed = 2.0026",
+    "flying.spin = 0.27",
+    "baseline.fpsMean = 777.5333",
+    "baseline.fpsLow5 = 768.0",
+    "baseline.msptMean = 0.3995",
+    "baseline.msptP95 = 0.452",
+    "baseline.msptMax = 0.9128",
+    "static.fpsMean = 772.8667",
+    "static.fpsLow5 = 749.0",
+    "static.msptMean = 0.4286",
+    "static.msptP95 = 0.4957",
+    "static.msptMax = 0.8549",
+    "static.physicsStepMsMean = 0.0642",
+    "static.physicsStepMsMax = 0.1252",
+    "flying.fpsMean = 759.0667",
+    "flying.fpsLow5 = 641.0",
+    "flying.msptMean = 0.4373",
+    "flying.msptP95 = 0.5083",
+    "flying.msptMax = 0.6843",
+    "flying.physicsStepMsMean = 0.0646",
+    "flying.physicsStepMsMax = 0.2256",
+    "warm.fpsMean = 797.8",
+    "warm.fpsLow5 = 774.0",
+    "warm.msptMean = 0.4026",
+    "warm.msptP95 = 0.4974",
+    "warm.msptMax = 1.1309",
+    "fpsDropFlyingVsWarm = 0.0486",
+    "msptAddedFlyingVsWarm = 0.0347",
+    "flying.msptWorst100TickAverage = 0.4414",
+    "flying.worstTicks = 0.7 ms at tick 1201, 0.6 ms at tick 1152, 0.6 ms at tick 1283, 0.6 ms at tick 1072, 0.6 ms at tick 1243"
+   ]
+  },
+  {
+   "scenario": "leak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-leak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 117.8,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [620, 614, 614, 614, 614]",
+    "plain.privateMb = [2158, 2183, 2079, 2204, 2084]",
+    "plain.heapPerCycleMb = 0.0",
+    "plain.privatePerCycleMb = -33.1042",
+    "plain.threadGroupsThatGrew = {}",
+    "plain.threadGroupsThatChanged = {IO-Worker-#=[9, 9, 9, 9, 6], Keep-Alive-Timer=[0, 0, 1, 1, 1], Netty Local IO ##=[36, 39, 40, 40, 40]}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [654, 658, 656, 656, 656]",
+    "bliss.privateMb = [2322, 2455, 2575, 2592, 2686]",
+    "bliss.heapPerCycleMb = -0.6667",
+    "bliss.privatePerCycleMb = 77.2487",
+    "bliss.threadGroupsThatGrew = {}",
+    "bliss.threadGroupsThatChanged = {}"
+   ]
+  },
+  {
+   "scenario": "soak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-064452-soak",
+   "harness": "client-gametest",
+   "series": "series5-fresh",
+   "run": 3,
+   "date": "2026-09-30T06:44:52",
+   "commit": "2485c6a",
+   "seconds": 1215.4,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\run3.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\soak\\soak-01min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\soak\\soak-06min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\soak\\soak-11min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\soak\\soak-16min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-064452\\screenshots\\soak\\soak-end.png"
+   ],
+   "checks": [
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "minutes = 20.0",
+    "ticks = 24000",
+    "samples = 1200",
+    "heapAfterGcStartMb = 878.0",
+    "heapAfterGcEndMb = 940.0",
+    "soak.msptMean = 0.8248",
+    "soak.msptP95 = 1.3831",
+    "soak.msptMax = 38.5539",
+    "soak.msptWorst100TickAverage = 1.4229",
+    "soak.worstTicks = 38.6 ms at tick 6000 (world save), 26.2 ms at tick 18000 (world save), 17.6 ms at tick 12000 (world save), 16.2 ms at tick 24000 (world save), 11.2 ms at tick 10896"
+   ]
+  },
+  {
+   "scenario": "assemble-mixed",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-assemble-mixed",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 25.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\assemble-mixed\\01-built.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\assemble-mixed\\02-assembled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\assemble-mixed\\03-piloting.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\assemble-mixed\\04-disassembled.png"
+   ],
+   "checks": [
+    "still.built.ticks = 110",
+    "vesselId = 1",
+    "meshVertices = 1008",
+    "still.assembled.ticks = 30",
+    "msd.02-assembled = 0.0001",
+    "flight.distance = 25.1131",
+    "flight.yawDegrees = 134.0734",
+    "flight.maxTiltDegrees = 0.0018",
+    "rest.tiltDegrees = 0.0001",
+    "landing.quarterTurns = 2",
+    "feetAboveDeck = 0.0"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "flight-rotation",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-flight-rotation",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 32.7,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\01-after-yaw.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\02-pitched.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\03-inverted.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\04-loop.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\05-levelled.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\flight-rotation\\06-disassembled.png"
+   ],
+   "checks": [
+    "climb.blocks = 9.6312",
+    "levelTurn.yawDegrees = 102.3037",
+    "levelTurn.maxTiltDegrees = 0.0056",
+    "pitch.maxDegrees = 30.2303",
+    "inverted.ticksHeld = 30",
+    "inverted.maxTiltDegrees = 179.8461",
+    "loop.maxTiltDegrees = 167.2386",
+    "loop.pitchAxisShare = 0.9959",
+    "levelling.ticks = 25",
+    "rest.clientServerOffset = 0.0009",
+    "rest.clientServerDegrees = 0.0594"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "deck-walk",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-deck-walk",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 32.5,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\deck-walk\\01-walking-during-turn.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\deck-walk\\02-banked-45.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\deck-walk\\03-steep.png"
+   ],
+   "checks": [
+    "turnWalk.localBlocks = 5.5653",
+    "bank.tiltDegrees = 44.2396",
+    "bank.slipBlocks = 0.0032",
+    "bankWalk.localBlocks = 3.844",
+    "bankWalk.vesselYawDegrees = 28.3264",
+    "steep.tiltDegrees = 72.7333",
+    "steep.lowestLocalY = 0.2151",
+    "steep.slidBlocks = 30.0785"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "interaction",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-interaction",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 15.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\interaction\\01-placed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\interaction\\02-chest-open.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\interaction\\03-lamp-lit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\interaction\\04-flying-tilted.png"
+   ],
+   "checks": [
+    "attitude.pitch = -30.0",
+    "attitude.roll = 30.0",
+    "attitude.tilt = 41.4096",
+    "mining.dropsAtBlock = 1",
+    "mining.pickedUp = 0",
+    "flight.speed = 2.5152"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "collision",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-collision",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 19.0,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\collision\\01-landed.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\collision\\02-vessels-after.png"
+   ],
+   "checks": [
+    "fall.ticks = 42",
+    "fall.restY = -48.0",
+    "fall.lowestY = -48.0481",
+    "fall.restSpeed = 0.0",
+    "fall.restTilt = 0.0",
+    "ram.minCentreGap = 4.929",
+    "ram.pushedBlocks = 20.1912",
+    "ram.maxPushSpeed = 5.9693"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "forged-packets",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-forged-packets",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 11.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log"
+   ],
+   "checks": [
+    "burst.refused = 162",
+    "refusedTotal = 169"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "save-reload",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-save-reload",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 14.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\save-reload\\01-before-quit.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\save-reload\\02-after-reload.png"
+   ],
+   "checks": [
+    "saved.speed = 9.5586",
+    "saved.spin = 0.1643",
+    "loaded.positionDelta = 0.0",
+    "loaded.rotationDot = 1.0",
+    "loaded.velocityDelta = 0.0",
+    "firstBody.horizontalVelocityDelta = 0.0",
+    "firstBody.verticalVelocityDelta = 0.0",
+    "firstBody.angularVelocityDelta = 0.0"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "render-iris",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-render-iris",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 59.0,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\01-outline-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\01-outline-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\02-outline-f1-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\02-outline-f1-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\03-ground-plain-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\03-ground-plain-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\04-ground-bliss-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\04-ground-bliss-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\05-barge-far-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\06-barge-moved-away.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\render-far-dh-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\render-iris\\render-near-bliss.png"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "still.outline.ticks = 30",
+    "outline.pixels = 960",
+    "still.outline-f1.ticks = 10",
+    "outline.pixelsWithHudHidden = 0",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 0.0",
+    "shadow.ratioWithBliss = 0.615",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 0.0",
+    "far.changedPixels = 237",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 107.6 with the barge, 164.4 without",
+    "proxy.afterMove = 24.00,-30.00,420.00"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "multiplayer",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-multiplayer",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 41.3,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\multiplayer\\02-pilot-view.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\multiplayer\\03-pilot-sees-watcher-on-deck.png"
+   ],
+   "checks": [
+    "server.ticksRecorded = 142",
+    "pilot.matchedTicks = 138",
+    "pilot.maxPositionError = 0.0",
+    "pilot.maxDegreesError = 0.0",
+    "watcher.matchedTicks = 134",
+    "watcher.maxPositionError = 0.0001",
+    "watcher.maxDegreesError = 0.0126",
+    "watcher.trace = frames=410 ticks=137.72 meanSpeed=0.8123 maxDeltaV=0.0863 maxStep=0.4658 reversals=0 maxTurnDeg=1.848 stalls=0 maxGapTicks=1.06",
+    "watcherRider = carried 60 of 60 ticks, local y 1.1931620022239649E-7..1.1931622244477154E-7",
+    "watcherServerLocal = 1.379,-0.000,-0.522",
+    "server.movementCorrections = 0",
+    "server.kicks = 0",
+    "vanillaServerShutdownHooksRemoved = 1"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "perf",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-perf",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 91.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\perf\\01-barge-flying-bliss.png"
+   ],
+   "checks": [
+    "window = 1280x720",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "barge.blocks = 961",
+    "flying.speed = 2.0026",
+    "flying.spin = 0.27",
+    "baseline.fpsMean = 778.2667",
+    "baseline.fpsLow5 = 771.0",
+    "baseline.msptMean = 0.4046",
+    "baseline.msptP95 = 0.4493",
+    "baseline.msptMax = 0.9487",
+    "static.fpsMean = 762.0",
+    "static.fpsLow5 = 754.0",
+    "static.msptMean = 0.4547",
+    "static.msptP95 = 0.4966",
+    "static.msptMax = 1.1724",
+    "static.physicsStepMsMean = 0.0675",
+    "static.physicsStepMsMax = 0.1856",
+    "flying.fpsMean = 756.9333",
+    "flying.fpsLow5 = 677.0",
+    "flying.msptMean = 0.4452",
+    "flying.msptP95 = 0.4986",
+    "flying.msptMax = 0.5321",
+    "flying.physicsStepMsMean = 0.0682",
+    "flying.physicsStepMsMax = 0.2053",
+    "warm.fpsMean = 768.3333",
+    "warm.fpsLow5 = 761.0",
+    "warm.msptMean = 0.4272",
+    "warm.msptP95 = 0.4896",
+    "warm.msptMax = 1.5369",
+    "fpsDropFlyingVsWarm = 0.0148",
+    "msptAddedFlyingVsWarm = 0.018",
+    "flying.msptWorst100TickAverage = 0.449",
+    "flying.worstTicks = 0.5 ms at tick 1069, 0.5 ms at tick 1105, 0.5 ms at tick 1320, 0.5 ms at tick 1271, 0.5 ms at tick 1284"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "leak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-leak",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 121.2,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [612, 620, 616, 620, 618]",
+    "plain.privateMb = [2064, 2195, 2205, 2197, 2219]",
+    "plain.heapPerCycleMb = -0.6667",
+    "plain.privatePerCycleMb = 7.8203",
+    "plain.threadGroupsThatGrew = {}",
+    "plain.threadGroupsThatChanged = {IO-Worker-#=[9, 9, 9, 7, 6], Keep-Alive-Timer=[0, 0, 1, 1, 1], Netty Local IO ##=[36, 39, 40, 40, 40]}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [664, 664, 662, 662, 662]",
+    "bliss.privateMb = [2403, 2473, 2532, 2587, 2690]",
+    "bliss.heapPerCycleMb = -0.6667",
+    "bliss.privatePerCycleMb = 72.1107",
+    "bliss.threadGroupsThatGrew = {}",
+    "bliss.threadGroupsThatChanged = {IO-Worker-#=[6, 7, 7, 7, 7]}"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "soak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-071510-soak",
+   "harness": "client-gametest",
+   "series": "clean-build2",
+   "run": 1,
+   "date": "2026-09-30T07:15:10",
+   "commit": "5d1d85b",
+   "seconds": 127.9,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\soak\\soak-01min.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-071510\\screenshots\\soak\\soak-end.png"
+   ],
+   "checks": [
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "minutes = 2.0",
+    "ticks = 2400",
+    "samples = 120",
+    "heapAfterGcStartMb = 870.0",
+    "heapAfterGcEndMb = 862.0",
+    "soak.msptMean = 0.86",
+    "soak.msptP95 = 1.4996",
+    "soak.msptMax = 4.9659",
+    "soak.msptWorst100TickAverage = 1.1166",
+    "soak.worstTicks = 5.0 ms at tick 105, 4.0 ms at tick 282, 3.8 ms at tick 1385, 3.8 ms at tick 1604, 3.7 ms at tick 122"
+   ],
+   "note": "final gradlew clean build from a clean tree (fresh run directory): unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-minute soak), packaged-jar check pass, checkPatches 13 mixin classes"
+  },
+  {
+   "scenario": "packaged-jar-check",
+   "result": "pass",
+   "runId": "packaged-jar-check-20260930-072600",
+   "harness": "production-run",
+   "series": "clean-build2",
+   "date": "2026-09-30T07:26:00",
+   "commit": "5d1d85b",
+   "report": "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-072600\\report.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-072600\\report.json"
+   ],
+   "checks": [
+    "mods = {'slipway': '0.1.0', 'fabric-api': '0.160.7+26.3', 'sodium': '0.9.2+mc26.3', 'iris': '1.11.6+mc26.3', 'distanthorizons': '3.3.1-tellus-fork.6'}",
+    "mixinAuditSeconds = 0.5",
+    "vesselAssembled = 1",
+    "mixinOrLoaderErrors = []",
+    "mixinOrLoaderWarnings = []"
+   ]
   }
  ],
  "note": "Since 2026-09-30 in-game validation runs as Fabric client GameTests (harness client-gametest) and a packaged-jar check (harness production-run). Prism-harness runs (harness prism) and earlier client GameTest series are superseded: originalResult keeps their outcome and supersededBy names the run that replaced them."
