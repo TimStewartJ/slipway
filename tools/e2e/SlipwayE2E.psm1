@@ -637,7 +637,8 @@ function Add-SlipwayValidation {
 	$data = if (Test-Path $file) { Get-Content $file -Raw | ConvertFrom-Json } else { [pscustomobject]@{ schemaVersion = 1; runs = @() } }
 	$evidence = @(Get-ChildItem $Run.Directory -File | ForEach-Object { $_.FullName })
 	$commit = (git -C $script:Repo rev-parse --short HEAD 2>$null)
-	if (git -C $script:Repo status --porcelain 2>$null) { $commit = "$commit+dirty" }
+	# validation.json itself changes with every run; any other uncommitted change marks the run as dirty.
+	if (git -C $script:Repo status --porcelain -- . ':(exclude)validation.json' 2>$null) { $commit = "$commit+dirty" }
 	# Runs with screenshots only pass once a person (or the agent, looking at them) has reviewed the images.
 	$hasShots = @($Run.Steps | Where-Object { $_.Screenshot }).Count -gt 0
 	$entry = [pscustomobject]@{
