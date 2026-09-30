@@ -113,9 +113,11 @@ Other pieces:
 - `FilmRig`: options (HUD, chat and vanilla clouds off, no view bobbing, render distance), the scenic world (normal
   world generation with a fixed seed: `setUseConsistentSettings(false)`, otherwise the GameTest builder makes a
   superflat seed-1 world), frozen time and weather, no mob spawning, no random ticks.
-- `src/film/bliss.txt`: Bliss settings for the film (less haze, cloud speed, entity shadows out to the full shadow
-  distance so the ship casts shadows at 50 m: Bliss draws entity shadows only within a quarter of the shadow
-  distance by default, and vessels render as entities).
+- `src/film/bliss.txt`: Bliss settings for the film (less haze, cloud speed, `entityShadowDistanceMul` 1.0 instead of
+  0.25; vessels render as entities).
+- Distant Horizons: the reddit-v1 renders used stock Distant Horizons 3.3.4 (`slipwayTestDhJar` in this worktree's
+  gradle.properties, set outside this work), and they show the vessel's shadow on the water. In several earlier test
+  renders with fork.6 the vessel cast no shadow on the water; the cause was not found.
 
 ## Process hygiene
 
