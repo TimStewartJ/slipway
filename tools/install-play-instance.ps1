@@ -1,10 +1,12 @@
 # Creates the Prism play instance "Slipway - Minecraft 26.3 (Fabric)" (id Slipway-MC-26.3-Fabric): Minecraft 26.3,
 # Fabric loader 0.19.5, Java 25 with ZGC and 24 GB like the Tellus 26.3 instance, and only Fabric API, Sodium, Iris,
-# Distant Horizons (copied from the Tellus 26.3 instance, checksums verified) plus the given Slipway jar. Copies the
-# Bliss shader pack (with its settings) and enables it, and copies options.txt with Slipway's three keys moved off the
-# keys that layout already uses. No test agent, no test jars. Refuses to touch an existing instance unless -Replace.
+# Distant Horizons (copied from the Tellus 26.3 instance, checksums verified; or the given -DhJar, such as the
+# leak-fixed build) plus the given Slipway jar. Copies the Bliss shader pack (with its settings) and enables it, and
+# copies options.txt with Slipway's three keys moved off the keys that layout already uses. No test agent, no test
+# jars. Refuses to touch an existing instance unless -Replace.
 param(
 	[Parameter(Mandatory)][string]$SlipwayJar,
+	[string]$DhJar,
 	[string]$SourceInstance = 'Tellus-Expeditions-MC-26.3-Fabric',
 	[string]$InstanceId = 'Slipway-MC-26.3-Fabric',
 	[string]$DisplayName = 'Slipway - Minecraft 26.3 (Fabric)',
@@ -29,9 +31,10 @@ New-Item -ItemType Directory -Force (Join-Path $mc 'mods'), (Join-Path $mc 'shad
 $src = @{}
 foreach ($line in Get-Content (Join-Path $source 'instance.cfg')) { if ($line -match '^([^=]+)=(.*)$') { $src[$matches[1]] = $matches[2] } }
 $javaPath = "$env:USERPROFILE\.jdks\jdk-25.0.3+9\bin\javaw.exe".Replace('\', '/')
+$dhName = if ($DhJar) { Split-Path $DhJar -Leaf } else { (@(Get-ChildItem (Join-Path $source '.minecraft\mods') -Filter 'DistantHorizons-fabric-*.jar') | Select-Object -First 1).Name }
 @(
 	'[General]', 'ConfigVersion=1.2', 'InstanceType=OneSix', 'iconKey=default', "name=$DisplayName",
-	"notes=Slipway first playable (0.1.0) with Fabric API 0.160.7, Sodium 0.9.2, Iris 1.11.6 (Bliss v2.1.2) and Distant Horizons 3.3.1-tellus-fork.6. Settings copied from $SourceInstance. See E:\Slipway\PLAYTEST.md.",
+	"notes=Slipway play instance ($(Split-Path $SlipwayJar -Leaf)) with Fabric API 0.160.7, Sodium 0.9.2, Iris 1.11.6 (Bliss v2.1.2) and $dhName. Settings copied from $SourceInstance. See E:\Slipway\PLAYTEST.md.",
 	'IgnoreJavaCompatibility=true', 'JavaArchitecture=64', 'JavaRealArchitecture=amd64', 'JavaVendor=Eclipse Adoptium', 'JavaVersion=25.0.3',
 	"JavaPath=$javaPath", 'OverrideJavaLocation=true', 'OverrideJavaArgs=true', "JvmArgs=$($src['JvmArgs'])",
 	'OverrideMemory=true', "MaxMemAlloc=$($src['MaxMemAlloc'])", "MinMemAlloc=$($src['MinMemAlloc'])",
@@ -39,10 +42,10 @@ $javaPath = "$env:USERPROFILE\.jdks\jdk-25.0.3+9\bin\javaw.exe".Replace('\', '/'
 ) | Set-Content (Join-Path $dest 'instance.cfg') -Encoding UTF8
 Copy-Item (Join-Path $source 'mmc-pack.json') (Join-Path $dest 'mmc-pack.json')
 
-# Mods: the four from the play stack (never Tellus or Expeditions), then Slipway.
+# Mods: the four from the play stack (never Tellus or Expeditions; Distant Horizons from -DhJar when given), then Slipway.
 $installed = [System.Collections.Generic.List[object]]::new()
 foreach ($pattern in 'fabric-api-*.jar', 'sodium-fabric-*.jar', 'iris-fabric-*.jar', 'DistantHorizons-fabric-*.jar') {
-	$jar = @(Get-ChildItem (Join-Path $source '.minecraft\mods') -Filter $pattern)
+	$jar = if ($DhJar -and $pattern -like 'DistantHorizons*') { @(Get-Item $DhJar) } else { @(Get-ChildItem (Join-Path $source '.minecraft\mods') -Filter $pattern) }
 	if ($jar.Count -ne 1) { throw "Expected one $pattern in $source, found $($jar.Count)" }
 	$target = Join-Path $mc "mods\$($jar[0].Name)"
 	Copy-Item $jar[0].FullName $target

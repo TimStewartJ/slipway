@@ -66,7 +66,7 @@ try {
 	Start-Sleep -Seconds 40
 	try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
 	$log = Get-Content $logPath
-	$result.Slipway = @($log | Select-String -Pattern 'Loading \d+ mods|slipway 0\.1\.0|jolt-jni .* loaded|Assembled|\[Slipway' | ForEach-Object { $_.Line } | Select-Object -First 8)
+	$result.Slipway = @($log | Select-String -Pattern 'Loading \d+ mods|slipway \d+\.\d+\.\d+|jolt-jni .* loaded|Assembled|\[Slipway' | ForEach-Object { $_.Line } | Select-Object -First 8)
 	$result.Iris = @($log | Select-String -Pattern 'Using shaderpack|shaderPackInUse|Bliss' | ForEach-Object { $_.Line } | Select-Object -First 3)
 	$result.Problems = @(Get-SlipwayE2ELogProblems -LogPath $logPath -Offset 0)
 	$result.MixinErrors = @($log | Select-String -Pattern 'Mixin apply|InvalidInjection|InjectionError|Critical injection failure|mixin.*[Ff]ailed' | ForEach-Object { $_.Line })

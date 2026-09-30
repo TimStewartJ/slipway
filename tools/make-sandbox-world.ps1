@@ -2,9 +2,11 @@
 # spawn platform facing south, and two identical demo skiffs in front of it (366 blocks: deck, hull, keel, railings,
 # mast and sail, a doorway with a door, a chest with items, a redstone lamp with a lever, a sign and a lantern).
 # Seen from spawn (facing south), the one on the right (x -8) is assembled into a vessel and the one on the left (x 8)
-# is plain blocks to assemble yourself. Then copies the world
+# is plain blocks to assemble yourself. The server runs with Fabric API and the given Slipway jar (the play instance's
+# jar, so the saved vessel matches it). Then copies the world
 # into the play instance's saves as a creative world with cheats on. The e2e session must not be running.
 param(
+	[Parameter(Mandatory)][string]$SlipwayJar,
 	[string]$InstanceId = 'Slipway-MC-26.3-Fabric',
 	[string]$Folder = 'SlipwaySandbox',
 	[string]$LevelName = 'Slipway Sandbox',
@@ -57,6 +59,7 @@ function Get-SurfaceY([long]$X, [long]$Z) {
 }
 
 if (Get-SlipwayE2EServerProcess) { throw 'The e2e server is running; stop the e2e session first (Stop-SlipwayE2ESession)' }
+Set-SlipwayE2EServerMods -SlipwayJar $SlipwayJar | Out-Null
 New-SlipwayE2EWorld -Name 'sandbox' | Out-Null
 $server = Start-SlipwayE2EServer -World 'sandbox' -Seed $Seed
 try {
