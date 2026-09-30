@@ -135,7 +135,8 @@ loom {
 		}
 		// The film tool (src/film, FILM.md): the play stack in a real client window that never takes focus, driven by
 		// the client GameTest API; it writes PNG frames and a frame log to build/film/out/<shot>. -PslipwayFilm=<shot>
-		// picks the shot, -PslipwayFilmSize=<w>x<h> the frame size, -PslipwayFilmSubframes=<n> the frames per tick.
+		// picks the shot, -PslipwayFilmSize=<w>x<h> the frame size, -PslipwayFilmSubframes=<n> the frames per tick,
+		// -PslipwayFilmOpts=k=v,k=v shot options.
 		film {
 			client()
 			name = 'Slipway Film'
@@ -148,6 +149,8 @@ loom {
 			vmArg '-Dslipway.film.size=' + (providers.gradleProperty('slipwayFilmSize').orNull ?: '1080x1350')
 			vmArg '-Dslipway.film.subframes=' + (providers.gradleProperty('slipwayFilmSubframes').orNull ?: '3')
 			vmArg '-Dslipway.film.out=' + file('build/film/out').absolutePath
+			// shot-specific options, key=value pairs separated by commas (FilmRig.opt)
+			vmArg '-Dslipway.film.opts=' + (providers.gradleProperty('slipwayFilmOpts').orNull ?: '')
 			vmArg '--enable-native-access=ALL-UNNAMED'
 			vmArg '-XX:StackShadowPages=32'
 			vmArg '-XX:+UseZGC'

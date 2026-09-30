@@ -15,6 +15,8 @@ public final class FilmMain implements FabricClientGameTest {
 		LOG.info("=== Slipway film: {} ===", shot);
 		switch (shot) {
 			case "spike" -> SpikeShot.run(ctx);
+			case "scout" -> ScoutShot.run(ctx);
+			case "stills" -> StillsShot.run(ctx);
 			default -> throw new IllegalArgumentException("unknown film shot " + shot);
 		}
 	}

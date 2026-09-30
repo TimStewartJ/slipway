@@ -5,7 +5,9 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"FilmCameraMixin",
-		"FilmHaltMixin"
+		"FilmHaltMixin",
+		"FilmIrisTimerMixin",
+		"FilmLoopMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

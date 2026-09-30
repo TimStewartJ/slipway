@@ -27,6 +27,49 @@ final class FilmRig {
 		return new int[] {Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim())};
 	}
 
+	/** A shot option from {@code -PslipwayFilmOpts=k=v,k=v}, or {@code fallback}. */
+	static String opt(String key, String fallback) {
+		for (String pair : System.getProperty("slipway.film.opts", "").split(",")) {
+			int eq = pair.indexOf('=');
+			if (eq > 0 && pair.substring(0, eq).trim().equals(key)) {
+				return pair.substring(eq + 1).trim();
+			}
+		}
+		return fallback;
+	}
+
+	static double optDouble(String key, double fallback) {
+		return Double.parseDouble(opt(key, Double.toString(fallback)));
+	}
+
+	/** The film's world: normal worldgen (not the GameTest superflat) with a fixed seed, creative, commands on. */
+	static net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext scenicWorld(ClientGameTestContext ctx, String seed) {
+		return ctx.worldBuilder().setUseConsistentSettings(false).adjustSettings(s -> {
+			s.setSeed(seed);
+			s.setGameMode(net.minecraft.client.gui.screens.worldselection.WorldCreationUiState.SelectedGameMode.CREATIVE);
+			s.setAllowCommands(true);
+			s.setBonusChest(false);
+			s.setName("film-" + seed);
+		}).create();
+	}
+
+	/** Freezes the scene: fixed time of day, clear weather, no mobs spawning, no random ticks (leaves stay put). */
+	static void freezeWorld(net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext server, long dayTime) {
+		server.runCommand("gamerule advance_time false");
+		server.runCommand("gamerule advance_weather false");
+		server.runCommand("gamerule spawn_mobs false");
+		server.runCommand("gamerule spawn_monsters false");
+		server.runCommand("gamerule spawn_patrols false");
+		server.runCommand("gamerule spawn_phantoms false");
+		server.runCommand("gamerule spawn_wandering_traders false");
+		server.runCommand("gamerule random_tick_speed 0");
+		server.runCommand("gamerule send_command_feedback false");
+		server.runCommand("gamerule show_advancement_messages false");
+		server.runCommand("weather clear");
+		server.runCommand("time set " + dayTime);
+		server.runCommand("gamemode spectator @a");
+	}
+
 	static int subframes() {
 		return Integer.parseInt(System.getProperty("slipway.film.subframes", "3"));
 	}

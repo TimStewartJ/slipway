@@ -46,17 +46,29 @@ final class FilmCapture implements AutoCloseable {
 		}
 	}
 
+	/** Renders one frame at a partial tick without reading it back (primes temporal effects); call on the render thread. */
+	void render(Minecraft mc, float partialTick, float frameTicks) {
+		FrameTime time = new FrameTime(partialTick, frameTicks);
+		FilmClock.seconds = FilmCamera.time(partialTick) / 20.0 + FilmClock.offsetSeconds;
+		FilmClock.frameSeconds = frameTicks / 20.0f;
+		FilmClock.frameActive = true;
+		try {
+			mc.gameRenderer.update(time);
+			mc.gameRenderer.extract(time, true);
+			mc.gameRenderer.render();
+		} finally {
+			FilmClock.frameActive = false;
+		}
+		RenderSystem.getDevice().createCommandEncoder().submit();
+	}
+
 	/** Renders and saves one frame; call on the render thread. */
 	void capture(Minecraft mc, float partialTick, float frameTicks, Path file) {
 		Throwable earlier = this.failure.get();
 		if (earlier != null) {
 			throw new IllegalStateException("writing an earlier frame failed", earlier);
 		}
-		FrameTime time = new FrameTime(partialTick, frameTicks);
-		mc.gameRenderer.update(time);
-		mc.gameRenderer.extract(time, true);
-		mc.gameRenderer.render();
-		RenderSystem.getDevice().createCommandEncoder().submit();
+		this.render(mc, partialTick, frameTicks);
 		AtomicReference<NativeImage> result = new AtomicReference<>();
 		Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), result::set);
 		// The readback's fence belongs to the next submission, which the render loop would send with the next frame;
