@@ -9,6 +9,7 @@ import dev.timstewart.slipway.vessel.VesselManager;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,12 @@ import org.spongepowered.asm.mixin.MixinEnvironment;
  * The result is written as JSON to {@code slipway.packagedCheck.report}.
  */
 public final class PackagedJarCheck implements FabricClientGameTest {
-	private static final List<String> EXPECTED = List.of("slipway", "fabric-api", "sodium", "iris", "distanthorizons");
+	private static final List<String> EXPECTED = modList("slipway.packagedCheck.expectedMods", "slipway,fabric-api,sodium,iris,distanthorizons");
+	private static final List<String> ABSENT = modList("slipway.packagedCheck.absentMods", "");
+
+	private static List<String> modList(String property, String fallback) {
+		return Arrays.stream(System.getProperty(property, fallback).split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+	}
 
 	@Override
 	public void runTest(ClientGameTestContext ctx) {
@@ -40,7 +46,13 @@ public final class PackagedJarCheck implements FabricClientGameTest {
 				ModContainer mod = FabricLoader.getInstance().getModContainer(id).orElseThrow(() -> new AssertionError(id + " is not loaded"));
 				mods.put(id, mod.getMetadata().getVersion().getFriendlyString());
 			}
+			for (String id : ABSENT) {
+				if (FabricLoader.getInstance().isModLoaded(id)) {
+					throw new AssertionError(id + " is loaded but this run checks Slipway without it");
+				}
+			}
 			report.put("mods", mods);
+			report.put("absentMods", ABSENT);
 			long start = System.nanoTime();
 			ctx.runOnClient(mc -> MixinEnvironment.getCurrentEnvironment().audit());
 			report.put("mixinAuditSeconds", Math.round((System.nanoTime() - start) / 1.0e8) / 10.0);

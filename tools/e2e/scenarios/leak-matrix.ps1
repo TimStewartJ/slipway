@@ -1,6 +1,7 @@
 # Leak isolation matrix: runs leak-new.ps1 with identical cycles in several mod configurations, several times each,
 # and writes a summary (summary.md, summary.json) of heap after GC, live world objects at the title screen and
-# per-cycle growth. Results go to E:\slipway-e2e\runs\leak-matrix-<stamp>\<config>-<world>-r<n>.
+# per-cycle growth. Results go to <e2e root>\runs\leak-matrix-<stamp>\<config>-<world>-r<n> ($env:SLIPWAY_E2E_ROOT,
+# default E:\slipway-e2e).
 param(
 	[string[]]$Configs = @('full', 'noDH', 'stackNoSlipway', 'sodiumIris', 'dhOnly', 'vanilla', 'slipwayOnly'),
 	[ValidateSet('plain', 'vessels', 'auto')][string]$World = 'plain',
@@ -13,7 +14,10 @@ param(
 	[string]$MatrixDir
 )
 $ErrorActionPreference = 'Stop'
-if (-not $MatrixDir) { $MatrixDir = Join-Path 'E:\slipway-e2e\runs' ("leak-matrix-" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+if (-not $MatrixDir) {
+	$e2eRoot = if ($env:SLIPWAY_E2E_ROOT) { $env:SLIPWAY_E2E_ROOT } else { 'E:\slipway-e2e' }
+	$MatrixDir = Join-Path $e2eRoot ("runs\leak-matrix-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+}
 New-Item -ItemType Directory -Force $MatrixDir | Out-Null
 $summary = [System.Collections.Generic.List[object]]::new()
 $summaryFile = Join-Path $MatrixDir 'summary.json'

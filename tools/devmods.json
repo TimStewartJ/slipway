@@ -1,0 +1,33 @@
+{
+	"comment": "Integration mods Slipway builds and tests against, pinned to Modrinth releases. tools/fetch-devmods.py downloads them into devmods/ and checks each SHA-512. Distant Horizons is saved under the name the build looks for.",
+	"mods": [
+		{
+			"project": "fabric-api",
+			"version": "0.160.7+26.3",
+			"url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/hHj6EvFZ/fabric-api-0.160.7%2B26.3.jar",
+			"sha512": "e80d3980c235a2245cfe61eee02d60d041245f9571117d86bd7edd6c62e158f681384a104375f588bf58966cb8c6eba79e66363afb9ecde93ea3411414276825",
+			"saveAs": "fabric-api-0.160.7+26.3.jar"
+		},
+		{
+			"project": "sodium",
+			"version": "mc26.3-0.9.2-fabric",
+			"url": "https://cdn.modrinth.com/data/AANobbMI/versions/bAZQdGpg/sodium-fabric-0.9.2%2Bmc26.3.jar",
+			"sha512": "f3f260f204b8ce5e8777c2c73f537956755ec61f3817b0b78b5e5568e8aa40f14891f146475075109747665c7c88a45ca0ca9a8df3c68d79c58ecdaa8d8c4b93",
+			"saveAs": "sodium-fabric-0.9.2+mc26.3.jar"
+		},
+		{
+			"project": "iris",
+			"version": "1.11.6+26.3-fabric",
+			"url": "https://cdn.modrinth.com/data/YL57xq9U/versions/bAdKrpw8/iris-fabric-1.11.6%2Bmc26.3.jar",
+			"sha512": "cd0fdc5a275a851b3d72e3e699c957671f293f5c87951736ad83adcdabaa58f533e9791110a227c7817b312269c32c063121b183a39d8c11a22e55d2c76cdb25",
+			"saveAs": "iris-fabric-1.11.6+mc26.3.jar"
+		},
+		{
+			"project": "distanthorizons",
+			"version": "3.3.4-26.3",
+			"url": "https://cdn.modrinth.com/data/uCdwusMi/versions/TGgEbP9A/DistantHorizons-3.3.4-26.3-fabric-neoforge.jar",
+			"sha512": "0b90b1b08d99974bfc3c8e86b2ceb252e2f91715ed66b925004c28335fb44e1bddbbb6b8043e4d4d53c87ed247789cd1788b1ba4e3f4394efe154e0c59cff236",
+			"saveAs": "DistantHorizons-fabric-3.3.4-26.3.jar"
+		}
+	]
+}

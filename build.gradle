@@ -16,9 +16,11 @@ repositories {
 	mavenCentral()
 }
 
-// Mods that Slipway integrates with but does not bundle. tools/setup-devmods.ps1 copies them from the
-// play instance; they are git-ignored. Distant Horizons is needed to compile the optional DH integration.
-def devmods = file('devmods')
+// Mods that Slipway integrates with but does not bundle; they are git-ignored. tools/fetch-devmods.py downloads the
+// pinned Modrinth releases (tools/devmods.json); tools/setup-devmods.ps1 copies the author's play stack instead.
+// -PslipwayDevmods=<dir> reads them from another directory. Distant Horizons is needed to compile the optional DH
+// integration.
+def devmods = providers.gradleProperty('slipwayDevmods').map { file(it) }.orNull ?: file('devmods')
 def devmod = { String prefix ->
 	def found = devmods.isDirectory() ? devmods.listFiles().findAll { it.name.startsWith(prefix) && it.name.endsWith('.jar') } : []
 	found.isEmpty() ? null : found.sort { it.name }.last()
@@ -27,7 +29,7 @@ def dhJar = devmod('DistantHorizons-fabric-')
 def sodiumJar = devmod('sodium-fabric-')
 def irisJar = devmod('iris-fabric-')
 if (dhJar == null) {
-	throw new GradleException('devmods/DistantHorizons-fabric-*.jar is missing; run tools/setup-devmods.ps1 first.')
+	throw new GradleException("${devmods}/DistantHorizons-fabric-*.jar is missing; run python tools/fetch-devmods.py first.")
 }
 
 sourceSets {
@@ -47,13 +49,16 @@ sourceSets {
 // Distant Horizons for the client GameTests: the patched build from the leak fix (devmods/test, see DESIGN.md) when
 // present, else the play stack's jar. -PslipwayTestDhJar=<path> overrides both.
 def testDhJar = providers.gradleProperty('slipwayTestDhJar').map { file(it) }.orNull ?: ({
-	def testDir = file('devmods/test')
+	def testDir = new File(devmods, 'test')
 	def found = testDir.isDirectory() ? testDir.listFiles().findAll { it.name.startsWith('DistantHorizons-fabric-') && it.name.endsWith('.jar') } : []
 	found.isEmpty() ? dhJar : found.sort { it.name }.last()
 })()
 // The client GameTests run with the play stack's render mods unless -PslipwayClientGametestMods lists a subset
 // (comma-separated: sodium, iris, dh; empty for none).
-def clientGametestMods = (providers.gradleProperty('slipwayClientGametestMods').orNull ?: 'sodium,iris,dh').split(',')*.trim().findAll { !it.isEmpty() }
+def clientGametestMods = ({
+	def raw = providers.gradleProperty('slipwayClientGametestMods').orNull
+	(raw == null ? 'sodium,iris,dh' : raw).split(',')*.trim().findAll { !it.isEmpty() }
+})()
 
 loom {
 	splitEnvironmentSourceSets()
@@ -138,6 +143,9 @@ configurations {
 	joltNativesDebug {
 		transitive = false
 	}
+	packagedCheckRuntime {
+		transitive = false
+	}
 }
 
 def joltNativePlatforms = [
@@ -165,6 +173,7 @@ dependencies {
 	}
 
 	compileOnly files(dhJar)
+	packagedCheckRuntime fabricApi.module('fabric-client-gametest-api-v1', project.fabric_version)
 	if (providers.gradleProperty('slipwayRenderMods').orNull == 'true') {
 		[sodiumJar, irisJar, dhJar].findAll { it != null }.each { localRuntime files(it) }
 	}
@@ -478,7 +487,16 @@ tasks.named('check').configure { dependsOn 'runClientGametest' }
 // Packaged-jar check: the release jar with the exact play-stack jars (devmods, copied from the play instance) in
 // production Minecraft, with a tiny client-GameTest mod that audits every mixin, checks the mod set, opens a world,
 // assembles a ship and fails on any Mixin or Fabric Loader error. Report: build/packaged-check/report.json.
+// -PslipwayPackagedCheckMods picks the integration mods (comma-separated: sodium, iris, dh; empty for Fabric API
+// only) and -PslipwayPackagedCheckDhJar=<jar> swaps in another Distant Horizons build, for compatibility checks.
 def fabricApiJar = devmod('fabric-api-')
+def gradleList = { String name, String fallback ->
+	def raw = providers.gradleProperty(name).orNull
+	(raw == null ? fallback : raw).split(',')*.trim().findAll { !it.isEmpty() }
+}
+def packagedCheckMods = gradleList('slipwayPackagedCheckMods', 'sodium,iris,dh')
+def packagedCheckJars = [sodium: sodiumJar, iris: irisJar, dh: providers.gradleProperty('slipwayPackagedCheckDhJar').map { file(it) }.orNull ?: dhJar]
+def packagedCheckModIds = [sodium: 'sodium', iris: 'iris', dh: 'distanthorizons']
 def packagedCheckJar = tasks.register('packagedCheckJar', Jar) {
 	group = 'slipway'
 	description = 'Builds the test mod the packaged-jar check runs with.'
@@ -491,17 +509,23 @@ tasks.register('runPackagedJarCheck', net.fabricmc.loom.task.prod.ClientProducti
 	description = 'Starts the release jar with the exact play-stack jars in production Minecraft; fails on any mixin or loader error.'
 	def report = file('build/packaged-check/report.json')
 	doFirst {
-		if (fabricApiJar == null || sodiumJar == null || irisJar == null) {
-			throw new GradleException('devmods must hold the play stack (fabric-api, sodium, iris, DistantHorizons); run tools/setup-devmods.ps1')
+		def missing = (['fabric-api'] + packagedCheckMods).findAll { (it == 'fabric-api' ? fabricApiJar : packagedCheckJars[it]) == null }
+		if (!missing.isEmpty()) {
+			throw new GradleException("devmods is missing ${missing}; run python tools/fetch-devmods.py")
 		}
 		report.delete()
 	}
 	mods.from(tasks.named('jar'))
-	mods.from(files([fabricApiJar, sodiumJar, irisJar, dhJar].findAll { it != null }))
+	mods.from(files(([fabricApiJar] + packagedCheckMods.collect { packagedCheckJars[it] }).findAll { it != null }))
+	// Fabric API's release jar leaves out the client GameTest module the check runs on (Distant Horizons happens to
+	// bundle a copy), so the check brings its own.
+	mods.from(configurations.packagedCheckRuntime)
 	mods.from(packagedCheckJar)
 	runDir = layout.buildDirectory.dir('packaged-check')
 	jvmArgs.addAll('-Dfabric.client.gametest', '-Dfabric.noGui=true', '--enable-native-access=ALL-UNNAMED', '-XX:StackShadowPages=32', '-XX:+UseZGC', '-Xmx4G',
-		'-Dslipway.packagedCheck.report=' + report.absolutePath)
+		'-Dslipway.packagedCheck.report=' + report.absolutePath,
+		'-Dslipway.packagedCheck.expectedMods=' + (['slipway', 'fabric-api'] + packagedCheckMods.collect { packagedCheckModIds[it] }).join(','),
+		'-Dslipway.packagedCheck.absentMods=' + packagedCheckModIds.findAll { !packagedCheckMods.contains(it.key) }.values().join(','))
 	outputs.upToDateWhen { false }
 	doLast {
 		def result = new JsonSlurper().parse(report)

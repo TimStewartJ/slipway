@@ -1,10 +1,11 @@
 # Helpers for heap-dump analysis with Eclipse Memory Analyzer (MAT) in batch mode.
-#   . E:\Slipway\tools\e2e\mat.ps1
-#   Invoke-SlipwayMat -Dump E:\slipway-e2e\heap\x.hprof -Command 'oql "SELECT s FROM net.minecraft.client.server.IntegratedServer s"'
-# MAT is unpacked in E:\slipway-e2e\tools\mat (not in the repository). The first query on a dump builds MAT's index
-# files next to it (about a minute for 1.5 GB); later queries reuse them.
+#   . tools\e2e\mat.ps1
+#   Invoke-SlipwayMat -Dump <e2e root>\heap\x.hprof -Command 'oql "SELECT s FROM net.minecraft.client.server.IntegratedServer s"'
+# MAT is unpacked in <e2e root>\tools\mat (not in the repository); the e2e root is $env:SLIPWAY_E2E_ROOT, default
+# E:\slipway-e2e. The first query on a dump builds MAT's index files next to it (about a minute for 1.5 GB); later
+# queries reuse them.
 
-$script:MatDir = 'E:\slipway-e2e\tools\mat\mat'
+$script:MatDir = Join-Path $(if ($env:SLIPWAY_E2E_ROOT) { $env:SLIPWAY_E2E_ROOT } else { 'E:\slipway-e2e' }) 'tools\mat\mat'
 
 function Invoke-SlipwayMat {
 	<# .SYNOPSIS Runs one MAT query command on a heap dump and returns its text output (all result pages). #>

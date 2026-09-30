@@ -1,16 +1,18 @@
 <#
-.SYNOPSIS Copies the integration mods Slipway builds and tests against into devmods/ (git-ignored).
-.DESCRIPTION Fabric API, Sodium, Iris and Distant Horizons are taken from the play instance so the build, the test
-instance and the final play instance all use exactly the jars of the user's play stack. Tellus and Tellus
-Expeditions are never copied. The client GameTests run with the leak-fixed Distant Horizons build (branch
-slipway-leak-fix of E:\distant-horizons, DESIGN.md "World retention"), copied to devmods/test when it has been built;
-with the play stack's fork.6 the client GameTest leak check fails, because fork.6 keeps every closed world.
+.SYNOPSIS Copies the integration mods Slipway builds and tests against from the author's Prism instance into devmods/.
+.DESCRIPTION The author's workflow: Fabric API, Sodium, Iris and Distant Horizons are taken from the play instance so
+the build, the test instance and the final play instance all use exactly the jars of the author's play stack. Everyone
+else uses tools/fetch-devmods.py, which downloads the pinned Modrinth releases. Tellus and Tellus Expeditions are
+never copied. The client GameTests run with the leak-fixed Distant Horizons build (branch slipway-leak-fix of the
+author's Distant Horizons checkout, $env:SLIPWAY_DH_REPO, default E:\distant-horizons; DESIGN.md "World retention"),
+copied to devmods/test when it has been built; with the play stack's fork.6 the client GameTest leak check fails,
+because fork.6 keeps every closed world.
 #>
 [CmdletBinding()]
 param(
 	[string]$SourceInstance = 'Tellus-Expeditions-MC-26.3-Fabric',
 	[string]$PrismRoot = "$env:APPDATA\PrismLauncher",
-	[string]$TestDhJar = (Get-ChildItem 'E:\distant-horizons\fabric\build\libs' -Filter 'DistantHorizons-fabric-*-leakfix.*-26.3.jar' -ErrorAction SilentlyContinue |
+	[string]$TestDhJar = (Get-ChildItem (Join-Path $(if ($env:SLIPWAY_DH_REPO) { $env:SLIPWAY_DH_REPO } else { 'E:\distant-horizons' }) 'fabric\build\libs') -Filter 'DistantHorizons-fabric-*-leakfix.*-26.3.jar' -ErrorAction SilentlyContinue |
 		Sort-Object LastWriteTime | Select-Object -Last 1).FullName
 )
 $ErrorActionPreference = 'Stop'

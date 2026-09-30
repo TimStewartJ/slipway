@@ -34,7 +34,7 @@ $javaPath = "$env:USERPROFILE\.jdks\jdk-25.0.3+9\bin\javaw.exe".Replace('\', '/'
 $dhName = if ($DhJar) { Split-Path $DhJar -Leaf } else { (@(Get-ChildItem (Join-Path $source '.minecraft\mods') -Filter 'DistantHorizons-fabric-*.jar') | Select-Object -First 1).Name }
 @(
 	'[General]', 'ConfigVersion=1.2', 'InstanceType=OneSix', 'iconKey=default', "name=$DisplayName",
-	"notes=Slipway play instance ($(Split-Path $SlipwayJar -Leaf)) with Fabric API 0.160.7, Sodium 0.9.2, Iris 1.11.6 (Bliss v2.1.2) and $dhName. Settings copied from $SourceInstance. See E:\Slipway\PLAYTEST.md.",
+	"notes=Slipway play instance ($(Split-Path $SlipwayJar -Leaf)) with Fabric API 0.160.7, Sodium 0.9.2, Iris 1.11.6 (Bliss v2.1.2) and $dhName. Settings copied from $SourceInstance. See $(Join-Path (Split-Path $PSScriptRoot -Parent) 'PLAYTEST.md').",
 	'IgnoreJavaCompatibility=true', 'JavaArchitecture=64', 'JavaRealArchitecture=amd64', 'JavaVendor=Eclipse Adoptium', 'JavaVersion=25.0.3',
 	"JavaPath=$javaPath", 'OverrideJavaLocation=true', 'OverrideJavaArgs=true', "JvmArgs=$($src['JvmArgs'])",
 	'OverrideMemory=true', "MaxMemAlloc=$($src['MaxMemAlloc'])", "MinMemAlloc=$($src['MinMemAlloc'])",
