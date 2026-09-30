@@ -31,7 +31,9 @@ DONE. Final `gradlew clean build` from clean commit 5d1d85b passed in 678 s (E:\
 unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-min soak), packaged-jar check pass (exact play
 stack, 0 mixin/loader errors or warnings, vessel assembled), checkPatches 13 mixin classes. validation.json rewritten
 (236 entries; current: series5 36 + clean-build2 13; 0 pending-review; every superseded entry names its replacement).
-Remaining: stop processes (gradle daemons), Bridge task notes/history/momentum, final report.
+Remaining: none. Gradle daemons stopped (no java, Prism or MAT process left), temp folders removed, Bridge task notes,
+history (entry 21) and momentum updated, final report sent. Kept on purpose: two heap dumps in E:\slipway-e2e\heap
+(leak-matrix-before-full-plain-r1.hprof, leak-matrix-dhfix6-full-vessels-r1.hprof) for re-checking the RCA.
 
 ## Before the final build
 
