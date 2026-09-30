@@ -78,6 +78,12 @@ final class FilmScene {
 		return v != null && v.ready() ? v.worldCentre(v.renderPose(partial)) : fallback;
 	}
 
+	/** The vessel's pose as drawn at this partial tick (client thread), or null before it is known. */
+	static dev.timstewart.slipway.math.VesselPose pose(long id, float partial) {
+		ClientVessel v = ClientVessels.get(id);
+		return v != null && v.ready() ? v.renderPose(partial) : null;
+	}
+
 	/** A helm-relative point of the vessel as drawn at this partial tick (client thread). */
 	static Vec3 local(long id, float partial, Vec3 helmRelative, Vec3 fallback) {
 		ClientVessel v = ClientVessels.get(id);

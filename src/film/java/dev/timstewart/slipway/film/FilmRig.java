@@ -174,7 +174,12 @@ final class FilmRig {
 		}
 	}
 
-	/** Records frames: {@code subframes} per tick, each at its partial tick, plus a CSV log of what each frame shows. */
+	/**
+	 * Records frames: a number of frames per tick (more is slow motion), each at its partial tick, plus a CSV log of
+	 * what each frame shows. {@link #cut} marks the next frame as a deliberate cut (a new shot): the log says so, and the
+	 * shader's temporal history (TAA, exposure) is primed on the new view first. While recording, the game's own render
+	 * loop is held (FilmClock.holdLoop) so only film frames reach the renderer.
+	 */
 	static final class Recorder implements AutoCloseable {
 		interface Probe {
 			/** Extra CSV columns for a frame, computed on the client thread at the frame's partial tick. */
@@ -183,43 +188,74 @@ final class FilmRig {
 
 		private final ClientGameTestContext ctx;
 		private final Path dir;
-		private final int subframes;
 		private final BufferedWriter log;
 		private final Probe probe;
 		private final FilmCapture capture = new FilmCapture();
 		private int frame;
 		private long renderNanos;
+		private boolean cutNext = true;
+		private String segment = "";
+		private int settleRenders;
 
 		Recorder(ClientGameTestContext ctx, Path dir, String probeHeader, Probe probe) {
 			this.ctx = ctx;
 			this.dir = dir;
-			this.subframes = subframes();
 			this.probe = probe;
 			try {
 				this.log = Files.newBufferedWriter(dir.resolve("frames.csv"), StandardCharsets.UTF_8);
-				this.log.write("frame,tick,partial,time,camX,camY,camZ,yaw,pitch,roll," + probeHeader + ",millis\n");
+				this.log.write("frame,tick,partial,time,subframes,cut,segment,camX,camY,camZ,yaw,pitch,roll," + probeHeader + ",settle,millis\n");
 			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
 		}
 
-		/** Waits one tick (the scene advances), then renders this tick's frames. */
+		/** The next frame starts a new shot named {@code segment}. */
+		void cut(String segment) {
+			this.cutNext = true;
+			this.segment = segment;
+		}
+
+		/** Waits one tick (the scene advances), then renders this tick's frames at the default rate. */
 		void tick() {
+			this.tick(subframes());
+		}
+
+		/** Waits one tick (the scene advances), then renders {@code subframes} frames of it. */
+		void tick(int subframes) {
+			FilmClock.holdLoop = true;
 			this.ctx.waitTick();
 			FilmCamera.tick();
 			FilmRig.followCamera(this.ctx);
-			for (int k = 1; k <= this.subframes; k++) {
-				float partial = (float)k / this.subframes;
+			for (int k = 1; k <= subframes; k++) {
+				float partial = (float)k / subframes;
+				float frameTicks = 1.0f / subframes;
+				boolean cut = this.cutNext;
+				this.cutNext = false;
 				Path file = this.dir.resolve(String.format(Locale.ROOT, "f%06d.png", this.frame));
 				String row = this.ctx.computeOnClient(mc -> {
 					FilmCamera.Frame f = FilmCamera.frame(partial);
 					String cam = f == null ? ",,,,," : String.format(Locale.ROOT, "%.5f,%.5f,%.5f,%.4f,%.4f,%.4f", f.position().x, f.position().y, f.position().z, f.yaw(), f.pitch(), f.roll());
-					String r = String.format(Locale.ROOT, "%d,%d,%.5f,%.5f,%s,%s", this.frame, FilmCamera.ticks(), partial, FilmCamera.time(partial), cam, this.probe.columns(mc, partial));
+					String r = String.format(Locale.ROOT, "%d,%d,%.5f,%.5f,%d,%d,%s,%s,%s", this.frame, FilmCamera.ticks(), partial, FilmCamera.time(partial), subframes,
+						cut ? 1 : 0, this.segment, cam, this.probe.columns(mc, partial));
 					long start = System.nanoTime();
-					this.capture.capture(mc, partial, 1.0f / this.subframes, file);
+					// a new shot: fill the shader's history with the new view
+					int settle = 0;
+					if (cut) {
+						for (int i = 0; i < 40; i++) {
+							this.capture.render(mc, partial, frameTicks);
+						}
+					}
+					// no pop-in: let the renderer finish chunk sections that changed or came into view
+					boolean sodium = FabricLoader.getInstance().isModLoaded("sodium");
+					while (settle < 30 && !(sodium ? SodiumTerrain.complete() : mc.levelRenderer.hasRenderedAllSections())) {
+						this.capture.render(mc, partial, frameTicks);
+						settle++;
+					}
+					this.settleRenders += settle;
+					this.capture.capture(mc, partial, frameTicks, file);
 					long nanos = System.nanoTime() - start;
 					this.renderNanos += nanos;
-					return r + "," + (nanos / 1_000_000);
+					return r + "," + settle + "," + (nanos / 1_000_000);
 				});
 				try {
 					this.log.write(row + "\n");
@@ -230,8 +266,40 @@ final class FilmRig {
 			}
 		}
 
+		/**
+		 * Holds film time (no frame saved, the same instant re-rendered) while the world ticks, until {@code ready} holds
+		 * on the client and the terrain is built: for moments when a change takes a few ticks to reach the screen.
+		 * Returns the ticks held.
+		 */
+		int hold(java.util.function.Predicate<net.minecraft.client.Minecraft> ready, int maxTicks) {
+			FilmClock.holdLoop = true;
+			boolean sodium = FabricLoader.getInstance().isModLoaded("sodium");
+			for (int i = 0; i < maxTicks; i++) {
+				this.ctx.waitTick();
+				boolean done = this.ctx.computeOnClient(mc -> {
+					for (int r = 0; r < 6; r++) {
+						this.capture.render(mc, 1.0f, 1.0f / 3);
+					}
+					return ready.test(mc) && (sodium ? SodiumTerrain.complete() : mc.levelRenderer.hasRenderedAllSections());
+				});
+				if (done) {
+					this.ctx.runOnClient(mc -> {
+						for (int r = 0; r < 24; r++) {
+							this.capture.render(mc, 1.0f, 1.0f / 3);
+						}
+					});
+					return i + 1;
+				}
+			}
+			throw new IllegalStateException("the scene was not ready after " + maxTicks + " held ticks");
+		}
+
 		int frames() {
 			return this.frame;
+		}
+
+		int settleRenders() {
+			return this.settleRenders;
 		}
 
 		double meanFrameMillis() {
@@ -240,6 +308,7 @@ final class FilmRig {
 
 		@Override
 		public void close() {
+			FilmClock.holdLoop = false;
 			this.capture.close();
 			try {
 				this.log.close();

@@ -34,8 +34,13 @@ final class FilmShips {
 	/** Where riders stand on the main deck (helm-relative block positions of the deck surface). */
 	static final BlockPos[] HERO_DECK_SPOTS = {ship(-2, 0, -6), ship(2, 0, -4), ship(0, 0, 1), ship(-3, 0, 2)};
 
-	private static BlockPos ship(int x, int y, int z) {
+	static BlockPos ship(int x, int y, int z) {
 		return new BlockPos(x, y, z).subtract(HERO_HELM);
+	}
+
+	/** A point in the hero ship's build coordinates, helm-relative (vessel-local). */
+	static net.minecraft.world.phys.Vec3 shipPoint(double x, double y, double z) {
+		return new net.minecraft.world.phys.Vec3(x - HERO_HELM.getX(), y - HERO_HELM.getY(), z - HERO_HELM.getZ());
 	}
 
 	private static int bottom(int z) {
@@ -248,7 +253,8 @@ final class FilmShips {
 			s.put(new BlockPos(x * halfWidth(5, -1), 6, 5), lantern);
 			s.put(new BlockPos(x * (halfWidth(14, -1) - 1), 6, 15), lantern);
 		}
-		s.put(HERO_HELM, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.NORTH));
+		// the helm faces the pilot standing behind it: facing south, forward is north (the bow)
+		s.put(HERO_HELM, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.SOUTH));
 
 		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
 		for (Map.Entry<BlockPos, BlockState> e : s.entrySet()) {
