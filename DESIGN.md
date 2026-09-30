@@ -418,6 +418,19 @@ baseline, worst single tick 1.9 to 2.7 ms; physics step 0.08 ms mean on its own 
 - The idle frame limit (30 fps after a minute without input) is off (`inactivityFpsLimit=minimized`).
 - Bliss's clouds move with real time and cast shadows: the run's pack options freeze them (`Cloud_Speed=0.0`) and turn
   their shadows off, so shaded pictures repeat.
+- Distant Horizons draws its own LOD clouds whatever vanilla's cloud option says (`enableCloudRendering`, on by
+  default), and they drift, so no view with sky was ever still. The test options turn them off through DH's config API
+  (an in-memory override).
+- A picture that is compared with another must wait until the view is still. After a teleport, terrain beyond the
+  render distance (vanilla's chunk edge, then Distant Horizons' LODs) keeps arriving for 40 to 90 ticks and changed
+  frames 10 ticks apart by up to 0.015 mean squared difference (the assemble-mixed limit is 0.004); without DH it
+  settled after 40 ticks. `Shots.waitStill` waits until two pictures 10 ticks apart are identical (and fails, keeping
+  both pictures, if they never are). Found when the first clean build after series2 failed assemble-mixed: its
+  reference picture had been taken 5 ticks after landing, and the check then compared a different frame from the one
+  it saved and measured (Fabric's comparison takes a new frame), which hid the failing picture. Picture checks now
+  assert on the frame they save. With the view still, built and assembled pictures differ by 0.0001 (before:
+  0.0001 to 0.0012), and the outline check counts the outline alone (about 960 changed pixels; before, about 4,940
+  including drifting clouds and the hand's sway between the two frames).
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client

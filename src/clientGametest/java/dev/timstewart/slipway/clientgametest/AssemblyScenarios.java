@@ -43,7 +43,7 @@ final class AssemblyScenarios {
 			Game.hud(ctx, false);
 			Game.teleport(ctx, sp, helm.getX() + 0.5, helm.getY(), helm.getZ() + 2.5, 180f, 25f);
 			ctx.waitFor(mc -> mc.player.onGround(), 40);
-			ctx.waitTicks(5);
+			Shots.waitStill(ctx, r, "built", 1200);
 			Path builtShot = Shots.take(ctx, r, "01-built");
 
 			// Assemble by right-clicking the helm.
@@ -72,7 +72,7 @@ final class AssemblyScenarios {
 
 			// The vessel is drawn exactly where the blocks were: the same view, the same picture.
 			ctx.getInput().lookAt(180f, 25f);
-			ctx.waitTicks(3);
+			Shots.waitStill(ctx, r, "assembled", 1200);
 			double drawnInPlace = Shots.matchShot(ctx, r, "02-assembled", builtShot, 0.004);
 			r.note("assembled vessel vs built blocks, same camera: mean squared difference %.5f", drawnInPlace);
 

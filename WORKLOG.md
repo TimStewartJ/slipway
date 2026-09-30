@@ -27,6 +27,19 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+FINAL BUILD at 13611e2 FAILED once: assemble-mixed "Screenshot does not contain template" (fresh run dir). Root cause
+(verified with per-frame data, E:\slipway-e2e\cgt\still-diagnosis): the reference picture was taken 5 ticks after the
+teleport while far terrain (vanilla chunk edge + DH LODs) was still arriving (frames 10 ticks apart differ by up to
+0.0147 MSD; limit 0.004); matchShot asserted on a second frame (Fabric takes its own) so the failing frame was lost.
+Also found: DH draws its own LOD clouds (vanilla cloud option does not cover them), so sky views never settle.
+Fixes: Shots.waitStill (identical pictures 10 ticks apart) before compared pictures (assemble-mixed, render-iris
+outline), picture checks assert on the saved frame, DH clouds off via DH config API in Game.applyTestOptions.
+Verified: assemble-mixed + render-iris pass (outline settles in 30 ticks; Bliss templates MSD 0).
+Next: commit (C), series4 = 3 consecutive FRESH-run-dir full runs with the 20-min soak (series.ps1 -Fresh), then
+record (series2 superseded by series4 as the current series), final clean build, Bridge task, report.
+
+## Previous goal state
+
 Series2 GREEN: 3 consecutive full client-GameTest runs with the 20-minute soak at fb16469, 36/36 passed
 (1689/1686/1684 s; E:\slipway-e2e\cgt\series2). Perf changed afterwards to measure at 1280x720 (M7 window size):
 series3-perf-1280, 3/3 passed (drop 8.5/12.9/5.0%). Screenshots now cleared per scenario at start (Shots.clear).

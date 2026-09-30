@@ -79,11 +79,12 @@ final class RenderScenarios {
 		DeckScenarios.placeRider(ctx, sp, server, id, new net.minecraft.world.phys.Vec3(0.5, 0.3, 1.5));
 		Game.hud(ctx, true);
 		Flight.aimAtLocal(ctx, id, Ships.MIXED_SIGN.getX() + 0.5, Ships.MIXED_SIGN.getY() + 0.4, Ships.MIXED_SIGN.getZ() + 0.5, Ships.MIXED_SIGN);
-		ctx.waitTicks(2);
+		Shots.waitStill(ctx, r, "outline", 1200);
 		int outlined = outlinePixels(ctx, r, "01-outline");
 		r.metric("outline.pixels", outlined);
 		Check.atLeast("pixels that change when the vessel block's outline is turned off", outlined, 60);
 		Game.hud(ctx, false);
+		Shots.waitStill(ctx, r, "outline-f1", 1200);
 		int hidden = outlinePixels(ctx, r, "02-outline-f1");
 		r.metric("outline.pixelsWithHudHidden", hidden);
 		Check.atMost("outline pixels with the HUD hidden (F1: no outlines, as for world blocks)", hidden, 5);

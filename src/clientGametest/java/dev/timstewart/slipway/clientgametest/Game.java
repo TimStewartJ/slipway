@@ -33,7 +33,10 @@ final class Game {
 	private Game() {
 	}
 
-	/** Test options that keep runs repeatable and light: no clouds (they drift), no chat in shots, capped frame rate. */
+	/**
+	 * Test options that keep runs repeatable and light: no clouds (they drift; Distant Horizons draws its own LOD
+	 * clouds whatever vanilla's option says), no chat in shots, capped frame rate.
+	 */
 	static void applyTestOptions(ClientGameTestContext ctx) {
 		ctx.restoreDefaultGameOptions();
 		clientName = ctx.computeOnClient(mc -> mc.getUser().getName());
@@ -48,7 +51,21 @@ final class Game {
 			// the tests give no input for minutes at a time: the game must not drop to its idle frame rate
 			o.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
 		});
+		if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("distanthorizons")) {
+			ctx.runOnClient(mc -> DhTestOptions.noClouds());
+		}
 		hud(ctx, true);
+	}
+
+	/** Kept apart so Distant Horizons' classes load only when it is present. */
+	private static final class DhTestOptions {
+		static void noClouds() {
+			var configs = Check.notNull(com.seibel.distanthorizons.api.DhApi.Delayed.configs, "Distant Horizons' API configs are not available");
+			var clouds = configs.graphics().genericRendering().cloudRenderingEnabled();
+			if (clouds.getValue()) {
+				Check.that(clouds.setValue(false), "Distant Horizons refused to turn its clouds off");
+			}
+		}
 	}
 
 	/** Shows or hides the HUD (what F1 toggles). */
