@@ -293,7 +293,8 @@ public final class VesselManager {
 		// own bodies: their teleport goes out next tick, after the new blocks have reached them and before the vessel
 		// they stand on disappears for them.
 		List<Relocation> players = new ArrayList<>();
-		for (Relocation move : aboard) {
+		for (Relocation found : aboard) {
+			Relocation move = this.settled(found);
 			if (move.entity() instanceof ServerPlayer) {
 				players.add(move);
 			} else {
@@ -319,6 +320,21 @@ public final class VesselManager {
 
 	/** Where an entity that was on a vessel goes when the vessel snaps into the world. */
 	private record Relocation(Entity entity, Vec3 target, float yRot) {
+	}
+
+	/**
+	 * The relocation pushed out of placed blocks its entity's box overlaps: float rounding in the pose can put a rider
+	 * a few microns inside the deck it stood on, and vanilla collision ignores a floor a box is already inside, so the
+	 * entity would fall through the new blocks.
+	 */
+	private Relocation settled(Relocation move) {
+		Entity entity = move.entity();
+		AABB box = entity.getDimensions(entity.getPose()).makeBoundingBox(move.target());
+		Vector3d push = VesselCollisions.depenetration(box, this.level.getBlockCollisions(entity, box));
+		if (push.x == 0.0 && push.y == 0.0 && push.z == 0.0) {
+			return move;
+		}
+		return new Relocation(entity, move.target().add(push.x, push.y, push.z), move.yRot());
 	}
 
 	/**

@@ -62,9 +62,30 @@ try {
 	Start-Sleep -Seconds 40
 	try { Set-SlipwayE2EClientBackground -Client $client | Out-Null } catch { }
 	$shot = Join-Path $OutDir 'play-instance-sandbox.png'
-	Save-CopilotClientScreenshot -ProcessId $game -Path $shot -Force | Out-Null
-	$result.Screenshot = $shot
-	$log = Get-Content $logPath
+	try {
+		# The window's own content (PrintWindow with full-content rendering), never a grab of the screen.
+		Add-Type -AssemblyName System.Drawing
+		if (-not ('SlipwayWindowCapture' -as [type])) {
+			Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class SlipwayWindowCapture {
+	[StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+	[DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
+	[DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+}
+"@
+		}
+		$hwnd = (Get-Process -Id $game).MainWindowHandle
+		$rect = New-Object SlipwayWindowCapture+RECT
+		[void][SlipwayWindowCapture]::GetClientRect($hwnd, [ref]$rect)
+		$bmp = New-Object System.Drawing.Bitmap ([Math]::Max(1, $rect.Right)), ([Math]::Max(1, $rect.Bottom))
+		$g = [System.Drawing.Graphics]::FromImage($bmp)
+		$hdc = $g.GetHdc()
+		$ok = [SlipwayWindowCapture]::PrintWindow($hwnd, $hdc, 3)
+		$g.ReleaseHdc($hdc); $g.Dispose()
+		$bmp.Save($shot, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+		$result.Screenshot = if ($ok) { $shot } else { "PrintWindow failed" }
+	} catch { $result.Screenshot = "capture failed: $($_.Exception.Message)" }	$log = Get-Content $logPath
 	$result.Slipway = @($log | Select-String -Pattern 'Loading \d+ mods|slipway 0\.1\.0|jolt-jni .* loaded|Assembled|\[Slipway' | ForEach-Object { $_.Line } | Select-Object -First 8)
 	$result.Iris = @($log | Select-String -Pattern 'Using shaderpack|shaderPackInUse|Bliss' | ForEach-Object { $_.Line } | Select-Object -First 3)
 	$result.Problems = @(Get-SlipwayE2ELogProblems -LogPath $logPath -Offset 0)

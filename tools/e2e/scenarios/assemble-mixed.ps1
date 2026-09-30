@@ -96,6 +96,10 @@ try {
 	Add-SlipwayE2ECheck -Run $run -Title 'the whole deck is back' -Condition ($missingDeck.Count -eq 0) -Detail $(if ($missingDeck.Count) { "missing planks at $($missingDeck -join '; ')" } else { '81 planks' }) | Out-Null
 	Invoke-SlipwayE2EAgent -Client $c -Verb hold -Argument 'key.keyboard.left.shift 0' | Out-Null
 	Start-Sleep -Milliseconds 500
+	# The player was relocated with the snapped blocks and must stand on them (not sink through a floor it overlaps).
+	$footing = [string](Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument 'footing')
+	$fy = [regex]::Match($footing, '^y=(-?[\d.]+)')
+	Add-SlipwayE2ECheck -Run $run -Title 'the player stands on the placed deck' -Condition ($fy.Success -and [Math]::Abs([double]$fy.Groups[1].Value - $ay) -lt 0.01 -and $footing -match 'onGround=true') -Detail "deck top $ay; $footing" | Out-Null
 	Invoke-SlipwayE2EAgent -Client $c -Verb perspective -Argument back | Out-Null
 	$shot = Save-SlipwayE2EScreenshot -Client $c -Name '04-disassembled' -Directory $run.Directory -SettleMilliseconds 800
 	Add-SlipwayE2EStep -Run $run -Title 'screenshot: disassembled ship back in the world' -Screenshot $shot

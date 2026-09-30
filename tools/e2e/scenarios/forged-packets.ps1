@@ -61,10 +61,12 @@ try {
 	# 4. Out of range: accepted but clamped to [-1, 1].
 	$r0 = Get-Rejected
 	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "forgeHelm $a 5 -7 0.5 1000000 -3 0 0" | Out-Null
-	Start-Sleep -Milliseconds 150
-	$input = Get-Input $a
+	# The pilot's own client resends its (idle) input every half second, so read right away, a few times.
+	$reads = @()
+	for ($i = 0; $i -lt 8; $i++) { $reads += Get-Input $a; if ($reads[-1] -eq '1.00,-1.00,0.50,1.00,-1.00,0.00') { break } }
+	$input = $reads[-1]
 	$r1 = Get-Rejected
-	Add-SlipwayE2ECheck -Run $run -Title 'out-of-range axes are clamped to [-1, 1]' -Condition ($r1 -eq $r0 -and $input -eq '1.00,-1.00,0.50,1.00,-1.00,0.00') -Detail "input $input; rejected $r0 -> $r1" | Out-Null
+	Add-SlipwayE2ECheck -Run $run -Title 'out-of-range axes are clamped to [-1, 1]' -Condition ($r1 -eq $r0 -and $input -eq '1.00,-1.00,0.50,1.00,-1.00,0.00') -Detail "input $input (reads: $($reads -join ' | ')); rejected $r0 -> $r1" | Out-Null
 	Invoke-SlipwayE2EAgent -Client $c -Verb slipway -Argument "forgeHelm $a 0 0 0 0 0 0 0" | Out-Null
 
 	# 5. Flood: 200 packets in one tick; at most 40 a second are accepted.

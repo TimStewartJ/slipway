@@ -153,7 +153,8 @@ print("level.dat updated")
 	try { if ((Invoke-SlipwayE2EAgent -Client $c -Verb session) -notlike 'title*') { Invoke-SlipwayE2EAgent -Client $c -Verb disconnect | Out-Null } } catch { }
 	# Distant Horizons' world-generation threads sometimes fail to release a pooled array while a world closes quickly after
 	# opening (DH-World Gen Thread: "Unable to close Phantom Array ... closed multiple times"); Slipway uses no DH world-gen API.
-	$result = Complete-SlipwayE2EScenario -Run $run -Session $session -ServerOffset $serverOffset -ClientOffset $clientOffset -Milestone 'M7' `n		-AlsoIgnore @('Unable to close Phantom Array', 'Null phantom checkout, object is being closed multiple times')
+	$result = Complete-SlipwayE2EScenario -Run $run -Session $session -ServerOffset $serverOffset -ClientOffset $clientOffset -Milestone 'M7' `
+		-AlsoIgnore @('Unable to close Phantom Array', 'Null phantom checkout, object is being closed multiple times')
 	# The e2e server was stopped for this test; the next scenario starts a fresh session.
 	Stop-SlipwayE2ESession | Out-Null
 }

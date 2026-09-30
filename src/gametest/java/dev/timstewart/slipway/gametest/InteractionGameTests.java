@@ -141,6 +141,9 @@ public class InteractionGameTests {
 		helper.runAfterDelay(60, () -> {
 			Vec3 localBefore = record.pose.worldToLocal(stand[0].position());
 			check(helper, Math.abs(localBefore.y) < 0.05, "the stand did not settle on the deck: local y " + localBefore.y);
+			// Float rounding in the pose can leave a rider a hair inside the deck, and vanilla collision ignores a floor a
+			// box already overlaps: model the worst case.
+			stand[0].setPos(stand[0].getX(), stand[0].getY() - 1.0e-5, stand[0].getZ());
 			var outcome = VesselManager.get(helper.getLevel()).disassemble(record.id, null);
 			check(helper, outcome.success(), "disassembly failed: " + outcome.message().getString());
 			BlockPos below = BlockPos.containing(stand[0].getX(), stand[0].getY() - 0.5, stand[0].getZ());

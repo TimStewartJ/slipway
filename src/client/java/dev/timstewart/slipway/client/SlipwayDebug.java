@@ -148,6 +148,41 @@ public final class SlipwayDebug {
 		return DhProxyBridge.present() ? DhProxies.lodBlockAt(x, y, z) : "distant horizons absent";
 	}
 
+	/** The client's block state at a world position (and whether that chunk is loaded on the client). */
+	public static String blockAt(int x, int y, int z) {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null) {
+			return "no level";
+		}
+		BlockPos pos = new BlockPos(x, y, z);
+		boolean loaded = mc.level.getChunkSource().getChunk(x >> 4, z >> 4, false) != null;
+		return (loaded ? "" : "unloaded ") + mc.level.getBlockState(pos);
+	}
+
+	/** What the local player's collision sees just below its feet, and the movement state that decides a fall. */
+	public static String footing() {
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.level == null || mc.player == null) {
+			return "no player";
+		}
+		net.minecraft.world.phys.AABB box = mc.player.getBoundingBox();
+		net.minecraft.world.phys.AABB below = box.expandTowards(0.0, -0.2, 0.0);
+		StringBuilder shapes = new StringBuilder();
+		int count = 0;
+		for (net.minecraft.world.phys.shapes.VoxelShape shape : mc.level.getBlockCollisions(mc.player, below)) {
+			if (count++ < 4) {
+				shapes.append(' ').append(shape.bounds());
+			}
+		}
+		int cx = net.minecraft.util.Mth.floor(mc.player.getX()) >> 4, cz = net.minecraft.util.Mth.floor(mc.player.getZ()) >> 4;
+		Object chunk = mc.level.getChunkSource().getChunk(cx, cz, false);
+		Object forCollisions = mc.level.getChunkForCollisions(cx, cz);
+		Vec3 v = mc.player.getDeltaMovement();
+		return String.format(Locale.ROOT, "y=%.4f vel=%.4f,%.4f,%.4f onGround=%s flying=%s noPhysics=%s collisions=%d%s chunk=%s collisionChunk=%s",
+			mc.player.getY(), v.x, v.y, v.z, mc.player.onGround(), mc.player.getAbilities().flying, mc.player.noPhysics, count, shapes,
+			chunk == null ? "null" : chunk.getClass().getSimpleName(), forCollisions == null ? "null" : forCollisions.getClass().getSimpleName());
+	}
+
 	/** Live Jolt engines and bodies in this process (an integrated server's physics runs here too), and Slipway's managers. */
 	public static String natives() {
 		return "engines=" + dev.timstewart.slipway.physics.jolt.JoltEngine.liveEngines() + " bodies=" + dev.timstewart.slipway.physics.jolt.JoltEngine.liveBodies()
