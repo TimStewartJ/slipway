@@ -345,8 +345,9 @@ kept growing because of chain 8.
 - Distant Horizons, at the source: local branch `slipway-leak-fix` of `E:\distant-horizons` (wrapper `aa2e97405`,
   core `5e93372c4`, not pushed), patches L1-L8 in its `PATCHES.md`, with core unit tests for the injector
   (`testWorldGeneratorUnbindReleasesTheLevel`, `testConcurrentWorldGeneratorBinding`, the latter failing on the old
-  map). The build `3.3.1-tellus-fork.6-leakfix.9` is used only by the client GameTests (`devmods/test`) and the test
-  instance; the play instance keeps fork.6. The same work fixed a DH thread leak (one "World Gen Progress Updater"
+  map). The build `3.3.1-tellus-fork.6-leakfix.9` was used by the client GameTests (`devmods/test`) and the test
+  instance, and since 0.1.1 by the play instance (the player's choice); the client GameTests now use its successor
+  `...-leakfix.9-irisfix.1` (below, "Dark blotches"). The same work fixed a DH thread leak (one "World Gen Progress Updater"
   thread per level per world) and a DH bug that dropped every block-use packet when a client hosts a dedicated server
   in-process.
 - Iris and vanilla, mitigated in Slipway: `ClosedWorldCleanup` (client, the first tick without a world) clears
@@ -402,6 +403,89 @@ singleplayer close can deadlock the GameTest threading when a mod's client close
 variable kept a world alive (a JVM frame's dead locals are GC roots); a dedicated server hosted in the test game stays
 reachable through vanilla's watchdog thread and JVM shutdown hook. Each is handled in the test code; see "Testing".
 
+## Dark blotches on world blocks under shaders: root-cause analysis (2026-09-30)
+
+**Symptom.** In the play instance's Slipway Sandbox with Bliss, the plain (never assembled) copy of the demo skiff
+had black, blotchy lighting, and so did the grass and trees near the camera; the assembled vessel next to it looked
+right. It appeared after every shader-pipeline creation (joining the world, reloading shaders), stayed while the
+camera stood still, and changed after camera moves.
+
+**Method.** A diagnostic client GameTest (`diag-plain-ship`, `DiagScenarios`, runs only when named) opens a copy of
+the player's world with their options (render distance 6, smooth lighting, field of view 100, their Bliss options),
+puts vessel #1 back where it was built, and photographs both ships from fixed viewpoints: after the world opens, half a
+minute later, after shader reloads with a static camera, and with shaders off. The measure is the mean luminance of
+the plain skiff's deck: about 120 clean, 50 to 70 affected. Evidence: `E:\slipway-e2e\diag\run6` to `run19b` and
+`diag-run*.log`; `run-diag.ps1` reruns a case.
+
+**Isolation.**
+
+| Varied | Result |
+| --- | --- |
+| Shaders off | clean; both ships identical |
+| Distant Horizons removed | clean (run9b) |
+| Bliss debug views | normals and direct light (with shadows) identical on both ships; indirect light has hard black polygons on world blocks only |
+| Light data | sky and block light in the region files correct; the vessel's mesh light values equal the terrain's |
+| Bliss options: contact shadows, DH AO, TAA, denoise, emissives off | still affected |
+| DH builds | affected: fork.6, leakfix.9, leakfix.9 without the fork's five P7 Iris/Sodium mixins, leakfix.9 with patch P6 off, leakfix.9 with the render-pass fix (I2 below), upstream releases 3.3.0 and 3.3.2; clean: upstream 3.3.3, 3.3.4 and 3.3.5-dev |
+| LOD database | the same with the player's LOD database and with freshly generated LODs (fork and upstream) |
+| leakfix.9 + upstream's blend-state fix (I1) | clean: 120.6 to 125.1 with fresh LODs, 121.8 to 121.9 with the player's |
+
+So it is not Slipway, the world, the light data or the shader pack: it is a Distant Horizons bug on Minecraft 26.2+,
+fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the blend-state fix alone removes it.
+
+**Chain.**
+1. Minecraft 26.2+ caches blending per draw buffer (`GlStateManager.BLEND_ENABLE[8]`) and calls
+   `glEnablei`/`glDisablei` only when the cache differs.
+2. DH up to 3.3.2 (and the Tellus fork) toggled blending with `glEnable`/`glDisable(GL_BLEND)`, which switches all
+   buffers, but updated the cache for buffer 0 only (`MinecraftGLWrapper.enableBlend`/`disableBlend`).
+3. DH draws its LODs in `LevelRenderer.prepareTranslucents`, which 26.3 calls at the start of the main pass, before
+   `executeSolid` draws the opaque terrain. After DH's draw, GL has blending on for buffers 1-7 while the cache says
+   off (measured: every frame, at Fabric's `START_MAIN` and `AFTER_OPAQUE_TERRAIN` events).
+4. The opaque terrain (Sodium, with Iris's G-buffer programs) asks for blending off on those buffers; the cache says it
+   already is, so no GL call is made, and the terrain's fragments are blended into what the G-buffers already hold.
+   Bliss keeps the lightmap and material data that its indirect lighting reads in those buffers, so world blocks come
+   out dark in blotches, while normals and direct light look right.
+5. Later draws toggle those buffers through the cache and resync it: by the end of the solid-features phase (where
+   Slipway's vessels are drawn, see "Deviation" above) GL and the cache agree again, and between frames they always
+   do. That is why the vessel looked right; which draw resyncs it first was not traced. Why the pattern holds while
+   the camera is still and changes when it moves (what is already in the buffers, section draw order) is inferred,
+   not traced.
+
+**Fixes** (Distant Horizons fork, local branch `slipway-iris-fixes`, not pushed; see its PATCHES.md):
+- I1, wrapper d50c680f3: backport of upstream `95bbccaff`; on 26.2+ every buffer is set through
+  `GlStateManager._enableBlend(i)`/`_disableBlend(i)` and `glEnablei`/`glDisablei`, so cache and GL stay equal.
+- I2, core 9572e8aa0: the render pass is chosen again after `DhApiBeforeRenderEvent`, where Iris sets its
+  defer-transparent flag; this removes Iris's "Unexpected; somehow the Opaque + Translucent pass ran with shaders on"
+  after each pipeline creation. Not the cause of the blotches; not seen with upstream 3.3.2+, which draws through
+  Sodium's render groups when a shader pack is active.
+- Build `DistantHorizons-fabric-3.3.1-tellus-fork.6-leakfix.9-irisfix.1-26.3.jar` (SHA-256 `B9FE6130...A79E`), DH core
+  tests 106 of 106. It is the client GameTests' Distant Horizons (`devmods/test`); the play instance keeps its build
+  until the player decides.
+- Upstream 3.3.3+ has two more 26.x Iris fixes the fork does not carry: `eb5076971` (DH's lightmap bound where Iris
+  reads it on 26.1.2+) and `01b9370b5` (GL state left to Iris while a shader pack is active; rendering with a boat on
+  screen). Moving the fork to upstream 3.3.4 or later brings all three.
+
+**Regression check.** `GlStateCheck` (client GameTest `render-iris`, near and far views with Bliss) compares the
+per-buffer blend and colour-write-mask cache with GL at five of Fabric's level render events and between frames, over
+40 frames, and fails on any difference or if a sampling point never ran. With leakfix.9 it fails in every frame
+(119 of 119, buffers 1-7 at `startMain` and `afterOpaqueTerrain`); with irisfix.1 it passes. A first version that only
+looked between frames passed with the bug: the state must be sampled inside the frame.
+
+**What the test suite had missed, and why.**
+- The two Bliss reference images accepted in the overnight run were recorded with the bug: a dark band across the far
+  view's ground and an over-dark shadow in the near view. The contact-sheet review looked at the vessel, not at whether
+  the terrain was lit right, and had no independent baseline to compare against. Both are re-recorded with irisfix.1
+  (reviewed: old, new and their difference); their difference from the old ones was 5.2e-4 (near) and 1.65e-3 (far),
+  well inside the old 0.02 limit, so the image check could not have caught it. The limit is now 2.5e-4: run to run the
+  views differ from their references by at most 4.6e-5 (21 runs, before and after the fix), and with leakfix.9 the
+  near view now fails it (5.17e-4), independently of the GL state check.
+- The Bliss shadow ratio (ground under the vessel vs without it) was 0.61 with the bug and is 0.76 fixed (limit 0.8):
+  shaded ground receives only the indirect light, which the bug darkened.
+- Run-directory state leaked between runs. Fabric's client GameTest takes its "default" options after `options.txt` is
+  loaded, so the diagnostic's field of view 100 became every later run's default and moved the camera framing
+  (reference difference 0.012 instead of 4e-5, shadow ratio 0.83 to 0.90). `prepareClientGametestRun` now deletes
+  `options.txt` and the Distant Horizons config before every run.
+
 ## Testing
 
 Four levels, all part of `gradlew check` (`build` runs them too):
@@ -420,15 +504,21 @@ and the next scenario still runs, and the run fails at the end if any failed. Re
 evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`. Options:
 `-PslipwayClientGametestOnly=a,b`, `-PslipwaySoakMinutes=20` (the release soak; the default in `check` is 2),
 `-PslipwayRecordTemplates=true` (write missing reference images; otherwise a missing one fails),
-`-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`.
+`-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`,
+`-PslipwayTestDhConfig=<file>` (a Distant Horizons config to start from; otherwise its defaults).
 The run uses Sodium, Iris with Bliss (copied into the run directory; shaders are switched on through Iris's API where
-a scenario needs them) and the leak-fixed Distant Horizons build from `devmods/test` (else fork.6).
+a scenario needs them) and the patched Distant Horizons build from `devmods/test` (the leak and Iris fixes,
+`...-leakfix.9-irisfix.1`; else fork.6). Every run starts from fresh game options and DH defaults
+(`prepareClientGametestRun` deletes `options.txt` and `DistantHorizons.toml`).
 Checks read game state on the server and client threads (vessel records, client vessels, riders, block states,
 block entities, packets refused, tick times) and wait for conditions or a number of game ticks, never wall-clock time.
 Pixels are checked where they are the point: the assembled vessel against a picture of the blocks it came from,
-reference images for the Bliss near and far views (MSD 0 run to run with Bliss's clouds frozen), the outline pixels
+reference images for the Bliss near and far views (mean squared difference at most 2.5e-4; about 4e-5 run to run with
+Bliss's clouds frozen), the outline pixels
 switched by vanilla's own outline switch, the shadow as ground brightness with and without the vessel (with and
-without shaders), and the far barge as a compact shape at the aim point.
+without shaders), and the far barge as a compact shape at the aim point. With Bliss on, `render-iris` also checks GL
+state directly: Minecraft's per-draw-buffer blend and write-mask cache must equal GL inside every frame
+(`GlStateCheck`; see "Dark blotches on world blocks under shaders").
 Multiplayer runs a dedicated server inside the test game and a second real client: the same game started again in its
 own process (`WatcherProcess`: same classpath and JVM options, its own directory and name, commands through files).
 Both clients' vessel poses are compared with the server's pose for the same server tick.
@@ -456,6 +546,9 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   as the Prism harness does for its server), a whitelist entry for the second client, no watchdog
   (`max-tick-time=-1`), and vanilla's JVM shutdown hook removed after it stops (it references the server).
 - JVM frames keep dead local variables as GC roots: world steps of the leak test run in their own methods.
+- Fabric's client GameTest takes its "default" game options after `options.txt` is loaded, so anything a run saves
+  there becomes the next run's default (a diagnostic's field of view once moved every later run's camera framing).
+  The run directory's `options.txt` and Distant Horizons config are deleted before every run.
 - The idle frame limit (30 fps after a minute without input) is off (`inactivityFpsLimit=minimized`).
 - Bliss's clouds move with real time and cast shadows: the run's pack options freeze them (`Cloud_Speed=0.0`) and turn
   their shadows off, so shaded pictures repeat.
@@ -529,5 +622,6 @@ latter. Series runs: `E:\slipway-e2e\cgt\series*` and `clean-build*`, recorded i
 The harness ignores these, each checked to occur without Slipway or to be expected by a test:
 `Reference map ... could not be read` (Iris/Sodium dev refmaps), `Requested post effect does not exist` (vanilla
 26.3 with Iris), `Distant Horizons OpenGL error logging`, `Force-disabling mixin` (Sodium/Iris), `Sodium has applied
-one or more workarounds`, `Rejected helm control` (forged-packet test), and Iris's DH compat line `Unexpected; somehow
-the Opaque + Translucent pass ran with shaders on` (also in the Slipway-free Tellus-Expeditions instance).
+one or more workarounds`, `Rejected helm control` (forged-packet test), and, with Distant Horizons builds before
+`irisfix.1`, Iris's DH compat line `Unexpected; somehow the Opaque + Translucent pass ran with shaders on` (also in the
+Slipway-free Tellus-Expeditions instance; a DH render-pass ordering bug, fixed as I2 under "Dark blotches").

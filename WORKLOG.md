@@ -27,6 +27,24 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
+looked right) and asked for the cause and a fix. DONE so far:
+- Cause found and proven: Distant Horizons up to 3.3.2 (and the Tellus fork) desyncs Minecraft 26.2+'s per-draw-buffer
+  blend cache (glEnable/glDisable(GL_BLEND) for all buffers, cache updated for buffer 0 only); DH draws LODs at the
+  start of the main pass, so the opaque terrain drawn next blends into Iris's G-buffers. Upstream fixed it in 3.3.3
+  (95bbccaff). Isolation runs E:\slipway-e2e\diag\run6..run19b (diag-plain-ship on a copy of the user's world).
+- DH fork local branch slipway-iris-fixes (not pushed): I1 blend backport (wrapper d50c680f3), I2 render-pass order
+  (core 9572e8aa0); build 3.3.1-tellus-fork.6-leakfix.9-irisfix.1, SHA256 B9FE6130...A79E, core tests 106/106; now
+  the client GameTests' DH (devmods/test; leakfix.9 kept in E:\slipway-e2e\dh).
+- Slipway d40b68b: GlStateCheck in render-iris (fails every frame with leakfix.9, passes with irisfix.1); Bliss
+  reference images re-recorded (the old ones had the bug in them); prepareClientGametestRun deletes options.txt and the
+  DH config (a diagnostic's fov leaked into later runs); diag-plain-ship scenario. DESIGN.md "Dark blotches" RCA.
+Next: full `gradlew clean build` at d40b68b (E:\slipway-e2e\cgt\irisfix-build-d40b68b), packaged-jar check with
+irisfix.1, render-iris 3 consecutive passes, validation.json, then ask the user whether to put irisfix.1 into the play
+instance (only with the game closed; back up first, update expected hashes).
+
+## Previous goal (0.1.1)
+
 2026-09-30 morning (user awake): Slipway 0.1.1 released locally and installed into the play instance at the user's
 request. Release build `gradlew clean build` at ad90790 green (unit 60, server GameTests 28, client GameTests 12,
 packaged-jar check, checkPatches; E:\slipway-e2e\cgt\release-0.1.1-build); jar SHA256 9DDC551D...CDCF5 in

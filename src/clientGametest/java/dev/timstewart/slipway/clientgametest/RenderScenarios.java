@@ -38,6 +38,9 @@ import net.minecraft.world.phys.AABB;
  * </ul>
  */
 final class RenderScenarios {
+	/** Largest mean squared difference of the Bliss views from their reference images. */
+	private static final double REFERENCE_MSD = 2.5e-4;
+
 	private RenderScenarios() {
 	}
 
@@ -104,7 +107,9 @@ final class RenderScenarios {
 		ctx.waitTicks(40);
 		Game.waitChunks(ctx, 1200);
 		Game.waitTerrain(ctx, 1200);
-		Shots.matchTemplate(ctx, r, "render-near-bliss", 0.02);
+		// Run-to-run noise is at most 4.6e-5; the Distant Horizons blend-state bug moved these views by 5.2e-4 (near)
+		// and 1.65e-3 (far), so a lighting regression of that size fails here too, not only in GlStateCheck.
+		Shots.matchTemplate(ctx, r, "render-near-bliss", REFERENCE_MSD);
 		GlStateCheck.assertInSync(ctx, r, "nearBliss", 40);
 		Game.teleport(ctx, sp, 0.5, Game.GROUND_Y, 52.5, 180f, 7.7f);
 		double shadedRatio = shadowRatio(ctx, sp, r, id, helm, "04-ground-bliss");
@@ -128,7 +133,7 @@ final class RenderScenarios {
 		lookAtVessel(ctx, server, barge);
 		ctx.waitTicks(100);
 		Path present = Shots.take(ctx, r, "05-barge-far-bliss");
-		Shots.matchTemplate(ctx, r, "render-far-dh-bliss", 0.02);
+		Shots.matchTemplate(ctx, r, "render-far-dh-bliss", REFERENCE_MSD);
 		GlStateCheck.assertInSync(ctx, r, "farBliss", 40);
 		// Out of view: straight up, 300 blocks above the camera's view cone, still in its loaded chunks.
 		server.runCommand(String.format(Locale.ROOT, "slipway pose %d 0 %d 400 0 0 0", barge, Game.GROUND_Y + 320));

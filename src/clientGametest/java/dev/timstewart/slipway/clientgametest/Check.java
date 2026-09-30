@@ -20,15 +20,20 @@ final class Check {
 	}
 
 	static void near(String what, double actual, double expected, double tolerance) {
-		that(Double.isFinite(actual) && Math.abs(actual - expected) <= tolerance, "%s: expected %.4f +/- %.4f, got %.4f", what, expected, tolerance, actual);
+		that(Double.isFinite(actual) && Math.abs(actual - expected) <= tolerance, "%s: expected %s +/- %s, got %s", what, num(expected), num(tolerance), num(actual));
 	}
 
 	static void atMost(String what, double actual, double limit) {
-		that(Double.isFinite(actual) && actual <= limit, "%s: expected at most %.4f, got %.4f", what, limit, actual);
+		that(Double.isFinite(actual) && actual <= limit, "%s: expected at most %s, got %s", what, num(limit), num(actual));
 	}
 
 	static void atLeast(String what, double actual, double limit) {
-		that(Double.isFinite(actual) && actual >= limit, "%s: expected at least %.4f, got %.4f", what, limit, actual);
+		that(Double.isFinite(actual) && actual >= limit, "%s: expected at least %s, got %s", what, num(limit), num(actual));
+	}
+
+	/** Four decimals, or four significant digits for small values (a limit of 2.5e-4 must not print as 0.0003). */
+	private static String num(double value) {
+		return value != 0 && Math.abs(value) < 0.01 ? String.format(Locale.ROOT, "%.4g", value) : String.format(Locale.ROOT, "%.4f", value);
 	}
 
 	static <T> T notNull(T value, String format, Object... args) {

@@ -113,6 +113,11 @@ you remove, not touching the ground.
   the graphics driver), so restart the game after many world switches with shaders on. Closed worlds themselves are
   freed now.
 - Pre-1.0: saves from this version may not load in later versions.
+- With shaders on, ordinary world blocks near you (the unassembled ship, the grass and trees around it) can look dark
+  and blotchy, most visibly right after joining the world or reloading shaders; moving the camera often changes it.
+  This is a Distant Horizons bug on Minecraft 26.2+ (fixed upstream in DH 3.3.3), not Slipway or Bliss: the installed
+  build `3.3.1-tellus-fork.6-leakfix.9` has it; `...-leakfix.9-irisfix.1` fixes it (DESIGN.md, "Dark blotches on world
+  blocks under shaders"). Assembled vessels are not affected.
 
 ## Reporting issues
 
