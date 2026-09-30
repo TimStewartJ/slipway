@@ -39,6 +39,9 @@ sourceSets {
 	// src/clientGametest and DESIGN.md, "Testing". Its classpath is set after loom's split source sets exist.
 	clientGametest {
 	}
+	// The packaged-jar check's tiny test mod (see runPackagedJarCheck).
+	packagedCheck {
+	}
 }
 
 // Distant Horizons for the client GameTests: the patched build from the leak fix (devmods/test, see DESIGN.md) when
@@ -137,6 +140,7 @@ loom {
 // The client GameTests see Slipway's common and client code (the client source set exists once loom split it).
 sourceSets.clientGametest.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
 sourceSets.clientGametest.runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
+sourceSets.packagedCheck.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
 
 configurations {
 	// Platform-specific jolt-jni native libraries; their binaries are copied into the mod jar's resources.
@@ -482,3 +486,41 @@ tasks.matching { it.name == 'runClientGametest' }.configureEach {
 	outputs.upToDateWhen { false }
 }
 tasks.named('check').configure { dependsOn 'runClientGametest' }
+
+// Packaged-jar check: the release jar with the exact play-stack jars (devmods, copied from the play instance) in
+// production Minecraft, with a tiny client-GameTest mod that audits every mixin, checks the mod set, opens a world,
+// assembles a ship and fails on any Mixin or Fabric Loader error. Report: build/packaged-check/report.json.
+def fabricApiJar = devmod('fabric-api-')
+def packagedCheckJar = tasks.register('packagedCheckJar', Jar) {
+	group = 'slipway'
+	description = 'Builds the test mod the packaged-jar check runs with.'
+	archiveFileName = 'slipway-packaged-check.jar'
+	destinationDirectory = layout.buildDirectory.dir('packaged-check-mod')
+	from sourceSets.packagedCheck.output
+}
+tasks.register('runPackagedJarCheck', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+	group = 'verification'
+	description = 'Starts the release jar with the exact play-stack jars in production Minecraft; fails on any mixin or loader error.'
+	def report = file('build/packaged-check/report.json')
+	doFirst {
+		if (fabricApiJar == null || sodiumJar == null || irisJar == null) {
+			throw new GradleException('devmods must hold the play stack (fabric-api, sodium, iris, DistantHorizons); run tools/setup-devmods.ps1')
+		}
+		report.delete()
+	}
+	mods.from(tasks.named('jar'))
+	mods.from(files([fabricApiJar, sodiumJar, irisJar, dhJar].findAll { it != null }))
+	mods.from(packagedCheckJar)
+	runDir = layout.buildDirectory.dir('packaged-check')
+	jvmArgs.addAll('-Dfabric.client.gametest', '-Dfabric.noGui=true', '--enable-native-access=ALL-UNNAMED', '-XX:StackShadowPages=32', '-XX:+UseZGC', '-Xmx4G',
+		'-Dslipway.packagedCheck.report=' + report.absolutePath)
+	outputs.upToDateWhen { false }
+	doLast {
+		def result = new JsonSlurper().parse(report)
+		if (result.result != 'pass') {
+			throw new GradleException("Packaged-jar check failed: ${result.failure}")
+		}
+		logger.lifecycle("Packaged-jar check passed: ${result.mods}; mixin audit ${result.mixinAuditSeconds} s; ${result.mixinOrLoaderWarnings.size()} warnings")
+	}
+}
+tasks.named('check').configure { dependsOn 'runPackagedJarCheck' }

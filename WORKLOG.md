@@ -27,7 +27,33 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
-Goal 1 wrap-up (matrix4 = dhfix3 running; then leakfix.4 matrix) in parallel with Goal 2 code (client GameTests).
+Goal 2 remainder: packaged-jar check, 3 consecutive green full client-GameTest runs (+ 20-min soak), retire Prism
+scenarios, runtime/flakiness numbers, validation.json cleanup; then RCA in DESIGN.md, Goal 3 docs, finish.
+
+## Commits
+
+- Slipway 5c84037: client GameTests (all 12 scenarios), ClosedWorldCleanup, GameRendererAccessor, test accessors,
+  checkPatches hooks + clientGametest ids, leak matrix tooling. Fast levels green (59 unit, 28 server GameTests).
+- DH core 5e93372c4 / wrapper aa2e97405 on branch slipway-leak-fix (not pushed): L1-L8 (PATCHES.md), leakfix.9 jar
+  FDDE1809 in devmods/test and E:\slipway-e2e\dh.
+
+## Client GameTest findings (harness/environment, all fixed in the test setup)
+
+- Fabric's waitForChunksRender asks vanilla's renderer (never done with Sodium) and waitForChunksDownload wants the
+  full square (server sends a circle): own waits (Game.waitChunks / waitTerrain via Sodium isTerrainRenderComplete).
+- Deadlock closing singleplayer: deferred disconnect -> IntegratedServer.halt executeBlocking while the server is
+  parked at the phase barrier (DH's slow client close made the client miss the window). Test-only mixin
+  IntegratedServerHaltMixin queues the task instead.
+- Fabric Loader error GUI blocked unattended failing runs: -Dfabric.noGui=true.
+- Dedicated server needs eula.txt (written by prepareClientGametestRun, as the e2e harness does) and whitelisting of
+  the second client; its Swing GUI opened (DH forces java.awt.headless=false): pre-launch fixes headless=true first.
+- In-process dedicated server stayed reachable after the test: vanilla watchdog (max-tick-time=-1) + vanilla JVM
+  shutdown hook (removed after the server stops) + DH player states (L5, real DH bug, fixed).
+- Test-frame dead locals held a world (TestServerContextImpl in a <Java Local>): world steps in their own methods.
+- Idle FPS limit (AFK after 1 min) capped perf at 30: inactivityFpsLimit=MINIMIZED. Bliss clouds drift/shadow:
+  Cloud_Speed=0, CLOUDS_SHADOWS=false, VL_CLOUDS_SHADOWS=false in the pack options (reference images then MSD 0).
+- Real product findings from the new tests: vessel outline drawn with F1/adventure (fixed), DH CCE in client
+  proxies with in-process dedicated server (L8), DH player-state sweep missing in DhClientServerWorld.close (L5).
 
 ## Goal 2 progress (client GameTests)
 
