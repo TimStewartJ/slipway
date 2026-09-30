@@ -115,9 +115,32 @@ Other pieces:
   superflat seed-1 world), frozen time and weather, no mob spawning, no random ticks.
 - `src/film/bliss.txt`: Bliss settings for the film (less haze, cloud speed, `entityShadowDistanceMul` 1.0 instead of
   0.25; vessels render as entities).
-- Distant Horizons: the reddit-v1 renders used stock Distant Horizons 3.3.4 (`slipwayTestDhJar` in this worktree's
-  gradle.properties, set outside this work), and they show the vessel's shadow on the water. In several earlier test
-  renders with fork.6 the vessel cast no shadow on the water; the cause was not found.
+
+## Render stack
+
+The film does not need the Tellus Distant Horizons fork. The reddit-v1 videos and stills were rendered with:
+
+| Component | Version | Source |
+| --- | --- | --- |
+| Minecraft / Fabric Loader | 26.3 / 0.19.5 | |
+| Fabric API | 0.160.7+26.3 | `devmods/` |
+| Sodium | 0.9.2+mc26.3 | `devmods/` |
+| Iris | 1.11.7+mc26.3 (shadow-pass fixes) | `devmods/` (1.11.6 moved to `devmods/superseded/`) |
+| Distant Horizons | 3.3.4-26.3, stock from Modrinth | `build/devmods-stock/`, selected by `slipwayTestDhJar` in `gradle.properties` |
+| Shader pack | Bliss v2.1.2 (Chocapic13 Shaders edit), settings in `src/film/bliss.txt` | `shaderPackSource` in `build.gradle` |
+
+Do not use DH 3.3.1-tellus-fork.6 (or its leakfix builds) for film. It has the GL blend-state bug that causes dark
+blotches (fixed upstream in 3.3.3) and lacks upstream's 26.3 Iris entity fix (3.3.4). With it, test renders showed
+blackened sails at some times of day, and the vessel's shadow on the water was unreliable.
+
+`-PslipwayClientGametestMods=sodium,iris` renders without Distant Horizons (the default is `sodium,iris,dh`). The film
+code does not call the Distant Horizons API; without DH, `dhWait` is simply an idle wait.
+
+Stack check (2026-09-30): the stills shot was run twice with the default mods and once without DH (1920x1080, time
+11700, plus a 9000/10000/11400 sweep). In the broadside view, the water under the ship was 0.77x as bright as the
+water beside it in both default runs, and 0.81x in the no-DH run, so the ship casts a shadow consistently. Near-black
+pixels at time 9000 were 0.02% or less, with no dark blotches. In the low-sun opening view the shadow falls outside
+the frame; that is the sun angle, not a bug.
 
 ## Process hygiene
 
