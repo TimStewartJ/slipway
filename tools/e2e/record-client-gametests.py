@@ -10,8 +10,9 @@ superseded by the first run of the same scenario in the next series that is not 
 series (a scenario that changed after an earlier series, rerun on its own) also supersedes the earlier series' runs
 of its scenarios. Plain series stay current. Every Prism-harness entry is marked superseded too (its outcome kept in
 originalResult) and names the run that replaced it: the next Prism run of the same scenario, or for a scenario's last
-Prism run the first current client GameTest run. The packaged-jar check report in build/packaged-check is added as
-well. Entries that are already present (same run id) are left alone, so the script can be rerun.
+Prism run the first current client GameTest run. A packaged-jar check report saved in a series directory as
+packaged-check-report.json is added with that series' commit. Entries that are already present (same run id) are
+left alone, so the script can be rerun.
 """
 import datetime
 import json
@@ -103,6 +104,34 @@ def add_series(entries, series_dir):
     return ids
 
 
+def add_packaged_check(entries, series_dir):
+    """Adds the packaged-jar check report saved with a series (packaged-check-report.json), with the series' commit."""
+    report_file = os.path.join(series_dir, "packaged-check-report.json")
+    if not os.path.exists(report_file):
+        return
+    report = json.load(open(report_file, encoding="utf-8-sig"))
+    when = datetime.datetime.fromtimestamp(os.path.getmtime(report_file))
+    run_id = "packaged-jar-check-" + when.strftime("%Y%m%d-%H%M%S")
+    if any(e["runId"] == run_id for e in entries):
+        return
+    runs = load_runs(series_dir)
+    folder = os.path.join(RUNS, run_id)
+    os.makedirs(folder, exist_ok=True)
+    shutil.copy2(report_file, os.path.join(folder, "report.json"))
+    entries.append({
+        "scenario": "packaged-jar-check",
+        "result": "pass" if report.get("result") == "pass" else "fail",
+        "runId": run_id,
+        "harness": "production-run",
+        "series": os.path.basename(os.path.normpath(series_dir)),
+        "date": when.isoformat(timespec="seconds"),
+        "commit": runs[0][2] if runs else git("log", "-1", "--format=%h", "--before=" + when.isoformat()),
+        "report": os.path.join(folder, "report.json"),
+        "evidence": [os.path.join(folder, "report.json")],
+        "checks": [f"{k} = {v}" for k, v in report.items() if k != "result"],
+    })
+
+
 def main():
     args = sys.argv[1:]
     specs = []
@@ -152,26 +181,8 @@ def main():
             e["supersededBy"] = runs[i + 1]["runId"] if i + 1 < len(runs) else replaced_by.get(scenario)
             if e["originalResult"] == "pending-review":
                 e["visualReview"] = "never reviewed; replaced by the client GameTests' structured and reference-image checks"
-    packaged = os.path.join(REPO, "build", "packaged-check", "report.json")
-    if os.path.exists(packaged):
-        report = json.load(open(packaged, encoding="utf-8"))
-        when = datetime.datetime.fromtimestamp(os.path.getmtime(packaged))
-        run_id = "packaged-jar-check-" + when.strftime("%Y%m%d-%H%M%S")
-        if not any(e["runId"] == run_id for e in entries):
-            folder = os.path.join(RUNS, run_id)
-            os.makedirs(folder, exist_ok=True)
-            shutil.copy2(packaged, folder)
-            entries.append({
-                "scenario": "packaged-jar-check",
-                "result": "pass" if report.get("result") == "pass" else "fail",
-                "runId": run_id,
-                "harness": "production-run",
-                "date": when.isoformat(timespec="seconds"),
-                "commit": git("rev-parse", "--short", "HEAD"),
-                "report": os.path.join(folder, "report.json"),
-                "evidence": [os.path.join(folder, "report.json")],
-                "checks": [f"{k} = {v}" for k, v in report.items() if k != "result"],
-            })
+    for series_dir, _ in specs:
+        add_packaged_check(entries, series_dir)
     missing = sorted({e["runId"] for e in entries if e.get("result") == "superseded" and not e.get("supersededBy")})
     if missing:
         raise SystemExit(f"superseded entries without a replacing run: {missing}")

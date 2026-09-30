@@ -31,7 +31,7 @@ Series2 GREEN: 3 consecutive full client-GameTest runs with the 20-minute soak a
 (1689/1686/1684 s; E:\slipway-e2e\cgt\series2). Perf changed afterwards to measure at 1280x720 (M7 window size):
 series3-perf-1280, 3/3 passed (drop 8.5/12.9/5.0%). Screenshots now cleared per scenario at start (Shots.clear).
 Prism scenarios retired to tools/e2e/legacy (README maps each to its client GameTest); e2eWatcher run removed.
-Next: commit (A), set series3 summary Note with A, run the recorder (--superseded series0 --superseded series1
+Done: commit A = 721b7ba; series3 summary noted; recorder run (175 entries, 0 pending, commit B). Was: commit (A), set series3 summary Note with A, run the recorder (--superseded series0 --superseded series1
 series2 --replacing series3-perf-1280), commit validation.json (B), final `gradlew build` at B, record the final
 build as its own series + packaged check (C), stop processes, Bridge task, final report.
 
