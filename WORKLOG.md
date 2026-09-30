@@ -42,6 +42,11 @@ looked right) and asked for the cause and a fix. DONE so far:
 Next: full `gradlew clean build` at d40b68b (E:\slipway-e2e\cgt\irisfix-build-d40b68b), packaged-jar check with
 irisfix.1, render-iris 3 consecutive passes, validation.json, then ask the user whether to put irisfix.1 into the play
 instance (only with the game closed; back up first, update expected hashes).
+Status 13:58: DONE - full build green at d40b68b (unit 60, server GameTests 28, client GameTests 12, packaged-jar
+check, checkPatches 13; 18 min); reference limit tightened to 2.5e-4 in 8cb8aeb (leakfix.9 now fails it: 5.17e-4);
+render-iris 3/3 at 8cb8aeb (E:\slipway-e2e\cgt\irisfix-render-iris; MSD 3.5e-5 to 4.4e-5, shadow ratio 0.762, GL
+state 0 out of sync); packaged-jar check with irisfix.1 pass; validation.json 271 entries (earlier render-iris passes
+superseded by clientgametest-20260930-132443-render-iris). Remaining: the user's decision on the play instance.
 
 ## Previous goal (0.1.1)
 
