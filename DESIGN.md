@@ -223,43 +223,43 @@ the real ship until it moved). No DH fork change was needed.
 
 ## M7 — measurements (2026-09-29, this machine)
 
-**Performance** (`tools/e2e/scenarios/perf.ps1`, release jar, run `perf-20260929-181150`): Iris + Bliss, Sodium,
+**Performance** (`tools/e2e/scenarios/perf.ps1`, release jar, run `perf-20260929-191053`): Iris + Bliss, Sodium,
 Distant Horizons, render distance 10, 1280x720 window, frame rate uncapped, a 961-block barge (20x3x16 concrete plus
 helm) seen from 30 blocks, compared with a warm baseline of the same view without it:
 
 | Phase | Client fps (avg / 5th pct) | Server tick (avg / worst) | Slipway exchange (main thread) | Physics step (own thread) |
 | --- | --- | --- | --- | --- |
-| Baseline, no vessel (before) | 488.7 / 446 | 2.54 / 2.67 ms | 0.001 ms | 0.053 ms |
-| Vessel hovering in view | 437.9 / 385 | 2.73 / 2.93 ms | 0.030 ms | 0.061 ms |
-| Vessel flying a circle in view | 441.8 / 394 | 2.67 / 2.78 ms | 0.037 ms | 0.064 ms |
-| Baseline again (vessel removed) | 480.4 / 424 | 2.45 / 2.65 ms | 0.004 ms | 0.078 ms |
+| Baseline, no vessel (before) | 470.8 / 434 | 2.64 / 2.90 ms | 0.001 ms | 0.051 ms |
+| Vessel hovering in full view | 381.9 / 250 | 2.91 / 3.02 ms | 0.036 ms | 0.062 ms |
+| Vessel flying a circle in view | 425.0 / 345 | 2.94 / 3.11 ms | 0.036 ms | 0.062 ms |
+| Baseline again (vessel removed) | 482.3 / 405 | 2.67 / 2.85 ms | 0.003 ms | 0.059 ms |
 
-Against the second baseline, the flying 961-block vessel cost 8.0% of frame rate (about 0.18 ms per frame) and
-+0.21 ms of server tick time, of which Slipway's main-thread work is under 0.05 ms; the rest (entity tracking,
-packets) is vanilla's. Across the three perf runs on this machine (`perf-20260929-155228`, `-174348`, `-181150`) the
-cost ranged from 8% to 15% of frame rate and +0.2 to +0.4 ms of server tick; the server stays under 3.1 ms of its
-50 ms budget. The frame cost is the per-frame vertex copy of the cached mesh plus Iris's shadow pass drawing it a
-second time.
+Against the second baseline, the flying 961-block vessel cost 11.9% of frame rate (about 0.28 ms per frame; about
+21% while it hovered filling the view) and +0.27 ms of server tick time, of which Slipway's main-thread work is under
+0.05 ms; the rest (entity tracking, packets) is vanilla's. Across the four perf runs on this machine
+(`perf-20260929-155228`, `-174348`, `-181150`, `-191053`) the flying cost ranged from 8% to 15% of frame rate and
++0.2 to +0.4 ms of server tick; the server stays near 3 ms of its 50 ms budget. The frame cost is the per-frame
+vertex copy of the cached mesh plus Iris's shadow pass drawing it a second time.
 
-**Native handles and leaks** (`leak.ps1`, release jar, run `leak-20260929-181413`): one client process opened and
+**Native handles and leaks** (`leak.ps1`, release jar, run `leak-20260929-191726`): one client process opened and
 closed a singleplayer world with three flying vessels five times. With the world open: 1 Jolt engine, 3 bodies;
 after each close: 0 engines, 0 bodies, 0 Slipway level managers, 0 client vessels. Process private memory grew
-28 MB per cycle (allocator and cache growth; not unbounded in these cycles). Heap after GC did grow by about 170 MB
-per cycle (retained chunk sections and palettes, i.e. whole worlds). JFR old-object samples with paths to GC roots
-show every retained world held by Distant Horizons: 40 of the 41 samples pass through its
-`WorldGeneratorInjector.worldGeneratorByLevelWrapper` static map and `ServerLevelWrapper`, the last one is rooted in
-a DH world-gen thread, and none pass through Slipway or jolt-jni. That is a Distant Horizons (fork.6) issue: long
-singleplayer sessions that reopen worlds many times will accumulate heap until restart. The JUnit leak test
-(`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
+31 MB per cycle (allocator and cache growth; not unbounded in these cycles). Heap after GC did grow by about 120 MB
+per cycle (retained chunk sections and palettes, i.e. whole worlds; 170 MB per cycle in the earlier run
+`leak-20260929-181413`). JFR old-object samples with paths to GC roots show every retained world held by Distant
+Horizons: all 33 world-retaining samples pass through its `WorldGeneratorInjector.worldGeneratorByLevelWrapper`
+static map and `ServerLevelWrapper`, and none pass through Slipway or jolt-jni. That is a Distant Horizons (fork.6)
+issue: long singleplayer sessions that reopen worlds many times will accumulate heap until restart. The JUnit leak
+test (`JoltEngineTest.anEngineLifecycleFreesEveryNativeObject`, Debug natives) proves jolt-jni allocations and frees
 balance exactly over full engine lifecycles.
 
-**Soak** (`soak.ps1`, run `soak-20260929-160745`): a pilot flew the mixed ship (Iris + Bliss on) for 20.7 minutes
-through a repeating one-minute program (fast runs, turns, climbs and dives, a full roll through inverted, strafing,
-hover-off drops, return legs) with an altitude hold between rounds. 42 samples, every one finite, the pilot at the
-helm throughout, no block lost, the ship intact at the end; server tick 2.95 ms on average, worst sample 4.67 ms;
-physics step at most 0.107 ms; no Slipway error or warning in either log. The run is recorded as failed only because
-a Remote Desktop session change minimized the game window at minute 18 and vanilla's renderer logged
-"Cannot acquire minimized window" (now in the known-noise list); the final regression reruns the soak.
+**Soak** (`soak.ps1`, release jar, run `soak-20260929-192036`): a pilot flew the mixed ship (Iris + Bliss on) for
+20.7 minutes through a repeating one-minute program (fast runs, turns, climbs and dives, a full roll through
+inverted, strafing, hover-off drops, return legs) with an altitude hold between rounds. 42 samples, every one finite,
+the pilot at the helm throughout, no block lost, the ship intact at the end; server tick 2.72 ms on average, worst
+sample 6.43 ms; physics step at most 0.091 ms; client 65 fps average with the frame rate capped at 120; no Slipway
+error or warning in either log. An earlier soak on the first release candidate (`soak-20260929-182233`) flew just as
+cleanly but failed on the Iris outline error described under M0, which the final jar fixes.
 
 ## Known log noise (not Slipway)
 

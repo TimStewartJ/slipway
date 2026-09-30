@@ -85,7 +85,8 @@ public static class SlipwayWindowCapture {
 		$g.ReleaseHdc($hdc); $g.Dispose()
 		$bmp.Save($shot, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
 		$result.Screenshot = if ($ok) { $shot } else { "PrintWindow failed" }
-	} catch { $result.Screenshot = "capture failed: $($_.Exception.Message)" }	$log = Get-Content $logPath
+	} catch { $result.Screenshot = "capture failed: $($_.Exception.Message)" }
+	$log = Get-Content $logPath
 	$result.Slipway = @($log | Select-String -Pattern 'Loading \d+ mods|slipway 0\.1\.0|jolt-jni .* loaded|Assembled|\[Slipway' | ForEach-Object { $_.Line } | Select-Object -First 8)
 	$result.Iris = @($log | Select-String -Pattern 'Using shaderpack|shaderPackInUse|Bliss' | ForEach-Object { $_.Line } | Select-Object -First 3)
 	$result.Problems = @(Get-SlipwayE2ELogProblems -LogPath $logPath -Offset 0)
