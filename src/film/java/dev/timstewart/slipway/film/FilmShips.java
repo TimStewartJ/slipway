@@ -254,7 +254,7 @@ final class FilmShips {
 			s.put(new BlockPos(x * (halfWidth(14, -1) - 1), 6, 15), lantern);
 		}
 		// the helm faces the pilot standing behind it: facing south, forward is north (the bow)
-		s.put(HERO_HELM, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.SOUTH));
+		s.put(HERO_HELM, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, FilmRig.opt("helm", "south").equals("north") ? Direction.NORTH : Direction.SOUTH));
 
 		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
 		for (Map.Entry<BlockPos, BlockState> e : s.entrySet()) {
@@ -283,10 +283,11 @@ final class FilmShips {
 				BlockState state = y == footY ? foot : cloth;
 				s.put(new BlockPos(x, y, z - 1), state);
 				// the belly: two more layers, each inset, so the sail curves forward
-				if (Math.abs(x) <= half - 1 && y > footY && y < yardY - 1) {
+				int layers = (int)FilmRig.optDouble("sailLayers", 3);
+				if (layers >= 2 && Math.abs(x) <= half - 1 && y > footY && y < yardY - 1) {
 					s.put(new BlockPos(x, y, z - 2), cloth);
 				}
-				if (half >= 4 && Math.abs(x) <= half - 3 && y > footY + 1 && y < yardY - 2) {
+				if (layers >= 3 && half >= 4 && Math.abs(x) <= half - 3 && y > footY + 1 && y < yardY - 2) {
 					s.put(new BlockPos(x, y, z - 3), cloth);
 				}
 			}

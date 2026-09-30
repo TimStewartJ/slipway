@@ -35,7 +35,7 @@ def captions(ev, fps, w, h, total_seconds):
         (0.10, t["flyby"] - 0.15, "Cap", "Every block stays a real block"),
         (t["flyby"] + 0.35, t["roll"] - 0.25, "Cap", "Built from any blocks"),
         (t["roll"] + 0.15, t["door"] - 0.1, "Cap", "Full 3-axis physics"),
-        (t["door"] + 0.05, t["deck"] - 0.2, "Cap", "Doors. Redstone. Chests."),
+        (t["door"] + 0.05, t["deck"] - 0.2, "Cap", "Doors. Levers. Redstone."),
         (t["deck"] + 0.3, t["return"] - 0.25, "Cap", "Riders stay on deck"),
         (t["return"] + 0.4, t["disassemble"] - 0.15, "Cap", "Bring it home level"),
         (t["disassemble"] + 0.05, t["disassemble"] + 1.3, "Cap", "Back to plain blocks"),

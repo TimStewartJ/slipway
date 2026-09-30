@@ -82,7 +82,8 @@ final class RedditShot {
 			FilmMain.LOG.info("Reddit: vessel {} at rest at {}, centre {}, opening camera {}", id, rest, c, c0);
 
 			// warm up: every shot's surroundings loaded, then time for Distant Horizons at the opening view
-			for (Vec3 p : List.of(P2.add(-45 * k, -3, -75), P3, P4, P5, c0Pos)) {
+			List<Vec3> tour = FilmRig.optDouble("warm", 1) > 0 ? List.of(P2.add(-45 * k, -3, -75), P3, P4, P5, c0Pos) : List.of(c0Pos);
+			for (Vec3 p : tour) {
 				FilmCamera.set((t, pp) -> FilmCamera.Frame.lookAt(p, c, 0));
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 6000);
@@ -124,6 +125,9 @@ final class RedditShot {
 					rec.tick(3);
 				}
 				logState(server, id, "hook end");
+				if (FilmRig.opt("stopAfter", "").equals("hook")) {
+					return;
+				}
 
 				// ---- 2. flyby ----
 				gap(ctx, server, id, rec);
@@ -138,6 +142,7 @@ final class RedditShot {
 				});
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 3000);
+				settle(ctx);
 				for (int i = 0; i < 50; i++) {
 					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
 					ctx.waitTick();
@@ -157,9 +162,10 @@ final class RedditShot {
 				flyTo(ctx, server, id, P3, 0, 1600, 0.4);
 				long b3 = FilmCamera.ticks();
 				double rollTicksGuess = FilmRig.optDouble("rollTicks", 64);
+				// a camera on the ship, between the main mast and the castle (not scaled for portrait: it would enter the sail)
 				Vec3 look = FilmShips.shipPoint(1.2, 1.2, 6);
-				Vec3 fromA = scaleFrom(look, FilmShips.shipPoint(-5, 6.5, -2.5), k);
-				Vec3 fromB = scaleFrom(look, FilmShips.shipPoint(-1.8, 3.6, 1.2), k);
+				Vec3 fromA = FilmShips.shipPoint(-5, 6.5, k > 1 ? -1.2 : -2.5);
+				Vec3 fromB = FilmShips.shipPoint(-1.8, 3.6, 1.2);
 				FilmCamera.set((t, p) -> {
 					double s = Math.max(0, t - b3) / rollTicksGuess;
 					VesselPose pose = FilmScene.pose(id, p);
@@ -173,6 +179,7 @@ final class RedditShot {
 				});
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 3000);
+				settle(ctx);
 				FilmPilot.modes(server, id, true, false);
 				int preRoll = (int)FilmRig.optDouble("preRoll", 34);
 				for (int i = 0; i < preRoll; i++) {
@@ -226,6 +233,7 @@ final class RedditShot {
 				});
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 3000);
+				settle(ctx);
 				for (int i = 0; i < 20; i++) {
 					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0.35, 0, 0, 0, 0, 0)));
 					ctx.waitTick();
@@ -274,6 +282,7 @@ final class RedditShot {
 				});
 				FilmRig.followCamera(ctx);
 				FilmRig.waitWorld(ctx, 3000);
+				settle(ctx);
 				int runUp = (int)FilmRig.optDouble("returnRunUp", 40);
 				for (int i = 0; i < runUp; i++) {
 					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
@@ -332,6 +341,14 @@ final class RedditShot {
 			return FilmCamera.Frame.lookAt(ship.add(-40, 14, 12), ship, 0);
 		});
 		FilmRig.followCamera(ctx);
+	}
+
+	/**
+	 * Unfilmed ticks at a shot's first camera position (film time does not advance): Distant Horizons updates its far
+	 * terrain around the new view, which otherwise shows as pale patches on the water for a second after a cut.
+	 */
+	private static void settle(ClientGameTestContext ctx) {
+		ctx.waitTicks((int)FilmRig.optDouble("shotSettle", 100));
 	}
 
 	/** Autopilot (unfilmed) to a point and heading, until settled there. */

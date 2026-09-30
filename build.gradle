@@ -220,7 +220,11 @@ dependencies {
 	}
 	filmCompileOnly files(dhJar)
 	[irisJar, sodiumJar].findAll { it != null }.each { filmCompileOnly files(it) }
-	[sodiumJar, irisJar, testDhJar].findAll { it != null }.each { filmRuntimeOnly files(it) }
+	[sodium: sodiumJar, iris: irisJar, dh: testDhJar].each { name, jar ->
+		if (clientGametestMods.contains(name) && jar != null) {
+			filmRuntimeOnly files(jar)
+		}
+	}
 
 	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'

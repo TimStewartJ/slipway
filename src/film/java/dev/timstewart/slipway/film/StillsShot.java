@@ -40,12 +40,16 @@ final class StillsShot {
 			angles.put("04-deck-castle", FilmCamera.Frame.lookAt(door.add(-4.5, 3.2, -6.5), door.add(0, -0.4, 0), 0));
 			angles.put("05-low-water", FilmCamera.Frame.lookAt(c.add(-30, -13, -24), c.add(0, 6, 0), 0));
 			angles.put("06-east-backlit", FilmCamera.Frame.lookAt(c.add(46, 8, -10), c.add(0, 4, 0), 0));
+			Vec3 rc = ctx.computeOnClient(mc -> FilmScene.centre(id, 1.0f, c));
+			angles.put("07-reddit-opening", FilmCamera.Frame.lookAt(rc.add(-34, -7, -24), rc.add(0, 3, 0), 0));
+			angles.put("08-near", FilmCamera.Frame.lookAt(rc.add(-19, -4, -14), rc.add(0, 1, 0), 0));
+			angles.put("09-under", FilmCamera.Frame.lookAt(rc.add(-14, -6, -10), rc.add(0, -19, 3), 0));
 			String times = FilmRig.opt("times", "");
 			FilmClock.holdLoop = true;
 			FilmCapture capture = new FilmCapture();
 			try {
 				if (!times.isEmpty()) {
-					FilmCamera.Frame f = angles.get("01-front-quarter");
+					FilmCamera.Frame f = angles.get(FilmRig.opt("sweepAngle", "07-reddit-opening"));
 					for (String t : times.split("\\+")) {
 						server.runCommand("time set " + t);
 						ctx.waitTicks(3);

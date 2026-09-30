@@ -70,6 +70,7 @@ final class FilmScene {
 			ClientVessel v = ClientVessels.get(id);
 			return v != null && v.ready() && v.mesh.vertexCount() > 0 && !v.mesh.hasPendingWork();
 		}, 2400);
+		FilmMain.LOG.info("Vessel {} mesh: {} vertices", id, ctx.computeOnClient(mc -> ClientVessels.get(id).mesh.vertexCount()));
 	}
 
 	/** The vessel's centre as drawn at this partial tick (client thread), or {@code fallback} before it is known. */
