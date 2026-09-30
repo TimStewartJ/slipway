@@ -1,4 +1,4 @@
-# Slipway playtest guide (first playable, 0.1.0)
+# Slipway playtest guide (0.1.1)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
@@ -9,9 +9,24 @@ angle.
 
 - Prism instance **Slipway - Minecraft 26.3 (Fabric)** (`Slipway-MC-26.3-Fabric`): Minecraft 26.3, Fabric loader
   0.19.5, Fabric API, Sodium, Iris (Bliss shaders on), Distant Horizons, Slipway. Your Tellus 26.3 options and key
-  layout were copied over.
+  layout were copied over. Distant Horizons here is `3.3.1-tellus-fork.6-leakfix.9`: your fork.6 plus the fixes from
+  the leak investigation (local branch `slipway-leak-fix` in `E:\distant-horizons`); your Tellus instances keep fork.6.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
+
+## What's new in 0.1.1
+
+Gameplay is the same as 0.1.0; this build carries the fixes from the world-retention investigation (`DESIGN.md`,
+"World retention after closing a world"):
+
+- Closing a world frees it. In 0.1.0 every world you left stayed in memory (about 130 to 175 MB each), mostly in
+  Distant Horizons and, with shaders, in Iris's shader cache. The Distant Horizons build above fixes its part (and the
+  race behind its rare startup error), and Slipway now clears Iris's cache and fully releases each world's physics
+  engine when a world closes.
+- The block outline on vessel blocks follows vanilla's rules: hidden with F1 and wherever vanilla hides it for world
+  blocks (for example in adventure mode).
+- The sandbox world was rebuilt fresh (same layout; the old one is backed up under
+  `E:\slipway-e2e\play-instance-backups`).
 
 ## Controls
 
@@ -47,15 +62,15 @@ blocks.
 
 ## The sandbox
 
-You spawn on a small glass platform (0 85 -12) facing south, with two identical skiffs floating in front of you
+You spawn on a small glass platform (0 81 -12) facing south, with two identical skiffs floating in front of you
 (366 blocks each: oak deck, spruce hull, dark oak keel, railings, a mast with a sail and a red flag, a doorway with
 a door, a chest with spare helms and blocks, a redstone lamp with a lever, a sign and a lantern):
 
-- **On your right: vessel #1** (helm at -8 85 0), already assembled. Fly onto its stern (the open end facing you),
+- **On your right: vessel #1** (helm at -8 81 0), already assembled. Fly onto its stern (the open end facing you),
   use the helm to take it, and fly. `/slipway info 1` shows its state and position.
-- **On your left: the plain copy** (helm at 8 85 0). Use its helm to assemble it yourself; it becomes vessel #2.
+- **On your left: the plain copy** (helm at 8 81 0). Use its helm to assemble it yourself; it becomes vessel #2.
 
-The world is creative with cheats on, difficulty peaceful, and the ground is about 20 blocks below. The chest on each
+The world is creative with cheats on, difficulty peaceful, and the ground is about 10 to 15 blocks below. The chest on each
 skiff holds four more Slipway Helms (also in the creative inventory under Functional Blocks, `/give @s slipway:helm`,
 or crafted in survival from two sticks on top, a compass in the middle and three planks below) for your own builds:
 anything face-connected to the helm becomes part of the vessel, so build ships in the air or on a temporary platform
@@ -93,10 +108,10 @@ you remove, not touching the ground.
 - Very large ships: the cap is 4,096 blocks (configurable in `config/slipway.json`); larger ships cost more.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
 - Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
-- Leaving and reopening worlds many times in one game session grows memory (about 130 to 175 MB per reopen). The
-  heap analysis (`DESIGN.md`, "World retention") traced it to Distant Horizons fork.6, and with a shader pack also to
-  Iris; Slipway holds none of it. The fixes exist (a Distant Horizons test branch and a Slipway cleanup after the
-  0.1.0 jar) but are not in this play instance yet. Restart the game after many world switches.
+- With shaders on, leaving and reopening worlds many times in one game session still grows memory outside Java by
+  about 50 to 80 MB per reopen. It happens with Iris and Bliss alone, without Slipway or Distant Horizons (Iris or
+  the graphics driver), so restart the game after many world switches with shaders on. Closed worlds themselves are
+  freed now.
 - Pre-1.0: saves from this version may not load in later versions.
 
 ## Reporting issues

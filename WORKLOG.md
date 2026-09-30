@@ -27,6 +27,15 @@ work can resume exactly after a context summary. Newest entries at the bottom of
 
 ## Current goal
 
+2026-09-30 morning (user awake): Slipway 0.1.1 released locally and installed into the play instance at the user's
+request. Release build `gradlew clean build` at ad90790 green (unit 60, server GameTests 28, client GameTests 12,
+packaged-jar check, checkPatches; E:\slipway-e2e\cgt\release-0.1.1-build); jar SHA256 9DDC551D...CDCF5 in
+E:\Slipway\release. Play instance rebuilt (install-play-instance.ps1 -Replace; the user chose DH leakfix.9 for it;
+Tellus instances keep fork.6), old instance backed up to E:\slipway-e2e\play-instance-backups\...-0.1.0-20260930-073550,
+fresh Slipway Sandbox (ships at y 81), verified by two native launches (play-instance-verify-20260930-074841, -075217).
+
+## Overnight run result
+
 DONE. Final `gradlew clean build` from clean commit 5d1d85b passed in 678 s (E:\slipway-e2e\cgt\clean-build2):
 unit tests 60/60, server GameTests 28/28, client GameTests 12/12 (2-min soak), packaged-jar check pass (exact play
 stack, 0 mixin/loader errors or warnings, vessel assembled), checkPatches 13 mixin classes. validation.json rewritten
