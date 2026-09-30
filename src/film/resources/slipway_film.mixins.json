@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "dev.timstewart.slipway.film.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"FilmCameraMixin",
+		"FilmHaltMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
