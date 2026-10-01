@@ -59,7 +59,7 @@ terrain before recording, default 60), `fov` (vertical field of view in degrees,
 | `rollAX/AY/AZ`, `rollBX/BY/BZ`, `rollLookX/Y` | roll camera in ship coordinates: from, to, and the point on the wall it looks at | -2.4/3.6/-1.9, -2.0/3.3/-0.6, 0.3/2.0 |
 | `lampDelay`, `clockDelay` | the machine: delay of the repeaters between the lamps, and of the clock's repeater (redstone ticks) | 1, 4 |
 | `farmTicks`, `farmClockAt`, `farmSpeed`, `farmTurn` | farm shot: length; tick at which the clock's lever is pulled; forward and yaw input | 102, 10, 0.14, 0.06 |
-| `farmX/Y/Z`, `farmDX/DY/DZ`, `farmLookX/Y/Z` | farm camera in ship coordinates: from, movement, look-at | -4.2/3.9/-7.0, 0.4/-0.3/-0.2, 1.0/1.1/-7.0 |
+| `farmX/Y/Z`, `farmDX/DY/DZ`, `farmLookX/Y/Z` | farm camera in ship coordinates: from, movement, look-at | -4.0/3.7/-7.0, 0.4/-0.3/-0.2, 1.0/1.7/-7.0 |
 | `farmDelayA`, `farmDelayB` | delays of the two repeaters in the farm clock (period = 2 x (1 + A + B) redstone ticks) | 4, 2 |
 | `returnCut`, `returnGain`, `returnSpeed`, `returnBrake`, `holdTicks` | return: distance from home at which the shot cuts in; autopilot gain, speed limit and planned deceleration; ticks filmed after disassembly | 15, 1.8, 17, 6.5, 110 |
 

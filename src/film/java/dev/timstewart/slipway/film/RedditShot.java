@@ -438,9 +438,9 @@ final class RedditShot {
 		this.flyTo(FARM_AT, 0, 2400, 0.4);
 		List<Integer> sheep = this.server.computeOnServer(s -> spawnSheep(s, id));
 		this.ctx.waitTicks(60);
-		Vec3 from = FilmShips.shipPoint(FilmRig.optDouble("farmX", -4.2), FilmRig.optDouble("farmY", 3.9), FilmRig.optDouble("farmZ", -7.0));
+		Vec3 from = FilmShips.shipPoint(FilmRig.optDouble("farmX", -4.0), FilmRig.optDouble("farmY", 3.7), FilmRig.optDouble("farmZ", -7.0));
 		Vec3 fromB = from.add(FilmRig.optDouble("farmDX", 0.4), FilmRig.optDouble("farmDY", -0.3), FilmRig.optDouble("farmDZ", -0.2));
-		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("farmLookX", 1.0), FilmRig.optDouble("farmLookY", 1.1), FilmRig.optDouble("farmLookZ", -7.0));
+		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("farmLookX", 1.0), FilmRig.optDouble("farmLookY", 1.7), FilmRig.optDouble("farmLookZ", -7.0));
 		int farmTicks = (int)FilmRig.optDouble("farmTicks", 102);
 		long[] b4 = {Long.MAX_VALUE};
 		FilmCamera.set((t, p) -> {
