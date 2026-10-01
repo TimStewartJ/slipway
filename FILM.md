@@ -262,7 +262,8 @@ the frame; that is the sun angle, not a bug.
 
 Delivery folder `E:\slipway-e2e\film\reddit-v2\`. Rendered with `dev-0.1.2` at `7ece326` (Slipway 0.1.2; the commit
 is in the folder's `mod-commit.txt`), merged into `film`. An earlier complete render with `00814fa` (before the
-version number and the disassembly fix) was replaced by it; the two differ only in the random growth of the wheat.
+version number and the disassembly fix) was replaced by it: the logged states of the ship and the cargo at the end of
+every shot agree between the two to a millionth of a block; the wheat grew differently (it is random).
 
 - `slipway-4x5.mp4`: 1080x1350, 60 fps, 1,635 frames, 27.25 s, 40.9 MB, H.264 High, yuv420p, no audio track.
 - Shots and events in the video's time (raw frame numbers are in `segments.json`; each of the four crossfades
