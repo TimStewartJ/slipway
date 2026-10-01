@@ -343,15 +343,17 @@ kept growing because of chain 8.
 
 **Fixes.**
 - Distant Horizons, at the source: local branch `slipway-leak-fix` of `E:\distant-horizons` (wrapper `aa2e97405`,
-  core `5e93372c4`, not pushed), patches L1-L8 in its `PATCHES.md`, with core unit tests for the injector
+  core `5e93372c4`; never pushed, kept as the local tag `archive/slipway-leak-fix`), patches L1-L8 in its
+  `PATCHES.md`, with core unit tests for the injector
   (`testWorldGeneratorUnbindReleasesTheLevel`, `testConcurrentWorldGeneratorBinding`, the latter failing on the old
   map). The build `3.3.1-tellus-fork.6-leakfix.9` was used by the client GameTests (`devmods/test`) and the test
   instance, and since 0.1.1 by the play instance (the player's choice); the client GameTests now use its successor
   `...-leakfix.9-irisfix.1` (below, "Dark blotches"). The same work fixed a DH thread leak (one "World Gen Progress Updater"
   thread per level per world) and a DH bug that dropped every block-use packet when a client hosts a dedicated server
   in-process.
-  Since the evening of 2026-09-30 the fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
-  `rebase-3.3.4`). It carries the versions of these fixes prepared for upstream (A-G in its `PATCHES.md`) instead of
+  Since the evening of 2026-09-30 the fork is rebased onto official 3.3.4 and published as
+  [`3.3.4-tellus-fork.7`](https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7). It
+  carries the versions of these fixes prepared for upstream (A-G in its `PATCHES.md`) instead of
   L1-L8, and it is the Distant Horizons of the client GameTests and of the play instance.
 - Iris and vanilla, mitigated in Slipway: `ClosedWorldCleanup` (client, the first tick without a world) clears
   vanilla's visible-section list and Iris's override cache through guarded reflection (hook `iris-overrides-cache` in
@@ -455,7 +457,8 @@ fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the b
    the camera is still and changes when it moves (what is already in the buffers, section draw order) is inferred,
    not traced.
 
-**Fixes** (Distant Horizons fork, local branch `slipway-iris-fixes`, not pushed; see its PATCHES.md):
+**Fixes** (Distant Horizons fork, local branch `slipway-iris-fixes`; never pushed, kept as the local tag
+`archive/slipway-iris-fixes`; see its PATCHES.md):
 - I1, wrapper d50c680f3: backport of upstream `95bbccaff`; on 26.2+ every buffer is set through
   `GlStateManager._enableBlend(i)`/`_disableBlend(i)` and `glEnablei`/`glDisablei`, so cache and GL stay equal.
 - I2, core 9572e8aa0: the render pass is chosen again after `DhApiBeforeRenderEvent`, where Iris sets its
@@ -470,12 +473,17 @@ fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the b
   where Iris reads it on 26.1.2+) and `01b9370b5` (GL state left to Iris while a shader pack is active; rendering with a
   boat on screen). Moving the fork to upstream 3.3.4 brings all three.
 
-**Resolution (2026-09-30, evening).** The fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
-`rebase-3.3.4` of `E:\distant-horizons`, SHA-256 of the Fabric 26.3 jar `BCF32F99...FEF10`), which contains upstream's
-blend fix instead of the backport I1, and keeps I2. With it: the diagnostic on the copy of the player's world measures
+**Resolution (2026-09-30, evening).** The fork is rebased onto official 3.3.4 and published as
+[`3.3.4-tellus-fork.7`](https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7), which
+contains upstream's blend fix instead of the backport I1, and keeps I2. With it: the diagnostic on the copy of the
+player's world measures
 121.7 / 121.6 / 121.8 / 121.8 (`E:\slipway-e2e\diag\run20-fork7-userlods`); `render-iris` passes with the cache in
 sync at every sampling point and the unchanged reference images (near 4.0e-5, far 4.4e-5); no run logged Iris's
 message. It is installed in the play instance and in the Tellus instances.
+These checks ran on a local build of the same sources (Fabric 26.3 jar SHA-256 `BCF32F99...FEF10`). The instances now
+hold the published jars (`EF401FD5...6CF6` for Fabric 26.3), which were not started again: every class in them is
+byte-identical to the local build, and they differ only in line endings of 66 text files and in the embedded commit
+id (`E:\slipway-e2e\runs\dh-fork7-release-check-20260930-2320\report.json`).
 
 **Regression check.** `GlStateCheck` (client GameTest `render-iris`, near and far views with Bliss) compares the
 per-buffer blend and colour-write-mask cache with GL at five of Fabric's level render events and between frames, over
@@ -519,8 +527,9 @@ evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`
 `-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`,
 `-PslipwayTestDhConfig=<file>` (a Distant Horizons config to start from; otherwise its defaults).
 The run uses Sodium, Iris with Bliss (copied into the run directory; shaders are switched on through Iris's API where
-a scenario needs them) and the Distant Horizons build from `devmods/test` when there is one (now
-`3.3.4-tellus-fork.7`, the same jar as `devmods`; before it the patched `...-leakfix.9-irisfix.1`). Every run starts
+a scenario needs them) and the play stack's Distant Horizons from `devmods` (`3.3.4-tellus-fork.7`), unless
+`devmods/test` holds another build to try (`tools/setup-devmods.ps1 -TestDhJar`; this is how the patched
+`...-leakfix.9-irisfix.1` was tested before fork.7). Every run starts
 from fresh game options and DH defaults
 (`prepareClientGametestRun` deletes `options.txt` and `DistantHorizons.toml`).
 Checks read game state on the server and client threads (vessel records, client vessels, riders, block states,

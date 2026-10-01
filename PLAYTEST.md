@@ -10,7 +10,8 @@ angle.
 - Prism instance **Slipway - Minecraft 26.3 (Fabric)** (`Slipway-MC-26.3-Fabric`): Minecraft 26.3, Fabric loader
   0.19.5, Fabric API, Sodium, Iris (Bliss shaders on), Distant Horizons, Slipway. Your Tellus 26.3 options and key
   layout were copied over. Distant Horizons here is `3.3.4-tellus-fork.7`: official Distant Horizons 3.3.4 plus the
-  Tellus patches and the fixes from the leak investigation (local branch `rebase-3.3.4` in `E:\distant-horizons`).
+  Tellus patches and the fixes from the leak investigation, published at
+  https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7.
   Your Tellus instances (26.3 and 26.2) have the same build; the 26.2 one needed its Fabric loader raised from 0.19.3
   to 0.19.5 for it.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
