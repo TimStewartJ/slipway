@@ -245,17 +245,26 @@ public final class VesselManager {
 			vessel.viewers.add(player);
 			ServerPlayNetworking.send(player, info);
 			ServerPlayNetworking.send(player, pose);
-			for (long chunk : vessel.ticketChunks) {
+			for (long chunk : vessel.viewChunks) {
 				LevelChunk levelChunk = this.level.getChunkSource().getChunkNow(ChunkPos.getX(chunk), ChunkPos.getZ(chunk));
 				if (levelChunk != null) {
 					player.connection.send(new ClientboundLevelChunkWithLightPacket(levelChunk, this.level.getLightEngine(), null, null));
 				}
 			}
 		}
+		// Every column that is loaded has gone to everyone who views the vessel so far (later viewers get them when they
+		// start to view); a column of the ring that is not loaded yet stays in unsentChunks and follows.
+		List<Long> sent = new ArrayList<>();
+		for (long chunk : vessel.viewChunks) {
+			if (this.level.getChunkSource().getChunkNow(ChunkPos.getX(chunk), ChunkPos.getZ(chunk)) != null) {
+				sent.add(chunk);
+			}
+		}
+		vessel.unsentChunks.removeAll(sent);
 		// Those chunk packets carry the light from before the blocks moved in (vanilla only sends chunks once their light
 		// work is done); send the finished light as soon as the light engine has caught up.
 		ThreadedLevelLightEngine lightEngine = this.level.getChunkSource().getLightEngine();
-		for (long chunk : vessel.ticketChunks) {
+		for (long chunk : sent) {
 			int chunkX = ChunkPos.getX(chunk);
 			int chunkZ = ChunkPos.getZ(chunk);
 			lightEngine.waitForPendingTasks(chunkX, chunkZ).thenRunAsync(() -> {
@@ -400,7 +409,7 @@ public final class VesselManager {
 	 */
 	private void retire(long id, @Nullable ActiveVessel vessel, VesselRecord record) {
 		List<ServerPlayer> viewers = vessel == null ? List.of() : List.copyOf(vessel.viewers);
-		List<Long> chunks = vessel == null ? List.of() : List.copyOf(vessel.ticketChunks);
+		List<Long> chunks = vessel == null ? List.of() : List.copyOf(vessel.viewChunks);
 		if (vessel != null) {
 			vessel.viewers.clear();
 			this.deactivate(vessel, true);
@@ -465,7 +474,7 @@ public final class VesselManager {
 	private void activate(VesselRecord record, VesselEntity entity) {
 		ActiveVessel vessel = new ActiveVessel(record, entity);
 		this.active.put(record.id, vessel);
-		this.addTickets(vessel);
+		vessel.unsentChunks.addAll(this.addTickets(vessel));
 		entity.updateFrom(record.pose, record.helm, record.helmFacing, worldCentre(record));
 		Slipway.LOGGER.debug("Activated vessel {}", record.id);
 	}
@@ -617,12 +626,19 @@ public final class VesselManager {
 	// Plot chunks: tickets and viewers
 	// ---------------------------------------------------------------------------------------------------------
 
-	/** Tickets every plot chunk column of the vessel's bounds that has no ticket yet and returns those. */
+	/**
+	 * Tickets every plot chunk column of the vessel's bounds that has no ticket yet, and returns the columns that are
+	 * new to what viewers get: those and the ring around them (the tickets reach two columns out, so the ring loads).
+	 */
 	private List<Long> addTickets(ActiveVessel vessel) {
-		List<Long> added = new ArrayList<>();
-		for (long chunk : plotChunks(vessel.record)) {
+		for (long chunk : plotChunks(vessel.record, 0)) {
 			if (vessel.ticketChunks.add(chunk)) {
 				this.level.getChunkSource().addTicketWithRadius(SlipwayRegistry.VESSEL_TICKET, ChunkPos.unpack(chunk), 2);
+			}
+		}
+		List<Long> added = new ArrayList<>();
+		for (long chunk : plotChunks(vessel.record, 1)) {
+			if (vessel.viewChunks.add(chunk)) {
 				added.add(chunk);
 			}
 		}
@@ -634,16 +650,22 @@ public final class VesselManager {
 			this.level.getChunkSource().removeTicketWithRadius(SlipwayRegistry.VESSEL_TICKET, ChunkPos.unpack(chunk), 2);
 		}
 		vessel.ticketChunks.clear();
+		vessel.viewChunks.clear();
 		vessel.unsentChunks.clear();
 	}
 
 	/** The plot chunk columns covering a vessel's current bounds. */
 	public static List<Long> plotChunks(VesselRecord record) {
+		return plotChunks(record, 0);
+	}
+
+	/** The plot chunk columns covering a vessel's current bounds and {@code ring} columns around them. */
+	public static List<Long> plotChunks(VesselRecord record, int ring) {
 		BlockPos min = record.plotMin();
 		BlockPos max = record.plotMax();
 		List<Long> chunks = new ArrayList<>();
-		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
-			for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
+		for (int cx = (min.getX() >> 4) - ring; cx <= (max.getX() >> 4) + ring; cx++) {
+			for (int cz = (min.getZ() >> 4) - ring; cz <= (max.getZ() >> 4) + ring; cz++) {
 				chunks.add(ChunkPos.pack(cx, cz));
 			}
 		}
@@ -660,9 +682,10 @@ public final class VesselManager {
 	}
 
 	/**
-	 * Grows a vessel's bounds to include a local position and loads and shares any new plot chunk column. Only new
-	 * columns are sent, each once: sending a chunk again replaces it on the client, which costs a full remesh and
-	 * deletes what the client keeps there by itself (the moving blocks of a piston's stroke).
+	 * Grows a vessel's bounds to include a local position and loads and shares any new plot chunk column (of the
+	 * bounds or of the ring around them). Only new columns are sent, each once: sending a chunk again replaces it on
+	 * the client, which costs a full remesh and deletes what the client keeps there by itself (the moving blocks of a
+	 * piston's stroke).
 	 */
 	public void includeLocal(ActiveVessel vessel, BlockPos local) {
 		BlockPos oldMin = vessel.record.localMin;
@@ -676,9 +699,9 @@ public final class VesselManager {
 	}
 
 	/**
-	 * Sends viewers the columns ticketed since they got the plot. A column next to the old bounds is loaded already
-	 * (tickets reach two columns out) and goes out at once; one further off (a block set far outside the vessel by a
-	 * command) goes out in the tick it has loaded.
+	 * Sends viewers the columns that were not loaded when they got the others, each in the tick it has loaded: the
+	 * ring around a vessel that has just been loaded from a save, or columns that came with a block set far outside
+	 * the vessel by a command. (A column next to columns that were loaded before is loaded already and goes out at once.)
 	 */
 	private void sendNewChunks(ActiveVessel vessel) {
 		var chunks = vessel.unsentChunks.iterator();
@@ -723,7 +746,7 @@ public final class VesselManager {
 	}
 
 	private void sendChunks(ActiveVessel vessel, ServerPlayer player) {
-		this.sendChunks(player, vessel.ticketChunks);
+		this.sendChunks(player, vessel.viewChunks);
 	}
 
 	private void sendChunks(ServerPlayer player, Iterable<Long> chunks) {
@@ -739,7 +762,7 @@ public final class VesselManager {
 		if (player.isRemoved() || player.level() != this.level) {
 			return;
 		}
-		for (long chunk : vessel.ticketChunks) {
+		for (long chunk : vessel.viewChunks) {
 			player.connection.chunkSender.dropChunk(player, ChunkPos.unpack(chunk));
 		}
 	}
@@ -747,7 +770,8 @@ public final class VesselManager {
 	/** Whether a player has been sent a reserved chunk (used by the chunk-tracking hook). */
 	public boolean isPlotChunkViewed(ServerPlayer player, int chunkX, int chunkZ) {
 		ActiveVessel vessel = this.activeAtPlot(VesselRegion.plotAtChunk(chunkX, chunkZ));
-		return vessel != null && vessel.viewers.contains(player) && vessel.ticketChunks.contains(ChunkPos.pack(chunkX, chunkZ));
+		long chunk = ChunkPos.pack(chunkX, chunkZ);
+		return vessel != null && vessel.viewers.contains(player) && vessel.viewChunks.contains(chunk) && !vessel.unsentChunks.contains(chunk);
 	}
 
 	// ---------------------------------------------------------------------------------------------------------

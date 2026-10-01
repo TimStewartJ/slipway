@@ -33,6 +33,8 @@ on other vessels.
 - **Effects are at the ship**: bone meal's sparkle on crops, a dispenser's smoke, note block notes, lever dust, the
   chips and the sound of mining a block of the ship.
 - **No blink when disassembling**: the ship stays on screen until its blocks are there.
+- **No black sides**: small builds that begin at their helm (the helm on a corner or an edge) had black west and
+  north sides; they are lit now.
 
 Fixes from 0.1.1 are below.
 

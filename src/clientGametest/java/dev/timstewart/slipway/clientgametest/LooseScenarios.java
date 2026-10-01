@@ -323,6 +323,21 @@ final class LooseScenarios {
 			double startY = Game.serverPose(server, carrier).y();
 			r.metric("carrier.massTonnes", mass / 1000.0);
 			r.metric("cargo.loadFractionOfCarrierWeight", load);
+			// Every face of these vessels that looks sideways or up is under the open sky. A client lights a face by
+			// the block next to it, and the pieces begin at their helm, which stands on a chunk corner of the plot:
+			// their west and north faces were black as long as the client had only the columns of the bounds.
+			for (long id : everything) {
+				Game.waitClientComplete(ctx, id, 400);
+			}
+			int darkest = 15;
+			for (long id : everything) {
+				for (Direction side : new Direction[] {Direction.WEST, Direction.EAST, Direction.NORTH, Direction.SOUTH, Direction.UP}) {
+					int sky = ctx.computeOnClient(mc -> ClientVessels.get(id).mesh.minSkyLight(side));
+					Check.that(sky >= 14, "vessel %d: its faces looking %s are drawn with sky light %d", id, side.getName(), sky);
+					darkest = Math.min(darkest, sky);
+				}
+			}
+			r.metric("mesh.darkestSkyLightOfSideAndTopFaces", darkest);
 			Shots.take(ctx, r, "01-before-drop");
 
 			// Drop them: the agreed command makes each a plain rigid body.

@@ -30,6 +30,9 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   Flying and stopping an unloaded vessel feel the same as before.
 - **No blink at disassembly.** A disassembled vessel stays drawn until the terrain shows its blocks (it vanished for
   a moment before).
+- **No black sides.** Sides of a vessel that lie on a chunk border of its storage area were drawn black, in any
+  light: most often the west and north sides of a small build that begins at its helm (a crate, a keg, a raft with
+  the helm on its edge). In 0.1.0 and 0.1.1.
 - Placing a block outside a vessel's bounds no longer sends the whole vessel to its viewers again.
 - A piston refuses a push that would carry blocks out of the vessel's storage area; disassembling while a piston
   moves lets the stroke finish first.

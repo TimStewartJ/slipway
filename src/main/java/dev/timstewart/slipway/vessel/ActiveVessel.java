@@ -17,7 +17,13 @@ public final class ActiveVessel {
 	public final LongLinkedOpenHashSet ticketChunks = new LongLinkedOpenHashSet();
 	/** True once every ticketed plot chunk is loaded. */
 	public boolean chunksReady;
-	/** Columns ticketed when the bounds grew that viewers have not been sent yet (each goes out once it is loaded). */
+	/**
+	 * Plot chunk columns that viewers get: the ticketed ones and the ring of columns around them. A client lights a
+	 * face by the block next to it, so without the ring every face on the outer edge of the ticketed columns was drawn
+	 * black (the helm stands on a chunk corner of the plot: a vessel that begins at its helm has such faces).
+	 */
+	public final LongLinkedOpenHashSet viewChunks = new LongLinkedOpenHashSet();
+	/** Columns of {@link #viewChunks} that were not loaded yet when viewers got the others; each goes out once it is. */
 	public final LongLinkedOpenHashSet unsentChunks = new LongLinkedOpenHashSet();
 	/** Players who have been sent this vessel's plot chunks. */
 	public final Set<ServerPlayer> viewers = new HashSet<>();

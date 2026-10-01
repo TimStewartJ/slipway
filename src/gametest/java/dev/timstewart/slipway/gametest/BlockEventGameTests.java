@@ -408,7 +408,7 @@ public class BlockEventGameTests {
 			.thenExecute(() -> {
 				vessel.viewers.add(viewer.player());
 				vessel.viewerGraceUntil = level.getGameTime() + 200;
-				before.addAll(vessel.ticketChunks);
+				before.addAll(vessel.viewChunks);
 				level.setBlock(far, Blocks.COBWEB.defaultBlockState(), 2);
 				check(helper, record.localMax.getX() == 100, "the bounds did not grow to the block: " + record.localMax);
 				deferred[0] = vessel.unsentChunks.size();
@@ -418,16 +418,50 @@ public class BlockEventGameTests {
 				// The columns between the old bounds and the block were not loaded when the bounds grew.
 				check(helper, deferred[0] > 0, "every new column was loaded at once: the test did not reach the waiting columns");
 				int added = 0;
-				for (long chunk : vessel.ticketChunks) {
+				for (long chunk : vessel.viewChunks) {
 					if (!before.contains(chunk)) {
 						added++;
 						check(helper, hasChunk(viewer, chunk), "the viewer was not sent the new column " + ChunkPos.unpack(chunk));
 					}
 				}
-				check(helper, added >= 6, "only " + added + " columns were added");
+				// Six more columns of bounds, and the ring around them: four columns wide and one beyond the block.
+				check(helper, added == 24, added + " columns were added");
+				check(helper, hasChunk(viewer, ChunkPos.pack((far.getX() >> 4) + 1, far.getZ() >> 4)), "the column beyond the block was not sent");
 				vessel.viewers.remove(viewer.player());
 				// Its bounds stay long; take it away so it does not lie across the arenas next door.
 				VesselManager.get(level).remove(record.id);
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void viewersHaveTheColumnsAroundAVesselToo(GameTestHelper helper) {
+		// A three by three deck round its helm: the helm stands on a chunk corner of the plot, so four columns.
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		ServerLevel level = helper.getLevel();
+		VesselManager manager = VesselManager.get(level);
+		Vec3 atVessel = Vec3.atCenterOf(helper.absolutePos(helm));
+		Spy viewer = spy(helper, atVessel.add(3, 0, 0));
+		Spy stranger = spy(helper, atVessel.add(-3, 0, 0));
+		int cx = record.anchor.getX() >> 4;
+		int cz = record.anchor.getZ() >> 4;
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, settled(vessel) && vessel.chunksReady && vessel.unsentChunks.isEmpty(), "the vessel is not ready yet"))
+			.thenExecute(() -> {
+				vessel.viewers.add(viewer.player());
+				vessel.viewerGraceUntil = level.getGameTime() + 100;
+				check(helper, vessel.ticketChunks.size() == 4, vessel.ticketChunks.size() + " columns hold the vessel's blocks");
+				check(helper, vessel.viewChunks.size() == 16, vessel.viewChunks.size() + " columns are shared with viewers");
+				// A face is lit by the block next to it: the client needs the columns next to the vessel's own.
+				for (int[] column : new int[][] {{-2, -2}, {-2, 0}, {1, -1}, {1, 1}, {-1, -1}, {0, 0}}) {
+					check(helper, manager.isPlotChunkViewed(viewer.player(), cx + column[0], cz + column[1]), "the viewer does not have column " + column[0] + ", " + column[1]);
+					check(helper, level.getChunkSource().getChunkNow(cx + column[0], cz + column[1]) != null, "column " + column[0] + ", " + column[1] + " is not loaded");
+					check(helper, !manager.isPlotChunkViewed(stranger.player(), cx + column[0], cz + column[1]), "a player who does not view the vessel has its column");
+				}
+				check(helper, !manager.isPlotChunkViewed(viewer.player(), cx - 3, cz) && !manager.isPlotChunkViewed(viewer.player(), cx, cz + 2), "the viewer has columns two out");
+				vessel.viewers.remove(viewer.player());
 			})
 			.thenSucceed();
 	}

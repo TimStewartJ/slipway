@@ -126,6 +126,30 @@ public final class VesselMesh {
 		return count;
 	}
 
+	/**
+	 * The lowest sky light (0 to 15) baked into the faces that look along a direction of the vessel's frame, or -1
+	 * without such a face (to check that the faces at the edge of the vessel's chunk columns are lit).
+	 */
+	public int minSkyLight(net.minecraft.core.Direction direction) {
+		int wanted = packNormal(direction.getStepX(), direction.getStepY(), direction.getStepZ());
+		int min = -1;
+		for (SectionMesh mesh : this.sections.values()) {
+			for (MeshBuffer buffer : mesh.layers) {
+				if (buffer == null) {
+					continue;
+				}
+				int[] d = buffer.data;
+				for (int v = 0, i = 0; v < buffer.vertices; v++, i += STRIDE) {
+					if (d[i + 7] == wanted) {
+						int sky = net.minecraft.util.LightCoordsUtil.sky(d[i + 6]);
+						min = min < 0 ? sky : Math.min(min, sky);
+					}
+				}
+			}
+		}
+		return min;
+	}
+
 	public boolean isEmpty() {
 		return this.sections.isEmpty();
 	}

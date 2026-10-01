@@ -208,6 +208,24 @@ accepted only from the vessel's pilot, rate-limited (40 per second), with NaN/In
 [-1, 1] (`ServerPackets`). Vanilla use/break packets aimed at plot positions are checked for reach against where
 the block is in the world (`PlayerMixin`).
 
+**Which plot chunks viewers get (0.1.2).** The columns that hold the vessel's blocks (ticketed,
+`ActiveVessel.ticketChunks`) and the ring of columns around them (`viewChunks`). The ring is empty, and it is what
+lights the vessel's outer faces: vanilla's block renderer takes a face's light from the block next to it, and in a
+column the client does not have, the client's light is 0. Up to 0.1.1 viewers got the ticketed columns only, so every
+face on their outer edge was drawn black. That is common, because the helm stands in the middle of the plot, which is a
+chunk corner: a build that begins at its helm (a keg, a raft with the helm on its edge, a 2x2x2 crate) had black west
+and north sides, in any light and at any attitude. Found by the film agent in a close view of cargo; it measured sky
+light 0 on exactly those faces and 15 on all others. The tickets reach two columns out, so the ring is loaded
+anyway; assembly loads it with the vessel's own columns so that both go out in the same tick
+(`VesselAssembly.loadPlotChunks`), and for a vessel loaded from a save a ring column that is not loaded yet follows
+when it is (`unsentChunks`). When a column's light is switched on, the client marks the columns around it for
+rebuilding (vanilla's `enableChunkLight`, through `ClientLevelMixin`), so the faces are remeshed when the ring
+arrives. Cost: 8 more empty chunk packets for a vessel in one column, 14 for one of three by two. Checked by the
+client GameTest `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten
+pieces, which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by
+`save-reload` (a crate that begins at its helm and is in view when the world is reopened: 15 before quitting and
+after loading; 0 without the ring) and by the server GameTest `viewersHaveTheColumnsAroundAVesselToo`.
+
 ### Client
 
 `ClientVessel` plays poses back two ticks late through an adaptive jitter buffer (rate within ±10%, jumps only when
@@ -275,9 +293,9 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
 - Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
   sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
   blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and
-  costs a remesh of the whole vessel for every block placed beyond the bounds. Each new column goes out once: at
-  once when it is loaded (the columns next to the bounds are, tickets reach two columns out), otherwise in the tick
-  it has loaded (`ActiveVessel.unsentChunks`; a command can set a block many columns outside the vessel).
+  costs a remesh of the whole vessel for every block placed beyond the bounds. Each new column (of the bounds or of
+  the ring around them, see "Which plot chunks viewers get") goes out once: at once when it is loaded, otherwise in
+  the tick it has loaded (`ActiveVessel.unsentChunks`; a command can set a block many columns outside the vessel).
 - A push that would put the head or a block into the 32-block margin of the plot is refused
   (`PistonStructureResolverMixin`, like vanilla's refusal at the build height): pistons are the one thing that moves
   blocks by itself, and a slime-block flying machine must not walk into the neighbouring plot. A block that gets
@@ -704,7 +722,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 45 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 46 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
