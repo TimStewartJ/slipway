@@ -120,8 +120,10 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 				for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
 					BlockEntityRenderState beState = extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot);
 					if (beState != null) {
+						BlockPos local = blockEntity.getBlockPos().subtract(vessel.anchor);
 						state.blockEntities.add(beState);
-						state.blockEntityLocal.add(blockEntity.getBlockPos().subtract(vessel.anchor));
+						state.blockEntityLocal.add(local);
+						SlipwayDebug.blockEntityDrawn(vessel.id, blockEntity, local);
 					}
 				}
 			}

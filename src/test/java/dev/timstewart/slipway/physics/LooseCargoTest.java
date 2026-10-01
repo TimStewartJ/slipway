@@ -404,18 +404,24 @@ class LooseCargoTest {
 	void looseVesselsAtRestOnTerrainSleepAndWakeWhenTheirSupportGoes() {
 		try (World world = new World()) {
 			world.engine.setStaticSection(1L, floor(false), 1000, 64, -2000);
+			world.engine.setStaticSection(2L, floor(false), 1064, 64, -2000);
 			Vessel lower = world.add(box(2, 1, 1, 700f), VesselPose.at(1004, 67, -1994), true);
 			Vessel upper = world.add(box(1, 1, 1, 700f), VesselPose.at(1004.3, 70, -1994), true);
+			Vessel far = world.add(box(1, 1, 1, 700f), VesselPose.at(1068, 67, -1994), true);
 			world.step(100);
 			assertEquals(65.0, lower.state.y, 0.03, "the lower vessel rests on the floor");
 			assertEquals(66.0, upper.state.y, 0.05, "the upper vessel rests on the lower one");
-			assertFalse(lower.state.active || upper.state.active, "the pile at rest on terrain is still simulated");
+			assertFalse(lower.state.active || upper.state.active || far.state.active, "the vessels at rest on terrain are still simulated");
 			world.step(100);
 			assertEquals(66.0, upper.state.y, 0.05, "the sleeping pile moved");
 
-			// Take the lower vessel away (disassembled or removed): the upper one must fall, not hang in the air.
+			// Take the lower vessel away (disassembled or removed): the upper one must fall, not hang in the air. A
+			// sleeper 64 blocks away has nothing to do with it and sleeps on.
 			world.remove(lower);
-			world.step(40);
+			world.step(1);
+			assertTrue(upper.state.active, "the vessel resting on a removed vessel was not woken");
+			assertFalse(far.state.active, "a vessel 64 blocks away was woken when another vessel was removed");
+			world.step(39);
 			assertEquals(65.0, upper.state.y, 0.03, "the upper vessel did not fall when the vessel under it was removed");
 			world.step(40);
 			assertFalse(upper.state.active, "the vessel did not go back to sleep");

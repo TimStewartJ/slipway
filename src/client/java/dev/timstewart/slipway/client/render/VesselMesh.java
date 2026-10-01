@@ -88,6 +88,28 @@ public final class VesselMesh {
 		return this.vertexCount;
 	}
 
+	/** How many vertices lie inside a box given in vessel-local coordinates (to check that a block is drawn where it is). */
+	public int vertexCountIn(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+		int count = 0;
+		for (SectionMesh mesh : this.sections.values()) {
+			for (MeshBuffer buffer : mesh.layers) {
+				if (buffer == null) {
+					continue;
+				}
+				int[] d = buffer.data;
+				for (int v = 0, i = 0; v < buffer.vertices; v++, i += STRIDE) {
+					float x = Float.intBitsToFloat(d[i]);
+					float y = Float.intBitsToFloat(d[i + 1]);
+					float z = Float.intBitsToFloat(d[i + 2]);
+					if (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ) {
+						count++;
+					}
+				}
+			}
+		}
+		return count;
+	}
+
 	public boolean isEmpty() {
 		return this.sections.isEmpty();
 	}

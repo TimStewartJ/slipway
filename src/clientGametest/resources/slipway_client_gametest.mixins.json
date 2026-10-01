@@ -4,7 +4,9 @@
 	"package": "dev.timstewart.slipway.clientgametest.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"IntegratedServerHaltMixin"
+		"IntegratedServerHaltMixin",
+		"ParticleRecorderMixin",
+		"SoundRecorderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

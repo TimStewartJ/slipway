@@ -192,6 +192,8 @@ public final class SlipwayDebug {
 	private static final int TRACE_LIMIT = 20_000;
 	private static long traceId = -1;
 	private static final List<double[]> TRACE = new ArrayList<>();
+	private static long blockEntitiesId = -1;
+	private static final java.util.Set<String> DRAWN_BLOCK_ENTITIES = new java.util.LinkedHashSet<>();
 	private static final int RIDER_TRACE_LIMIT = 4_000;
 	private static long riderTraceId = -1;
 	private static final List<String> RIDER_TRACE = new ArrayList<>();
@@ -247,6 +249,28 @@ public final class SlipwayDebug {
 			out.append(" || ").append(RIDER_TRACE.get(i));
 		}
 		return out.toString();
+	}
+
+	/** Starts collecting which block entities of a vessel the renderer draws. */
+	public static String blockEntitiesStart(long id) {
+		DRAWN_BLOCK_ENTITIES.clear();
+		blockEntitiesId = id;
+		return "watching block entities of " + id;
+	}
+
+	/** Called by the renderer for every block entity it has a render state for. */
+	public static void blockEntityDrawn(long id, net.minecraft.world.level.block.entity.BlockEntity blockEntity, BlockPos local) {
+		if (id == blockEntitiesId && DRAWN_BLOCK_ENTITIES.size() < TRACE_LIMIT) {
+			DRAWN_BLOCK_ENTITIES.add(net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType()) + "@" + local.toShortString());
+		}
+	}
+
+	/** Stops collecting: every block entity drawn since the start, as "type@x, y, z" (vessel-local), one per line. */
+	public static String blockEntitiesStop() {
+		blockEntitiesId = -1;
+		String out = String.join("\n", DRAWN_BLOCK_ENTITIES);
+		DRAWN_BLOCK_ENTITIES.clear();
+		return out;
 	}
 
 	/** Starts recording the rendered pose of a vessel every frame (for the smoothness check). */

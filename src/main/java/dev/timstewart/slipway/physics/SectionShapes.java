@@ -3,6 +3,8 @@ package dev.timstewart.slipway.physics;
 import java.util.Arrays;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.piston.PistonMovingBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -58,7 +60,9 @@ public final class SectionShapes {
 					if (shape.isEmpty()) {
 						continue;
 					}
-					float density = BlockDensity.densityOf(state);
+					// A block a piston is moving keeps its own weight while it moves (the moving-piston block has none).
+					float density = BlockDensity.densityOf(state.is(Blocks.MOVING_PISTON) && level.getBlockEntity(this.cursor) instanceof PistonMovingBlockEntity moving
+						? moving.getMovedState() : state);
 					for (AABB box : shape.toAabbs()) {
 						out.add((float)(dx + x + box.minX), (float)(dy + y + box.minY), (float)(dz + z + box.minZ),
 							(float)(dx + x + box.maxX), (float)(dy + y + box.maxY), (float)(dz + z + box.maxZ), density);

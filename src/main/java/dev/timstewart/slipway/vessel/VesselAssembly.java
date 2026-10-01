@@ -15,7 +15,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.piston.PistonMovingBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
@@ -134,6 +136,35 @@ public final class VesselAssembly {
 			}
 		}
 		return new Placement(turns, worldAnchor, null);
+	}
+
+	/**
+	 * Lets every piston in the plot finish its stroke now. A block in mid-move is a block entity that knows what it
+	 * becomes and which way it goes in the plot's frame; it cannot be turned with the vessel or carried over half way.
+	 */
+	static void finishPistonMoves(ServerLevel level, VesselRecord record) {
+		List<PistonMovingBlockEntity> moving = new ArrayList<>();
+		BlockPos min = record.plotMin();
+		BlockPos max = record.plotMax();
+		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
+			for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
+				LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+				if (chunk == null) {
+					continue;
+				}
+				for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+					if (blockEntity instanceof PistonMovingBlockEntity piston) {
+						moving.add(piston);
+					}
+				}
+			}
+		}
+		for (PistonMovingBlockEntity piston : moving) {
+			// Two half steps and the step that puts the block down.
+			for (int step = 0; step < 4 && !piston.isRemoved(); step++) {
+				PistonMovingBlockEntity.tick(level, piston.getBlockPos(), piston.getBlockState(), piston);
+			}
+		}
 	}
 
 	/** Moves the vessel's blocks back into the world; the caller has checked {@link #plan} and removes the record. */
