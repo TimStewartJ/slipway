@@ -327,8 +327,7 @@ Measured by the client GameTest `disassembly`: the frame on the screen before ea
 disassembly (copied with the game's own screenshot copy, which skips no tick; a test screenshot takes several) is
 compared with the picture before, for a 58-block ship, for a 2,080-block carrier, and for the carrier with Sodium
 limited to one build thread. With the picture kept the ship is whole in every frame of every run (largest
-difference 3% of what a missing ship makes: the blocks' lighting) and the gone vessel is drawn for 2 ticks, 3 with
-one build thread. With it turned off (`ClientVessels.keepGoneVessels`, for this test) the ship is missing from one
+difference 3% of what a missing ship makes: the blocks' lighting) and the gone vessel is drawn for 2 or 3 ticks. With it turned off (`ClientVessels.keepGoneVessels`, for this test) the ship is missing from one
 of the twelve frames in most runs and from none in some: the gap is about a tick long there and does not always
 cover the frame at a tick's end. In free-running play the film agent measured two ticks without the ship (four and
 eight in other runs of its 2,503-block galleon under shaders at film resolution, where frames are slow).
