@@ -156,7 +156,9 @@ pose packet's flags) makes a vessel a plain rigid body: `VesselController.drive`
 whatever the helm, hover and level say, so only gravity, contacts and friction move it. Hover and level keep their
 values and apply again when loose ends. It is switched by `/slipway mode <id> loose true|false` and by the pilot's
 "Toggle loose" key. The key's default is U: G, the neighbour of H, is vanilla 26.3's quick-actions key, and Iris
-takes K, O and R.
+takes K, O and R. There is no buoyancy: vessels collide with blocks that have a collision shape, water has none, so
+a loose vessel sinks through water to the bottom, wooden or not (`aLooseWoodenVesselSinksThroughWater`). Entities do
+not push vessels.
 
 **Holding.** Until 0.1.1 a hovering vessel only had its weight cancelled and its speed braked, and with level off only
 its turn rate braked. That is no hold: anything resting on it pushed it down for as long as it lay there (10 crates on
@@ -674,13 +676,21 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
-| Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller, records, engine lifecycle with Debug natives) | `src/test` | seconds |
-| Server GameTests | assembly, physics, interaction and packets inside a headless server | `src/gametest`, `runGametest` | ~10 s |
-| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~10 min (2-minute soak, as in `check`); ~28 min with the 20-minute soak |
-| Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
+| Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 44 tests (the farm test runs 1,000 ticks) |
+| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
+| Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs twelve
-scenarios (`SlipwayClientGameTests`); each starts at the title screen with default options, a failure is recorded
+**Server GameTests** run all at once, each in its own arena: `slipway:arena`, 16 blocks each way, which the
+framework closes with barrier blocks (walls, floor and ceiling). Vessels collide with barriers like with any block,
+so a vessel in a server GameTest flies inside its box (rising, sinking, turning) and cannot reach the test beside
+it. Blocks changed in one arena can still wake a loose vessel sleeping in the next (terrain sections are shared).
+Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
+sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
+
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs sixteen
+scenarios (`SlipwayClientGameTests`; 0.1.2 added `loose-cargo`, `block-events`, `farm` and `disassembly`); each starts
+at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and
 evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`. Options:

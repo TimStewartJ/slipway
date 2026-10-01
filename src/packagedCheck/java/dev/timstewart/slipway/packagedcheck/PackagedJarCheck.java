@@ -21,15 +21,18 @@ import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 
 /**
  * The packaged-jar check: the release jar with the exact play-stack jars in production Minecraft. Every mixin of every
  * mod must apply (Mixin's audit loads every target class), the expected mods and versions must be present, Mixin and
- * Fabric Loader must report no error, and Slipway must work: a world opens, a ship assembles and the client shows it.
- * The result is written as JSON to {@code slipway.packagedCheck.report}.
+ * Fabric Loader must report no error, and Slipway must work: a world opens, a ship assembles and the client shows it,
+ * a block event of a vessel block reaches the client (a chest's lid opens), and a vessel set loose falls on both
+ * sides. The result is written as JSON to {@code slipway.packagedCheck.report}.
  */
 public final class PackagedJarCheck implements FabricClientGameTest {
+	private static final BlockPos CHEST = new BlockPos(1, 0, 1);
 	private static final List<String> EXPECTED = modList("slipway.packagedCheck.expectedMods", "slipway,fabric-api,sodium,iris,distanthorizons");
 	private static final List<String> ABSENT = modList("slipway.packagedCheck.absentMods", "");
 
@@ -67,6 +70,7 @@ public final class PackagedJarCheck implements FabricClientGameTest {
 						}
 					}
 					level.setBlock(helm, SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.NORTH), 2 | 16);
+					level.setBlock(helm.offset(CHEST), Blocks.CHEST.defaultBlockState(), 2 | 16);
 					VesselAssembly.Outcome outcome = VesselManager.get(level).assemble(helm, null);
 					if (!outcome.success() || outcome.record() == null) {
 						throw new AssertionError("assembly failed in production: " + outcome.message().getString());
@@ -75,6 +79,22 @@ public final class PackagedJarCheck implements FabricClientGameTest {
 				});
 				ctx.waitFor(mc -> ClientVessels.get(id) != null && ClientVessels.get(id).ready(), 400);
 				report.put("vesselAssembled", id);
+
+				// A block event at a vessel block: the server says "lid open", the client's chest in the plot opens.
+				BlockPos plotChest = sp.getServer().computeOnServer(server -> {
+					var level = server.overworld();
+					BlockPos chest = VesselManager.get(level).active(id).record.toPlot(CHEST);
+					level.blockEvent(chest, Blocks.CHEST, 1, 1);
+					return chest;
+				});
+				ctx.waitFor(mc -> mc.level.getBlockEntity(plotChest) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0.5f, 200);
+				report.put("chestLidOpenedByBlockEvent", true);
+
+				// Loose: no hover any more, so the vessel falls, and the client is told and follows.
+				double startY = ctx.computeOnClient(mc -> ClientVessels.get(id).tickPose().y());
+				sp.getServer().runOnServer(server -> VesselManager.get(server.overworld()).active(id).record.loose = true);
+				ctx.waitFor(mc -> ClientVessels.get(id).loose && ClientVessels.get(id).tickPose().y() < startY - 1.0, 200);
+				report.put("looseVesselFellBlocksOnTheClient", Math.round((startY - ctx.computeOnClient(mc -> ClientVessels.get(id).tickPose().y())) * 100.0) / 100.0);
 			}
 
 			report.put("mixinOrLoaderErrors", PackagedCheckPreLaunch.PROBLEMS);

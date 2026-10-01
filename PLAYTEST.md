@@ -1,9 +1,10 @@
-# Slipway playtest guide (0.1.1)
+# Slipway playtest guide (0.1.2)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
-Chests keep their items, doors open, redstone runs, you can walk on the deck while it flies and build on it at any
-angle.
+Chests keep their items, doors open, redstone and pistons run, you can walk on the deck while it flies and build on
+it at any angle. A vessel can also be let **loose**: then it is a plain physical object that falls, tumbles and lies
+on other vessels.
 
 ## Where to play
 
@@ -16,7 +17,26 @@ angle.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
 
-## What's new in 0.1.1
+## What's new in 0.1.2
+
+(The play instance has not been updated by this work: it still runs 0.1.1 until the new jar is installed.)
+
+- **Loose vessels** (new key **Toggle loose**, default **U**; `/slipway mode <id> loose true|false`). A loose vessel
+  gets nothing from Slipway: no hover, no levelling, no drag, and its helm does nothing. It falls, tumbles, lies on
+  the ground or on another vessel's deck, rides along and slides off when that vessel rolls. Hover and level keep
+  their settings for when you turn loose off again. The HUD shows "Loose ON".
+- **Hover holds.** A hovering ship now stays where it stopped, also with cargo on it or with something leaning on
+  it, and with level off it keeps its attitude under an off-centre load. Flying an empty ship should feel as before;
+  say so if it does not.
+- **Chests open their lids**, and stay open while you look inside.
+- **Pistons move visibly** (also sticky pistons and slime blocks), while flying too.
+- **Effects are at the ship**: bone meal's sparkle on crops, a dispenser's smoke, note block notes, lever dust, the
+  chips and the sound of mining a block of the ship.
+- **No blink when disassembling**: the ship stays on screen until its blocks are there.
+
+Fixes from 0.1.1 are below.
+
+## What was new in 0.1.1
 
 Gameplay is the same as 0.1.0; this build carries the fixes from the world-retention investigation (`DESIGN.md`,
 "World retention after closing a world"):
@@ -43,20 +63,22 @@ Gameplay is the same as 0.1.0; this build carries the fixes from the world-reten
 | Pitch nose up / down | Up / down arrow |
 | Roll left / right | Left / right arrow |
 | Strafe left / right | N / M |
-| Hover on/off | **Toggle hover** (hover on: the ship holds its position; off: gravity applies) |
+| Hover on/off | **Toggle hover** (hover on: the ship holds its position, also under cargo; off: gravity applies) |
 | Level on/off | **Toggle level** (level on: the ship rights itself; off: it holds any attitude, e.g. inverted) |
+| Loose on/off | **Toggle loose** (loose on: no hover, no levelling, no drag, the helm does nothing: the ship is a plain physical object; off: hover and level apply again as they were set) |
 | Disassemble | Level the ship (within 20° of level), leave the helm, then sneak and use the helm |
 
 Slipway's keys are under Options > Controls > Key Binds > **Slipway** and can be changed. Their defaults are Z
-(descend), H (hover) and B (level); in your play instance they are **Left Alt**, **Y** and **J**, because your layout
-uses Z for drop, B for hotbar slot 9 and H for quick actions.
+(descend), H (hover), B (level) and U (loose); in your play instance the first three are **Left Alt**, **Y** and
+**J**, because your layout uses Z for drop, B for hotbar slot 9 and H for quick actions. The loose key is new and
+will come up as U: check that U is free in your layout (it was not checked against it).
 
 The HUD (top left while piloting) shows the vessel id and block count, speed, altitude, pitch, roll and heading,
-hover and level, and mass. Forces scale with mass, so small and large ships handle alike (up to about 24 m/s and
-about 50°/s of turn).
+hover, level and loose, and mass. Forces scale with mass, so small and large ships handle alike (up to about 24 m/s
+and about 50°/s of turn).
 
 Operator commands (useful while testing): `/slipway list`, `/slipway info <id>`, `/slipway stats`,
-`/slipway mode <id> hover|level true|false`, `/slipway disassemble <id>`, `/slipway assemble <x y z of a helm>`, and
+`/slipway mode <id> hover|level|loose true|false`, `/slipway disassemble <id>`, `/slipway assemble <x y z of a helm>`, and
 `/slipway control <id> <forward> <strafe> <vertical> <pitch> <yaw> <roll> <ticks>` (each axis -1..1), which flies a
 vessel with nobody at the helm for that many ticks, so you can walk its deck while it moves, e.g.
 `/slipway control 1 0.4 0 0 0 0.3 0 400` for a slow 20-second turn. `/slipway remove <id>` deletes a vessel and its
@@ -96,6 +118,18 @@ you remove, not touching the ground.
 8. **Shaders and distance**: with Bliss on the ship is lit and casts shadows; fly far away (beyond your render
    distance) and it stays visible through Distant Horizons as a coarse model.
 9. **Multiplayer** (LAN or a server with Slipway): two players, one flying, one riding on deck.
+10. **Loose cargo** (new): over the deck of a hovering ship, build a few small things in the air (two to thirty
+    blocks each, not touching the ship or each other), put a helm on each and use it to assemble them. Then let them
+    go: take each helm and press **Toggle loose**, or `/slipway mode <id> loose true` (`/slipway list` shows the
+    ids). They should drop onto the deck and lie still. Fly gently (they ride along), stop hard from full speed (they
+    slide), roll the ship with level off (past about 30 degrees they slide off and fall). Things to look for: pieces
+    sinking into the deck, jittering, flying apart, or falling through it.
+11. **Loose ship**: take a helm, press **Toggle loose** while hovering: the ship falls and tumbles as it lands, and
+    the helm does nothing; press it again and hover catches it.
+12. **Pistons and chests** (fixed): a lever and a piston on deck, a sticky piston with a block, a slime block
+    contraption; watch the stroke while the ship flies. Open a chest and watch its lid.
+13. **A farm** (fixed): farmland with a waterlogged slab or stair next to it, wheat, a dispenser with bone meal
+    facing a crop and a lever or a clock. The sparkle should be on the crop, and crops also grow by themselves.
 
 ## Known limitations of this build
 
@@ -110,6 +144,12 @@ you remove, not touching the ground.
 - Very large ships: the cap is 4,096 blocks (configurable in `config/slipway.json`); larger ships cost more.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
 - Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
+- Loose vessels do not float (they fall through water) and are not pushed by players or mobs. A deck holds cargo by
+  friction only: a hard stop or a sharp turn slides it, tall thin pieces fall over, and a piece sliding fast across
+  a deck can catch on an invisible seam and tumble.
+- Pistons on a ship do not push you or other entities (you are moved out of the block instead). Particles appear at
+  the ship but stay behind when it moves on. A jukebox's music stays where the ship was when the disc started.
+  Torches, furnaces and the like show no flame or smoke particles on a ship.
 - With shaders on, leaving and reopening worlds many times in one game session still grows memory outside Java by
   about 50 to 80 MB per reopen. It happens with Iris and Bliss alone, without Slipway or Distant Horizons (Iris or
   the graphics driver), so restart the game after many world switches with shaders on. Closed worlds themselves are
