@@ -290,6 +290,30 @@ in a plot. Particles the server sends as particle packets (`ServerLevel.sendPart
 nobody. A push into a chunk column the vessel did not reach before sends that new chunk in mid-stroke, and the
 block in it is invisible for the two ticks of that stroke.
 
+### What is proven to work on a moving vessel (0.1.2)
+
+"Everything keeps working" is the claim; this is what tests hold it to. Server GameTests run the vessel rising,
+sinking and turning inside its arena; client GameTests fly it.
+
+| What | Test |
+| --- | --- |
+| Lever, redstone lamp, door, chest contents, placing and mining in vessel space | client `interaction` (since 0.1.0) |
+| Chest lid opens for the player, stays open, closes | client `block-events`; server `BlockEventGameTests.aChestOnAVesselStaysOpenWhileItsUserIsAtTheVessel` |
+| Piston pushes a block (bounds grow), sticky piston pulls it back, shown as a moving block on the client | client `block-events`; server `aPistonOnAVesselMovesItsBlockAndTheBooksFollow` |
+| Sticky piston with a slime block moving three blocks, vessel rolled 25 degrees and under way | server `aStickyPistonWithSlimeWorksWhileTheVesselFliesRolled` |
+| Piston at the plot's edge refuses; disassembly in mid-stroke | server `pistonsRefuseToPushOutOfThePlot`, `disassemblingInMidStrokeFinishesTheStroke` |
+| Repeater clock (two 4-tick repeaters) driving three lamps through repeaters, exact timing over 120 ticks | server `MachineGameTests.aRepeaterClockLightsARowOfLampsInTurnWhileTheVesselFlies` |
+| Dispenser with bone meal on wheat: growth, sparkle, smoke and sounds at the vessel | client `farm`; server `aFarmOnAFlyingVesselTakesBoneMealAndGrowsByItself` |
+| Random ticks in the plot: wheat grows by itself, farmland is wetted by a waterlogged slab and stays farmland, the water stays in its block | server `aFarmOnAFlyingVesselTakesBoneMealAndGrowsByItself` (1,000 ticks at the normal random tick speed) |
+| Hopper into chest, observer into lamp, dropper (its item appears at the vessel), note block (sound and note at the vessel) | server `machinesOnAFlyingVesselWorkAndTheirOutputAppearsAtTheVessel`; client `block-events` (note block) |
+| Mining: chips and thud at the block | client `block-events` |
+
+Not proven or known not to work: fluids outside waterlogged blocks (water and lava source blocks are not
+assembled; a waterlogged block whose water can flow out sideways will pour it into the plot, which was not tested);
+pistons pushing entities; ambient block effects; anything that looks for entities or players near a block's plot
+position and is not listed above (beacons, conduits, spawners, bells ringing mobs, sculk sensors); a world border
+smaller than 24 million blocks would stop blocks in the plots from working (read from the code, not tested).
+
 ### Distant Horizons
 
 Optional (`DhProxyBridge` only touches DH classes when it is loaded). The server keeps, per vessel, its exposed
