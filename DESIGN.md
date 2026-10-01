@@ -257,19 +257,57 @@ column the client does not have, the client's light is 0. Up to 0.1.1 viewers go
 face on their outer edge was drawn black. That is common, because the helm stands in the middle of the plot, which is a
 chunk corner: a build that begins at its helm (a keg, a raft with the helm on its edge, a 2x2x2 crate) had black west
 and north sides, in any light and at any attitude. Found by the film agent in a close view of cargo; it measured sky
-light 0 on exactly those faces and 15 on all others. The tickets reach two columns out, so the ring is loaded
-anyway; assembly loads it with the vessel's own columns so that both go out in the same tick
-(`VesselAssembly.loadPlotChunks`), and for a vessel loaded from a save a ring column that is not loaded yet follows
-when it is (`unsentChunks`). When a column's light is switched on, the client marks the columns around it for
-rebuilding (vanilla's `enableChunkLight`, through `ClientLevelMixin`), so the faces are remeshed when the ring
-arrives. Cost: 8 more empty chunk packets for a vessel in one column, 14 for one of three by two. Checked by the
-client GameTest `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten
-pieces, which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by
-`save-reload` (a crate that begins at its helm and is in view when the world is reopened: 15 before quitting and
-after loading; 0 without the ring), by a picture in `assemble-mixed` (a wool crate under its helm seen from the
-north-west, where the two sides fill the view: the assembled crate differs from the blocks it was built from by less
-than 0.00001 mean squared difference, limit 0.001; with the sides black it was 0.0069) and by the server GameTest
-`viewersHaveTheColumnsAroundAVesselToo`.
+light 0 on exactly those faces and 15 on all others.
+
+*Why the ring, and not a mesher that never asks for light outside the sent columns.* Both cure the black faces. A
+stand-in (open sky for every block outside the client's columns) costs no packets, but it is a guess, and the light
+next to an outer face is not always the open sky's: a lamp on the vessel lights the faces round the corner through
+the neighbouring column (block light 11 on the west faces beside a glowstone in the test, 10 on the north faces; a
+stand-in would give 0, which shows at night). The stand-in would also have to be put into everything that samples
+round a block: the mesh, the moving blocks of a piston's stroke (drawn as block models from the level), fluids. With
+the ring the client has what the server has, real light in real chunks, kept up to date by the ordinary light
+packets (viewers count as tracking these columns, `ChunkMapMixin`), and every renderer is right without knowing
+about it. The price is 8 more empty chunk packets for a vessel in one column (14 for one of three by two), sent
+once; the server has those columns loaded anyway, because the tickets reach two columns out.
+
+- Assembly loads the ring with the vessel's own columns so that both go out in the same tick
+  (`VesselAssembly.loadPlotChunks`); for a vessel loaded from a save a ring column that is not loaded yet follows
+  when it is (`unsentChunks`). When a column's light is switched on, the client marks the columns around it for
+  rebuilding (vanilla's `enableChunkLight`, through `ClientLevelMixin`), so the faces are remeshed when the ring
+  arrives.
+- When the bounds grow (`VesselManager.includeLocal`), the columns that are new to the bounds and to their ring are
+  added and sent the same way. A piston or a placed block moves an edge by a block or a few, so the ring is always a
+  column ahead of it; only a command can put a block on a far chunk border whose neighbouring column is new to
+  viewers, and that column is sent as soon as it has loaded.
+- Smooth lighting blends, at each vertex, the light of the block next to the face with that of three blocks round
+  it; at a chunk corner one of them is in the column diagonally across, which is part of the ring. That is not what
+  made faces black: vanilla's blend (`LightCoordsUtil.smoothBlend`) takes the face's own light in place of a sample
+  of light 0, so only a face whose own neighbour is missing goes dark (the test below passes without the diagonal
+  columns). They are sent all the same, so that a lamp's light at a corner is the real one. How much a corner is
+  darkened by ambient occlusion depends on the blocks round it, which are air there with or without the ring.
+- A block entity takes its light from its own place, in one of the vessel's own columns: it was never affected.
+
+Checked by the client GameTest `small-vessel-light`: three vessels in daylight without shaders, a 2x2x2 crate of
+white wool under its helm towards +x and +z, the same crate round its helm (in all four columns at the corner; never
+affected), and a build at the corner with glowstone and a chest.
+
+- Pictures of the crate taken square on from the west and the east, and from the north and the south, are equally
+  bright in the middle (luminance 100.8 and 100.7 of 255; 134.4 and 134.5; limit 10%). Without the ring the west
+  side has 13% of the east side's brightness (13.2 against 100.7), and the north side the same share.
+- Every vertex of every face that looks sideways or up has sky light 15, on all three vessels, and on the third
+  again after a block was set at the east end of its column and after one at the west end of the next column (lit
+  in the tick the block showed).
+- The darkest vertex of the faces beside the glowstone has block light 11 (west) and 10 (north); the chest at the
+  edge is drawn with sky light 15 and block light 14.
+
+And by `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten pieces,
+which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by `save-reload` (a
+crate that begins at its helm and is in view when the world is reopened: 15 before quitting and after loading; 0
+without the ring), by a picture in `assemble-mixed` (the wool crate seen from the north-west, where the two sides
+fill the view: assembled, it differs from the blocks it was built from by less than 0.00001 mean squared
+difference, limit 0.001; with the sides black it was 0.0069) and by the server GameTests
+`viewersHaveTheColumnsAroundAVesselToo` and `columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`. Not
+measured: the moving blocks of a piston's stroke at a chunk border (they take their light as the mesh does).
 
 ### Client
 
@@ -815,8 +853,9 @@ ships.
 Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
 sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs sixteen
-scenarios (`SlipwayClientGameTests`; 0.1.2 added `loose-cargo`, `block-events`, `farm` and `disassembly`); each starts
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs seventeen
+scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and
+`disassembly`); each starts
 at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and

@@ -19,7 +19,7 @@
 			"methods": ["isChunkTracked"],
 			"feature": "chunk sync",
 			"reason": "Players who were sent a vessel's plot chunks must receive block, block-entity and light updates of those chunks although they are far outside the player's view.",
-			"tests": ["dev.timstewart.slipway.gametest.PacketGameTests#plotChunksAreTrackedOnlyByTheirViewers", "clientGametest:interaction"]
+			"tests": ["dev.timstewart.slipway.gametest.PacketGameTests#plotChunksAreTrackedOnlyByTheirViewers", "clientGametest:interaction", "clientGametest:small-vessel-light"]
 		},
 		{
 			"mixin": "dev.timstewart.slipway.mixin.LevelChunkMixin",

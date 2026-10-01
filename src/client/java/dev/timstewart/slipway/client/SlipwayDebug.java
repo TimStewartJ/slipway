@@ -292,6 +292,11 @@ public final class SlipwayDebug {
 		}
 	}
 
+	/** The packed light each block entity of the watched vessel was last drawn with while the vessel was there, by vessel-local position. */
+	public static java.util.Map<BlockPos, Integer> blockEntityLight() {
+		return new java.util.HashMap<>(LIVE_BLOCK_ENTITY_LIGHT);
+	}
+
 	/** Since the start: how each block entity of the watched vessel was lit in the kept picture, by vessel-local position. */
 	public static java.util.Map<BlockPos, KeptLight> keptBlockEntityLight() {
 		return new java.util.LinkedHashMap<>(KEPT_BLOCK_ENTITY_LIGHT);
