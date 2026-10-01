@@ -148,9 +148,35 @@ fork.7; cleanup (heap dumps and trial clones now, jars/branches after publishing
   Prepared, NOT RUN: E:\slipway-e2e\tools\tellus-dh-ab.ps1 (fork.6 then fork.7 with Bliss on the Tellus test instance,
   back to back, restores fork.7 and the version-5 config afterwards; about 8 minutes); tellus-dh-check.ps1 now records
   the machine's CPU load per step and the generation tasks unfinished at close.
-WAITING for the user: go for that 8-minute pair, then the publishing question (release notes draft
-E:\slipway-e2e\dh\fork7\RELEASE-NOTES-draft.md). Remaining cleanup after publishing: leakfix/irisfix jars, the 0.1.0
-play-instance backup, archive tags for slipway-leak-fix and slipway-iris-fixes, E:\dh-fork7.
+- 22:54 user: "it seems pretty solid. dont run any more tests just go for it and publish". So the fork.6/fork.7
+  comparison with Bliss was NOT run (the open point stays open, recorded in the fork's PATCHES.md), and no game was
+  started. Published 23:00-23:20:
+  - Core: last commit reworded (it said "local only"; same tree), tip 083f71f5c. Wrapper: new commit 5cc89a636
+    (release workflow: base version read from mod_version instead of the nearest official tag, optional
+    .github/release-notes/<mod_version>.md), release commit rebuilt as e8a43ae12 (PATCHES.md check results, notes
+    file, pointer). Against the tested build cf1d0cd21 only .github, PATCHES.md and the pointer differ.
+  - Pushed as branch rebase/3.3.4 first: fork CI 36822998242 green (core tests, four jars, mixin-annotation check).
+    Then, in both repos: upstream-base -> official 3.3.4 (fast-forward), main -> the rebased series
+    (--force-with-lease on the old tips, as for fork.4 and fork.5), annotated tag 3.3.4-tellus-fork.7 (core first).
+    Release workflow 36823525406 green; CI on main 36823523468 green; temporary branches deleted.
+  - Release: https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7 (latest; four jars and
+    SHA256SUMS; notes name base 3.3.4, what is new, what to do before updating, what was checked).
+  - Published jars against the locally built, tested ones: every class byte-identical; 65-66 text files differ in
+    line endings only (LF from Linux, as in the fork.6 release asset); build_info.json differs (commit id).
+    Report E:\slipway-e2e\runs\dh-fork7-release-check-20260930-2320\report.json; validation.json entry (277).
+  - Published jars installed (game closed, atomic replace, checksum verified, NOT started): Slipway-MC-26.3-Fabric
+    (expected-sha json updated, 5 of 5 match), Tellus-Expeditions-MC-26.3-Fabric, Slipway-Test-MC-26.3-Fabric,
+    Tellus-Expeditions-MC-26.2-Fabric. Tellus-MC-26.3-Fabric was in use by another session and keeps the local build
+    (same classes). devmods = published jar via the reworked tools/setup-devmods.ps1 (copies whatever DH jar the
+    instance has; devmods/test is empty); `gradlew assemble checkPatches` green.
+  - Local fork repo: main/upstream-base = published; old branches are tags archive/slipway-leak-fix,
+    archive/slipway-iris-fixes, archive/fork7-first-build (both repos); working tree on main.
+  - Cleanup: leakfix.9, irisfix.1, passfix.1 and bisect jars, the 0.1.0 play-instance backup, the release notes
+    draft and the work clone E:\dh-fork7 deleted. Kept: E:\slipway-e2e\instance-backups (rollback to the builds
+    before fork.7), E:\slipway-e2e\dh\fork7\{release,local-build-cf1d0cd21}, the official 3.3.x jars.
+  - tools/e2e/SlipwayE2E.psm1 no longer hard-codes the fork.6 jar name.
+DONE. Open: the Bliss section-count comparison (E:\slipway-e2e\tools\tellus-dh-ab.ps1, not run); the Tellus test
+instance jar swap when that instance is free; Slipway's full client GameTest suite has not run with fork.7.
 
 ## Previous goal (shader blotches)
 
