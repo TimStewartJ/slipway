@@ -326,7 +326,7 @@ the cargo shot was the wide view only).
   | Shot | Seconds | Events |
   | --- | --- | --- |
   | hook | 0.00 to 2.00 | helm input from 0.30 s, full at 0.70 s |
-  | cargo | 2.00 to 7.50 | cargo let go 10 ticks (0.5 s) before the cut; the pieces land on the deck and on each other from about 2.3 to about 3.3 s; roll input from 3.20 s; the camera moves out from 3.20 to 4.50 s; the first pieces leave the deck at about 4.9 s (the ship rolled 60 degrees); the last one (the keg) leaves at about 6.6 s and is still falling at the cut |
+  | cargo | 2.00 to 7.50 | cargo let go 10 ticks (0.5 s) before the cut; the pieces land on the deck and on each other from about 2.3 to about 3.3 s; roll input from 3.20 s; the camera moves out from 3.20 to 4.50 s; the first pieces leave the deck at about 4.9 s (the ship rolled 60 degrees); the last one (the keg) leaves at about 6.5 s and is still falling at the cut |
   | roll | 7.50 to 13.50 | lever 7.90 s, first piston stroke 9.50 s, door 10.50 s, chest 11.30 s |
   | farm | 13.50 to 18.50 | clock lever 14.00 s; bone meal at 14.25 s, 15.65 s and 17.05 s (wheat stages 0000, 2522, 6774, 7777: ripe after the third dose) |
   | return | 18.50 to 27.25 | disassembled at 21.75 s, 4.7 cm from the starting point; end card from 24.15 s |
