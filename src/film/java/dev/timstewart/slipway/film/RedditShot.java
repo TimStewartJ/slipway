@@ -563,11 +563,13 @@ final class RedditShot {
 					}
 					this.event("disassemble");
 					after = 0;
-					// the client may drop the vessel a tick or two before the placed blocks arrive and are meshed: hold film
-					// time until the blocks are drawn (harmless when the mod no longer blinks)
+					// The change from the vessel to its placed blocks takes the client a few ticks (0.1.1 drew neither for a tick
+					// or two; 0.1.2 keeps the vessel's picture until the terrain shows the blocks, 2 to 6 ticks). Film time is
+					// held over them: the next frame shows the placed blocks alone.
 					BlockPos helmPos = FilmScene.HELM;
-					int held = this.rec.hold(mc -> mc.level.getBlockState(helmPos).is(dev.timstewart.slipway.registry.SlipwayRegistry.HELM), 100);
-					FilmMain.LOG.info("Reddit: disassembled; held film time {} ticks until the placed blocks were drawn", held);
+					int held = this.rec.hold(mc -> mc.level.getBlockState(helmPos).is(dev.timstewart.slipway.registry.SlipwayRegistry.HELM)
+						&& dev.timstewart.slipway.client.ClientVessels.drawn(id) == null, 100);
+					FilmMain.LOG.info("Reddit: disassembled; held film time {} ticks until the placed blocks were drawn and the vessel's picture was gone", held);
 					continue;
 				} else {
 					this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(st, rest, 0, returnGain, returnSpeed, returnBrake)));
