@@ -1,0 +1,4 @@
+Cloud_Speed=0.5
+Evening_Uniform_Fog=0.02
+Haze_amount=0.6
+entityShadowDistanceMul=1.00
