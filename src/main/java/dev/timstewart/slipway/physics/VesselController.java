@@ -182,10 +182,10 @@ public final class VesselController {
 		Command command = compute(params, in.forward(), in.strafe(), in.vertical(), in.pitch(), in.yaw(), in.roll(), drive.hover(), drive.level(),
 			rotation, centre, new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
 			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), hold, step);
-		if (!command.isFinite() || hold != null && !hold.isFinite()) {
-			if (hold != null) {
-				hold.reset();
-			}
+		if (hold != null && !(command.isFinite() && hold.isFinite())) {
+			hold.reset();
+		}
+		if (!command.isFinite()) {
 			return false;
 		}
 		engine.applyForceAndTorque(drive.vesselId(), command.force(), command.torque());
