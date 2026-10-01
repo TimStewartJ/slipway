@@ -567,6 +567,15 @@ after most cycles and 3 after two consecutive cycles of one run, never more, wit
 `DhChunkGenerator.close()` would be a one-line change on the DH branch; it was not made because it would have
 required re-validating the whole suite on a new DH build for a thread that already goes away.
 
+0.1.2: in the runs for the release these threads were seen more often and in sixes (two timers for each of the three
+levels; in `devmods`' fork.7 jar neither generator's bytecode calls `Timer.cancel`). Their tasks run 5 s after the
+last chunk DH generated, so a second after a world closes they are there whenever DH generated a chunk in that
+world's last seconds, and they end at the first collection after those tasks. Counts at the ends of the five cycles:
+0, 6, 0, 0, 0 in one run, none in another, and 0, 0, 6, 6, 12 in a third, which the leak check's rule for a growing
+thread group (see below) took for growth and failed. The rule now counts again what rose, eight seconds after the
+last cycle and after collections, and fails for what is still there. Tried both ways with threads made for the
+purpose: six that end after 6 s, started after cycles 3 and 5, are let through; two per cycle that never end fail it.
+
 **The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
 world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
 every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
@@ -575,8 +584,9 @@ explained in chain 6), no live `IntegratedServer` or `ServerLevel` at all, no li
 Slipway's Jolt engines, bodies, level managers and client vessels at zero, Iris's override cache empty, heap after
 GC growing under 16 MB per cycle, no thread group that keeps growing (Netty's local event-loop group is one static
 pool of at most two threads per core, started lazily: it gains three threads per world opening, the only group that
-grows, and the report lists every group that changed), and without shaders native memory growing under 64 MB per
-cycle. Any surviving world writes a heap
+grows, and the report lists every group that changed; a group that rose at the cycles' ends is counted again eight
+seconds after the last one, because a thread that ends by itself is no leak), and without shaders native memory
+growing under 64 MB per cycle. Any surviving world writes a heap
 dump for the path to its GC roots. There is no attribution: anything retained fails, whoever holds it.
 
 **Native memory.** Windows private bytes do not include ZGC's heap (mapped as shared memory), so they measure native
@@ -779,6 +789,11 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   middle of that; it passed while the lag stayed under 10 ticks and failed the first 0.1.2 release build when it did
   not (one jump of 11.5 ticks, 1.6 blocks, eight ticks into the trace). The watcher now reports ready once its
   playback has been in step for 20 ticks (`ClientVessel.playbackLag`), and the scenario records how long that took.
+- A client has a vessel from the first packets about its entity; the vessel's body is made when its plot chunks have
+  loaded. With another game busy on the machine (a Prism instance using 13 of 20 cores) the chunks came later, and
+  the leak scenario, which asserted that physics runs as soon as the client had the three vessels, found no engine
+  and no body. It now waits for them (up to 400 ticks), as the collision, loose-cargo and save scenarios always did.
+  The lock that keeps the film renders apart from these runs does not cover other games on the machine.
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client
