@@ -238,16 +238,6 @@ final class RedditShot {
 			FilmScene.waitVessel(this.ctx, piece.id());
 		}
 		VesselPose pose = FilmPilot.state(this.server, id).pose();
-		if (FilmRig.optDouble("lightDump", 0) > 0) {
-			this.ctx.waitTicks(40);
-			String shipLight = this.ctx.computeOnClient(mc -> FilmScene.meshLight(id));
-			FilmMain.LOG.info("Reddit: light in the mesh of the ship: {}", shipLight);
-			for (FilmScene.Piece piece : pieces) {
-				String light = this.ctx.computeOnClient(mc -> FilmScene.meshLight(piece.id()));
-				FilmMain.LOG.info("Reddit: light in the mesh of {}: {}", piece.name(), light);
-			}
-			FilmMain.LOG.info("Reddit: ship axes in the world: port {}, bow {}", dir(pose, -1, 0, 0), dir(pose, 0, 0, -1));
-		}
 		Vec3 bay = pose.localToWorld(FilmShips.shipPoint(-0.5, 0, 1.5));
 		Vec3 port = dir(pose, -1, 0, 0);
 		Vec3 fore = dir(pose, 0, 0, -1);
@@ -290,6 +280,11 @@ final class RedditShot {
 		FilmRig.followCamera(this.ctx);
 		FilmRig.waitWorld(this.ctx, 3000);
 		this.settle();
+		// for the record: every side of every piece is lit (sky light 15) before it is let go
+		for (FilmScene.Piece piece : pieces) {
+			String light = this.ctx.computeOnClient(mc -> FilmScene.meshLight(piece.id()));
+			FilmMain.LOG.info("Reddit: lowest sky light in the mesh of {}: {}", piece.name(), light);
+		}
 		// let go: from here the pieces are loose bodies; a few ticks before the cut, so the shot opens on them falling
 		boolean[] real = {true};
 		this.server.runOnServer(s -> {

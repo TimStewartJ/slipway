@@ -128,46 +128,20 @@ final class FilmScene {
 	}
 
 	/**
-	 * Diagnostic (rehearsals, option {@code lightDump=1}): the light baked into a vessel's mesh, per face direction, as
-	 * "direction: sky light level x vertices". Reads the mesh by reflection; nothing is changed.
+	 * The lowest sky light baked into a vessel's mesh, by the direction its faces look in the vessel's frame (-1: no
+	 * such face). A small vessel in the open must read 15 on every side (0.1.1 drew the faces at the edge of its plot's
+	 * chunk columns with light 0); the hero ship has dark faces inside its hull.
 	 */
 	static String meshLight(long id) {
 		ClientVessel v = ClientVessels.get(id);
 		if (v == null || !v.ready()) {
 			return "no vessel";
 		}
-		try {
-			java.lang.reflect.Field sectionsField = v.mesh.getClass().getDeclaredField("sections");
-			sectionsField.setAccessible(true);
-			java.util.TreeMap<String, java.util.TreeMap<Integer, Integer>> sky = new java.util.TreeMap<>();
-			java.util.TreeMap<Integer, Integer> block = new java.util.TreeMap<>();
-			for (Object section : ((Map<?, ?>)sectionsField.get(v.mesh)).values()) {
-				java.lang.reflect.Field layersField = section.getClass().getDeclaredField("layers");
-				layersField.setAccessible(true);
-				for (Object buffer : (Object[])layersField.get(section)) {
-					if (buffer == null) {
-						continue;
-					}
-					java.lang.reflect.Field dataField = buffer.getClass().getDeclaredField("data");
-					java.lang.reflect.Field verticesField = buffer.getClass().getDeclaredField("vertices");
-					dataField.setAccessible(true);
-					verticesField.setAccessible(true);
-					int[] d = (int[])dataField.get(buffer);
-					int vertices = verticesField.getInt(buffer);
-					for (int n = 0, i = 0; n < vertices; n++, i += 8) {
-						int light = d[i + 6];
-						int packed = d[i + 7];
-						int nx = (byte)packed, ny = (byte)(packed >> 8), nz = (byte)(packed >> 16);
-						String dir = ny > 64 ? "up" : ny < -64 ? "down" : nx > 64 ? "east" : nx < -64 ? "west" : nz > 64 ? "south" : "north";
-						sky.computeIfAbsent(dir, k -> new java.util.TreeMap<>()).merge(light >> 20 & 0xF, 1, Integer::sum);
-						block.merge(light >> 4 & 0xF, 1, Integer::sum);
-					}
-				}
-			}
-			return "sky " + sky + ", block " + block + ", anchor " + v.anchor.toShortString();
-		} catch (ReflectiveOperationException e) {
-			return "unreadable: " + e;
+		StringBuilder b = new StringBuilder();
+		for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+			b.append(d.getName()).append(' ').append(v.mesh.minSkyLight(d)).append(' ');
 		}
+		return b.toString().trim();
 	}
 
 	/** Whether a vessel the client draws still has mesh sections to rebuild (a block of it changed this tick). */
