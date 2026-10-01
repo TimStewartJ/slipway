@@ -134,6 +134,23 @@ official-3.3.4 lane, the blotch diagnostic. No play instance has fork.7 (Slipway
     test DH build), PLAYTEST.md updated.
 Next: commit + push Slipway; clean Tellus + Bliss run when the machine is quiet; ask the user about publishing
 fork.7; cleanup (heap dumps and trial clones now, jars/branches after publishing).
+- 18:43 pushed 33f69c5..396b832 (CI run 36802576102 green). 18:46 deleted the two kept heap dumps (2.1 GB; the MAT
+  text reports stay) and E:\dh-fork7-trial.
+- 18:50 asked the user how to settle the open far-terrain count (compare now / wait for a quiet machine / skip); the
+  user was not available. Decision: no further game launches without their go (their rule from 17:35; the short set is
+  used up), and nothing is published. What the existing data says: the split is by time, not by build or shaders. The
+  four runs before the other session's job (16:08-16:21: fork.6 and fork.7 with shaders off, fork.6 with Bliss) stored
+  490-491 sections with 0 tasks unfinished; the two runs during it (18:20 and 18:33, both fork.7 with Bliss) stored
+  463 and 456 with 5-6 unfinished, the lower count under the heavier load. That job's logs show nothing between 15:30
+  and 18:18. No code change between fork.6 and fork.7 touches generation only when shaders are on. So machine load is
+  the likely cause, but fork.7 with Bliss has not been measured on a quiet machine. (The machine was quiet again from
+  about 18:52.)
+  Prepared, NOT RUN: E:\slipway-e2e\tools\tellus-dh-ab.ps1 (fork.6 then fork.7 with Bliss on the Tellus test instance,
+  back to back, restores fork.7 and the version-5 config afterwards; about 8 minutes); tellus-dh-check.ps1 now records
+  the machine's CPU load per step and the generation tasks unfinished at close.
+WAITING for the user: go for that 8-minute pair, then the publishing question (release notes draft
+E:\slipway-e2e\dh\fork7\RELEASE-NOTES-draft.md). Remaining cleanup after publishing: leakfix/irisfix jars, the 0.1.0
+play-instance backup, archive tags for slipway-leak-fix and slipway-iris-fixes, E:\dh-fork7.
 
 ## Previous goal (shader blotches)
 
