@@ -31,7 +31,7 @@ x86_64 and aarch64, Linux x86_64 and aarch64, and macOS x86_64 and aarch64 (also
 bundled). The build copies the six ReleaseDp libraries into the mod jar under `slipway-natives/<os>-<arch>/` with a
 SHA-256 manifest (`natives.properties`); the JVM library is nested with Loom `include`. The mod jar is 9.5 MB.
 
-**The jar is the same every time it is built (0.1.2).** Two things made two builds of one commit differ.
+**The jar is the same every time it is built (0.1.3).** Two things made two builds of one commit differ.
 `natives.properties` was written with `Properties.store`, which adds the time of the build; the build now writes the
 file itself (keys in order, `\n` line ends, no date; the loader reads it as before). And Loom nests the jolt-jni jar
 through Java's zip file system, which stamps the two entries it adds (`META-INF/jars/` and the jar in it) with the
@@ -135,8 +135,9 @@ rounding in the pose can otherwise put a rider a few microns inside the deck, an
 that a box already overlaps by more than 1e-7, so the player would fall through the new blocks (seen in the release
 regression run; `InteractionGameTests#entitiesAboardMoveWithTheSnappedBlocks` models it).
 
-**A plot is freed empty (0.1.2, found in review).** Disassembly and `/slipway remove` walk the vessel's bounds, and
-the registry hands the plot that was freed last to the next vessel that is assembled. A block in the plot outside the
+**A plot is freed empty (0.1.3; found in the review of 0.1.2, which was released with it as a known issue).**
+Disassembly and `/slipway remove` walk the vessel's bounds, and the registry hands the plot that was freed last to
+the next vessel that is assembled. A block in the plot outside the
 bounds (one the vessel had not taken in because it lies past the largest size or in the plot's margin, see "Block
 events, effects and pistons") stayed there. The next vessel in that plot had it in a section of its own: solid,
 drawn and counted as one of its blocks, and put into the world at its disassembly if it lay inside its bounds; the
@@ -352,8 +353,10 @@ difference, limit 0.001; with the sides black it was 0.0069) and by the server G
 `viewersHaveTheColumnsAroundAVesselToo` and `columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`. Not
 measured: the moving blocks of a piston's stroke at a chunk border (they take their light as the mesh does).
 
-**The ring's sky light after loading (0.1.2).** A release build failed in `save-reload`: the crate was lit when it
-first showed after loading and had a black west side ten ticks later. Two things were behind it.
+**The ring's sky light after loading (0.1.3).** A build after the release of 0.1.2 failed in `save-reload`: the crate
+was lit when it first showed after loading and had a black west side ten ticks later. Two things were behind it. The
+first is in 0.1.2 as released (the server GameTest below fails on its code; in `save-reload` it showed in 2 of 18
+world loads counted over the released code and the code after it).
 
 *A fault that stayed.* With the check rewritten to wait (below), two of six runs ended with the west side black for
 good: every column on the client, all light applied, and sky light 0 beside the crate on the client and on the
@@ -481,9 +484,9 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
   - Whatever else sets a block further out (a bucket of water, a plant growing, water flowing, the far half of a
     bed, a command) is not taken into the bounds, like a block in the plot's margin
     (`VesselManager.onPlotBlockChanged`). Such a block is in the plot but not part of the vessel: disassembly does
-    not put it into the world, and it is removed when the vessel ceases to exist (see "A plot is freed empty"
-    under "Assembly and disassembly"). While the vessel exists, such a block is solid and drawn if it lies in a
-    16-block section the bounds reach into (shape and mesh are built from whole sections). Refusing every such
+    not put it into the world, and since 0.1.3 it is removed when the vessel ceases to exist (see "A plot is freed
+    empty" under "Assembly and disassembly"). While the vessel exists, such a block is solid and drawn if it lies in
+    a 16-block section the bounds reach into (shape and mesh are built from whole sections). Refusing every such
     change in `Level.setBlock` would be the complete rule; it was left out because it changes what every block
     change in a plot may do, for a case that needs a vessel 512 blocks across.
 

@@ -3,6 +3,32 @@
 What changed for people who play or run Slipway. The development history, with every test run, is in `WORKLOG.md`
 and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
+## 0.1.3 (2026-10-01)
+
+Fixes only; flying, building and the controls are as in 0.1.2.
+
+### Fixed
+
+- **A storage area is empty when its vessel is gone** (the known issue of 0.1.2). A block that ended up outside a
+  vessel's size limit by other means than a piston or a placed block item (a bucket of water, a tree growing, the
+  far half of a bed, a command) stayed in the vessel's storage area when the vessel was disassembled or removed, and
+  could turn up as part of the next vessel assembled there. Such a block is now deleted with the vessel. As before it
+  is not part of the vessel and is not put into the world at disassembly.
+- **No black sides after loading a world.** In 0.1.2 a side of a vessel that lies on a chunk border of its storage
+  area (often the west or north side of a small build that begins at its helm) could still come out black after a
+  world was loaded, now and then, and stayed black until the world was loaded again. The cause is a fault in the
+  game's own light code for chunk columns without any block, which the columns around a vessel are. Right after
+  joining a world such a side can still be dark for a moment, until the chunk columns around the vessel's storage
+  area have arrived.
+
+### Build
+
+The jar is reproducible: building the same commit again gives the same file (with the same JDK and the same line
+endings in the checkout).
+
+### Saves
+
+0.1.0, 0.1.1 and 0.1.2 worlds load; nothing in the save format changed.
 ## 0.1.2 (2026-10-01)
 
 ### New
@@ -32,16 +58,13 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   a moment before).
 - **No black sides.** Sides of a vessel that lie on a chunk border of its storage area were drawn black, in any
   light: most often the west and north sides of a small build that begins at its helm (a crate, a keg, a raft with
-  the helm on its edge). In 0.1.0 and 0.1.1. Right after joining a world such a side can still be dark for a moment,
-  until the chunk columns around the vessel's storage area have arrived.
+  the helm on its edge). In 0.1.0 and 0.1.1.
 - Placing a block outside a vessel's bounds no longer sends the whole vessel to its viewers again.
 - **A vessel stays within the largest size after assembly too** (`maxVesselSpan`, 512 blocks across unless changed).
   A piston does not push a block further out (it does not move, as against obsidian), and a block cannot be placed
   there (the reason is shown, the item is kept). In 0.1.1 the size was only checked at assembly: a slime-block
   flying machine on a vessel could stretch it to the edge of its storage area, 2,016 blocks out, with every chunk
-  column in between loaded, ticked, saved and sent to everyone who saw the vessel. A block that gets further out
-  another way (a bucket of water, a tree growing, a command) is not part of the vessel: it is not put into the world
-  at disassembly and is deleted with the vessel.
+  column in between loaded, ticked, saved and sent to everyone who saw the vessel.
 - Disassembling while a piston moves lets the stroke finish first.
 
 ### Known limits of the new features
@@ -59,16 +82,11 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   growing, water flowing, the far half of a bed, a command) is left in the vessel's storage area when the vessel is
   disassembled or removed. Storage areas are reused, so that block can turn up as part of the next vessel assembled
   there. It needs a vessel that already spans `maxVesselSpan`: unlikely at the default of 512 blocks, likely on a
-  server with a small limit. Found in review; a fix is in work for 0.1.3.
+  server with a small limit. Found in review; fixed in 0.1.3.
 
 ### Saves
 
 0.1.0 and 0.1.1 worlds load. Vessels saved by 0.1.2 carry one more optional field (`loose`).
-
-### Build
-
-The jar is reproducible: building the same commit again gives the same file (with the same JDK and the same line
-endings in the checkout).
 
 ## 0.1.1 (2026-09-30)
 

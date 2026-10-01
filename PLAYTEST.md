@@ -1,4 +1,4 @@
-# Slipway playtest guide (0.1.2)
+# Slipway playtest guide (0.1.3)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
@@ -18,9 +18,19 @@ on other vessels.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
 
-## What's new in 0.1.2
+## What's new in 0.1.3
 
-(The play instance has not been updated by this work: it still runs 0.1.1 until the new jar is installed.)
+Fixes only (the play instance has not been updated by this work: it still runs 0.1.1 until the new jar is installed).
+
+- **No black sides after loading a world.** In 0.1.2 a small build that begins at its helm could still come out with
+  a black west or north side after a world was loaded, now and then, and kept it until the world was loaded again.
+  Say so if you see a black side that stays. (A side that is dark for a moment right after joining and then lights
+  up is known.)
+- **A block outside a vessel's size limit is deleted with the vessel.** In 0.1.2 a block that got past the limit
+  other than by a piston or by placing it (a bucket of water, a tree, a command) stayed in the vessel's storage area
+  and could turn up in the next vessel assembled.
+
+## What's new in 0.1.2
 
 - **Loose vessels** (new key **Toggle loose**, default **U**; `/slipway mode <id> loose true|false`). A loose vessel
   gets nothing from Slipway: no hover, no levelling, no drag, and its helm does nothing. It falls, tumbles, lies on
