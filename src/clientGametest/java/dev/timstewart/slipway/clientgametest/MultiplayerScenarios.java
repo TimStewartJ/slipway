@@ -32,6 +32,12 @@ final class MultiplayerScenarios {
 	}
 
 	static final int PORT = 25611;
+	/**
+	 * Ticks within which a client that has just joined must show a vessel in step with the server: its playback makes
+	 * up at most 10 ticks at a tenth of a tick per tick (100 ticks) once its long first frames are over. Measured 67
+	 * to 103 ticks from the vessel's first showing.
+	 */
+	static final int CATCH_UP_TICKS = 200;
 
 	record PoseError(int matched, double maxPosition, double maxDegrees) {
 	}
@@ -69,9 +75,13 @@ final class MultiplayerScenarios {
 				Check.that(!WatcherProcess.NAME.equals(Game.clientName), "both clients have the same name");
 				server.waitFor(s -> s.getPlayerList().getPlayerCount() == 2, 200);
 				server.runOnServer(s -> Game.player(s, WatcherProcess.NAME).teleportTo(s.overworld(), 16.5, helm.getY() + 4, 46.5, java.util.Set.of(), 120f, 15f, true));
-				Properties inStep = watcher.call(ctx, 2600, "wait-vessel", String.valueOf(id));
+				Properties inStep = watcher.call(ctx, 1200 + CATCH_UP_TICKS + 100, "wait-vessel", String.valueOf(id), String.valueOf(CATCH_UP_TICKS));
 				r.metric("watcher.playbackLagWhenReady", inStep.getProperty("lagWhenReady"));
+				r.metric("watcher.playbackFurthestBehind", inStep.getProperty("furthestBehind"));
 				r.metric("watcher.ticksUntilInStep", inStep.getProperty("ticksUntilInStep"));
+				Check.atMost("ticks until the watcher's playback was in step after the vessel first showed", Integer.parseInt(inStep.getProperty("ticksUntilInStep")), CATCH_UP_TICKS);
+				// More than 10 ticks behind its 2-tick delay, playback jumps: with a tick of jitter it is never seen 14 behind.
+				Check.atMost("ticks the watcher's playback was behind the newest pose at the most", Double.parseDouble(inStep.getProperty("furthestBehind")), 14.0);
 
 				// A flies while both clients' views are recorded against the server's pose at the same server tick.
 				ServerPoses.record(id);
