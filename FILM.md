@@ -5,6 +5,30 @@ Horizons), driven by the Fabric client GameTest API. Nothing here ships in the m
 `runFilm` Gradle run are development only. The window never takes focus (`FilmPreLaunch` sets SDL hints), so the PC
 stays usable while it renders.
 
+In the repository the tool is `src/film` (the `film` source set: a second mod, `slipway_film`, loaded only by
+`runFilm`), `tools/film` (Python: checks, captions, encode, delivery, stills) and this file. `assemble`, `check` and
+`build` do not compile or run it, and the mod's jar and sources jar hold none of it. Its four mixins (camera, render
+loop, Iris's shader clock, the test server's shutdown) are applied only in the film run and are not in
+`patches.json`, which lists what ships; `checkPatches` reads the mod's two mixin configs and passes with the film
+sources present.
+
+## What is needed
+
+Nothing of this is needed to build or test the mod; `runFilm` checks for it and says what is missing.
+
+- The render mods in `devmods/` (git-ignored): `python tools/fetch-devmods.py` downloads Fabric API, Sodium, Iris
+  and stock Distant Horizons. The film was rendered with Iris 1.11.7; the manifest pins 1.11.6, so put
+  `iris-fabric-1.11.7+mc26.3.jar` from Modrinth next to it (the build takes the newest by name). "Render stack"
+  below has the versions.
+- A shader pack: the zip in `devmods/shaderpacks/` (the newest by name is taken) or `-PslipwayShaderPack=<zip>`.
+  The film was made with Bliss v2.1.2; the pack is not in the repository. Its settings for the film are
+  `src/film/bliss.txt`.
+- For the tools in `tools/film`: Python 3 with Pillow and NumPy, and `ffmpeg` and `ffprobe` (with libx264 and
+  libass) on the path. The captions name the fonts Segoe UI Black and Segoe UI Semibold, which Windows has; elsewhere
+  libass substitutes another font unless they are installed.
+- A GPU that renders Bliss with Distant Horizons at the frame size; about 6 GB of disk for the frames of one full
+  render. The render speed does not matter to the result: every frame is rendered at an exact time of the game.
+
 ## Quick start: the Reddit showcase (version 2, 4:5)
 
 ```
@@ -12,18 +36,15 @@ stays usable while it renders.
 python tools/film/deliver.py build/film/out/reddit-1080x1350 <delivery folder>
 ```
 
-The first command renders the frames (about 7 minutes including game start, world generation and a 60 s wait for
+The first command renders the frames (6 to 7 minutes including game start, world generation and a 60 s wait for
 Distant Horizons). The second checks them (`check_encode.py`), assembles the captioned video
 (`assemble.py`) and writes the delivery folder: `slipway-4x5.mp4`, its `.ass` caption file, `segments.json`, a sheet
 of the raw frames, a sheet with one frame per second of the video, and a thumbnail; it then verifies the encode with
-ffprobe and compares the first and the last frame (the loop point).
+ffprobe and compares the first and the last frame (the loop point). It takes 6 to 10 minutes.
 
-On a machine that also runs other game tests, start every `runFilm` through the lock helper so that only one game
-uses the GPU at a time:
-
-```
-& E:\slipway-e2e\coordination\with-gpu-lock.ps1 -Name film -WorkingDirectory E:\Slipway-film -Command '.\gradlew.bat runFilm -PslipwayFilm=reddit -PslipwayFilmSize=1080x1350 --no-daemon --console=plain > build\film-run.log 2>&1'
-```
+Run only one game at a time on the GPU: a second game (another `runFilm`, the client GameTests) makes both slow
+and can disturb tests that measure time. The film was made on a machine where other sessions ran such tests, with a
+lock script outside this repository that every game launch went through.
 
 Rehearsals: a small even size and only the shots in question, for example
 `-PslipwayFilmSize=544x680 "-PslipwayFilmOpts=only=cargo+farm,dhWait=5,warm=0,shotSettle=20"` (about 2 to 3 minutes).
@@ -60,7 +81,6 @@ terrain before recording, default 60), `fov` (vertical field of view in degrees,
 | `cargoMoveFrom`, `cargoMoveTo`, `cargoPushFrom`, `cargoPushTo` | ticks between which the camera moves from the close view out to the wide view, and between which the wide camera then pushes in | 24, 50, 52, 104 |
 | `cargoCamDist`, `cargoCamY`, `cargoCamAlong`, `cargoPush`, `cargoRise`, `cargoAimOut`, `cargoAimY`, `cargoAimOutB`, `cargoAimFore`, `cargoAimDrop` | the wide view: distance to port of the cargo bay, height relative to the deck, offset towards the bow; how far it pushes in and up; where it aims at the start and how far the aim moves out, towards the bow and down | 30, -4, 3, 3, 1.5, 3, 0.5, 3, 1.5, -5.0 |
 | `cargoTakes`, `<option>@<take>` | rehearsals: film the cargo shot several times in one run (segments `cargo`, `cargo2`, ...; each take builds, drops and removes the cargo again), and set a cargo option for one take only, e.g. `cargoTakes=3,cargoCloseY@2=12`. Only the first take starts from the same state as the film's. Not for `assemble.py` | 1 |
-| `lightDump` | 1 logs, before the cargo shot, the sky light stored in the mesh of the ship and of each cargo piece, by face direction (read only) | 0 |
 | `cargoSlowFrom`, `cargoSlowTo` | ticks filmed at 4 frames per tick (mild slow motion); not used | off |
 | `rollFrames`, `preRoll`, `leverAt`, `doorAt`, `chestAt` | roll shot: length in frames; unfilmed ticks of roll input before the cut; ticks at which the lever is pulled and the door and the chest open | 366, 34, 6, 32, 40 |
 | `rollAX/AY/AZ`, `rollBX/BY/BZ`, `rollLookX/Y` | roll camera in ship coordinates: from, to, and the point on the wall it looks at | -2.4/3.6/-1.9, -2.0/3.3/-0.6, 0.3/2.0 |
@@ -84,9 +104,10 @@ python tools/film/readme_stills.py build/film/out/reddit-1600x900 <delivery fold
 ```
 
 `readme_stills.py` picks frames by event and offset and saves them 1600 px wide as JPEG under 500 KB. Its defaults
-are the delivered stills: `galleon-over-the-bay=hook+0` (the galleon at rest), `cargo-spill=cargo+240` (the cargo
-in mid-air below the rolled ship), `machine-wall=roll+314` (lamps lit, pistons in mid-sequence, door and chest open
-while the ship is upside down) and `deck-farm=farm+146` (the wheat just after the second dose, with the sparkle).
+are the delivered stills: `galleon-over-the-bay=hook+0` (the galleon at rest), `cargo-on-deck=cargo+65` (the close
+view: the last pieces falling onto the pile), `cargo-spill=cargo+226` (the cargo in mid-air below the rolled ship),
+`machine-wall=roll+314` (lamps lit, pistons in mid-sequence, door and chest open while the ship is upside down) and
+`deck-farm=farm+146` (the wheat just after the second dose, with the sparkle).
 Other frames: `python tools/film/readme_stills.py <frames> <folder> "name=event+frames" ...`. The wheat's growth per
 dose is random, so look at the farm still after every render.
 
@@ -139,9 +160,10 @@ Everything in the picture is the game and the mod running; the film only gives i
   deck and each other, and slide when the ship rolls. After the shot, unfilmed, each is deleted with
   `/slipway remove <id>`.
 - **The spill**: the only input of the cargo shot is roll input (-1 for 33 ticks from tick 24, eased in over half a
-  second, with level mode off, so the ship stays rolled). No other axis gets input; hover mode holds the ship on its spot under the load. The port rail is
-  open for six blocks at the cargo bay (a design decision: against the rail's 1.5-block collision height cargo stays
-  aboard until the ship is rolled past 90 degrees).
+  second, with level mode off, so the ship stays rolled). No other axis gets input; hover mode holds the ship in its
+  place under the load, and it rolls about its centre of mass. The port rail is open for six blocks at the cargo bay
+  (a design decision: against the rail's 1.5-block collision height cargo stays aboard until the ship is rolled past
+  90 degrees).
 - **The machine on the castle wall** (`FilmShips.machine`) is plain redstone, built unpowered: the lever on the wall
   powers its wall block; inside the castle dust leads to a comparator in subtract mode whose output runs through a
   repeater back into its own side (a clock that runs while the lever is on, period 20 game ticks); the output climbs
@@ -152,8 +174,8 @@ Everything in the picture is the game and the mod running; the film only gives i
   `DoorBlock.setOpen` (what a player's click calls) at tick 32. The chest gets its own open event at tick 40:
   `level.blockEvent(pos, chest, 1, 1)`, which is what a chest sends when a player opens it (no player is looking in,
   so the film sends the event itself; the lid then stays open until the close event). Piston strokes and the lid are
-  animated on a vessel since Slipway 0.1.2, which passes block events on to the players who see the vessel. After the shot, unfilmed, the lever is pulled again, the door closed and the
-  chest sent its close event.
+  animated on a vessel since Slipway 0.1.2, which passes block events on to the players who see the vessel. After
+  the shot, unfilmed, the lever is pulled again, the door closed and the chest sent its close event.
 - **The farm** (`FilmShips.farm`): four wheat plants, just planted, on moist farmland set into the deck around a
   waterlogged slab (water source blocks are not assembled; a waterlogged block is), four dispensers with bone meal
   that face the wheat, dust on top of the dispensers, and a second comparator clock (period 28 game ticks). In the
@@ -172,7 +194,7 @@ Everything in the picture is the game and the mod running; the film only gives i
   `VesselManager.disassemble`, which is what `/slipway disassemble` and sneak-using the helm call. The change from
   the vessel to its blocks takes the client a few ticks: Slipway 0.1.2 keeps drawing the vessel until the terrain
   shows the placed blocks (2 to 6 ticks; 0.1.1 drew neither for a tick or two). Film time is held over those ticks
-  (`Recorder.hold`, until the blocks are drawn and the vessel's picture is gone; 4 ticks in the delivered render), so
+  (`Recorder.hold`, until the blocks are drawn and the vessel's picture is gone; 5 ticks in the delivered render), so
   the film goes from the last frame of the vessel to the first frame of the blocks alone. Nothing is hidden by it
   that a player would not see: at normal speed the ship simply stays in the picture.
 
@@ -191,6 +213,14 @@ forward is opposite the helm's facing.
 | roll | -4650, 100, 5770, north | open air over the bay |
 | farm | -4665, 88, 5735, north, turning slowly east | the coast with the cherry grove and the peaks passes behind the starboard rail |
 
+The cameras of the roll and the farm shot are fixed to the ship, those of the hook and the return follow the ship's
+centre, and those of the cargo shot stand in the world, set from where the ship hovers before it rolls. So only the
+cargo shot's picture depends on the point a hovering ship turns about. Slipway 0.1.2's release holds the centre of
+mass (a ship turns about it, as in 0.1.1); the first 0.1.2 builds, which the shots were designed on, held the helm's
+corner. With the release the rolled ship hangs 2.8 blocks lower and 3.0 blocks further to port in the cargo shot;
+the pieces still leave through the open rail and come down on the same part of the headland, and no camera or input
+was changed.
+
 ## Checks and encoding
 
 - `tools/film/check_encode.py <dir>` checks `frames.csv` and the PNGs: within each shot, the per-frame step of the
@@ -206,6 +236,13 @@ forward is opposite the helm's facing.
   "Back to plain blocks" stays before the end card (2.4 s). It also assembles rehearsals with only some shots.
 - `tools/film/deliver.py <dir> <delivery folder>` runs both, names the outputs for the delivery, picks the thumbnail
   (`--thumb <event>+<frames>`), verifies the encode with ffprobe and reports the loop point.
+- The render's log is part of the check. Per shot: "server N ms per tick, physics step N ms". Before the cargo is
+  let go: "lowest sky light in the mesh of <piece>: down 14 up 15 north 15 south 15 west 15 east 15" (every side
+  lit; a side at 0 is drawn black, see "Lessons"). Every five ticks of the cargo shot: "cargo at tick N", each
+  piece's height and its place in deck coordinates (across, up, along): at the last tick every piece must be past
+  the port edge of the deck (across less than -5.4) and on or just above the ground (height 70 to 76), not in the
+  water. At the end: "wheat stages" (the growth per dose) and how many ticks the film held at the disassembly.
+- Then look at the frames: the sheet of the video, and full-size frames of every shot and after every cut.
 
 ## How capture works, and the lesson behind it
 
@@ -248,11 +285,20 @@ The film does not need the Tellus Distant Horizons fork.
 | Minecraft / Fabric Loader | 26.3 / 0.19.5 | |
 | Fabric API | 0.160.7+26.3 | `devmods/` |
 | Sodium | 0.9.2+mc26.3 | `devmods/` |
-| Iris | 1.11.7+mc26.3 (shadow-pass fixes) | `devmods/` (1.11.6 moved to `devmods/superseded/`) |
+| Iris | 1.11.7+mc26.3 (shadow-pass fixes) | `devmods/iris-fabric-1.11.7+mc26.3.jar`, from Modrinth (version `1.11.7+26.3-fabric`, SHA-512 `d8d3312f...20088f42`); `fetch-devmods.py` fetches 1.11.6 |
 | Distant Horizons | 3.3.4-26.3, stock from Modrinth | `devmods/DistantHorizons-fabric-3.3.4-26.3.jar` (what `tools/fetch-devmods.py` downloads) |
-| Shader pack | Bliss v2.1.2 (Chocapic13 Shaders edit), settings in `src/film/bliss.txt` | `shaderPackSource` in `build.gradle` |
+| Shader pack | Bliss v2.1.2 (Chocapic13 Shaders edit, `Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip`, SHA-256 `f41db92a...26947b2c`), settings in `src/film/bliss.txt` | `devmods/shaderpacks/` or `-PslipwayShaderPack=<zip>` |
 
-Do not use DH 3.3.1-tellus-fork.6 (or its leakfix builds) for film. It has the GL blend-state bug that causes dark
+`runFilm` uses the same jars as the client GameTests: Sodium and Iris from `devmods/` (`-PslipwayDevmods=<dir>` reads
+another folder) and, for Distant Horizons, `-PslipwayTestDhJar=<jar>`, else a jar in `devmods/test/`, else the one
+in `devmods/`. `prepareFilmRun` prints the pack and the jars it found and stops with a message when Sodium, Iris or
+the pack are missing; the game's log lists the mods that were loaded (`slipway 0.1.2`, `sodium 0.9.2+mc26.3`,
+`iris 1.11.7+mc26.3`, `distanthorizons 3.3.4`).
+
+The film was rendered with stock Distant Horizons 3.3.4. Where `devmods/` holds another build (`setup-devmods.ps1`
+copies the play instance's, which is `3.3.4-tellus-fork.7` on the author's machine), pass the stock jar with
+`-PslipwayTestDhJar` or point `-PslipwayDevmods` at a folder filled by `fetch-devmods.py`: fork.7 has not been tried
+for film. Do not use DH 3.3.1-tellus-fork.6 (or its leakfix builds): it has the GL blend-state bug that causes dark
 blotches (fixed upstream in 3.3.3) and lacks upstream's 26.3 Iris entity fix (3.3.4). With it, test renders showed
 blackened sails at some times of day, and the vessel's shadow on the water was unreliable.
 
@@ -267,21 +313,22 @@ the frame; that is the sun angle, not a bug.
 
 ## Version 2 as delivered (2026-10-01)
 
-Delivery folder `E:\slipway-e2e\film\reddit-v2\`. Rendered with `dev-0.1.2` at `7ece326` (Slipway 0.1.2; the commit
-is in the folder's `mod-commit.txt`), merged into `film`. An earlier complete render with `00814fa` (before the
-version number and the disassembly fix) was replaced by it: the logged states of the ship and the cargo at the end of
-every shot agree between the two to a millionth of a block; the wheat grew differently (it is random).
+Rendered with `dev-0.1.2` at `0238d02` (Slipway 0.1.2: the release candidate `b19bf3f` with `main` merged in; the
+mod's source is the candidate's), merged into `film`. The delivery folder is outside the repository; its
+`mod-commit.txt` names the commit. Two complete renders came before it and were replaced: with `00814fa` and with
+`7ece326` (before the black sides of small vessels were fixed and before the hover hold moved to the centre of mass;
+the cargo shot was the wide view only).
 
-- `slipway-4x5.mp4`: 1080x1350, 60 fps, 1,635 frames, 27.25 s, 40.9 MB, H.264 High, yuv420p, no audio track.
+- `slipway-4x5.mp4`: 1080x1350, 60 fps, 1,635 frames, 27.25 s, 43.4 MB, H.264 High, yuv420p, no audio track.
 - Shots and events in the video's time (raw frame numbers are in `segments.json`; each of the four crossfades
   shortens the video by six frames):
 
   | Shot | Seconds | Events |
   | --- | --- | --- |
   | hook | 0.00 to 2.00 | helm input from 0.30 s, full at 0.70 s |
-  | cargo | 2.00 to 7.50 | cargo let go 12 ticks (0.6 s) before the cut; roll input from 3.10 s |
+  | cargo | 2.00 to 7.50 | cargo let go 10 ticks (0.5 s) before the cut; the pieces land on the deck and on each other from about 2.3 to about 3.3 s; roll input from 3.20 s; the camera moves out from 3.20 to 4.50 s; the first pieces leave the deck at about 4.9 s (the ship rolled 60 degrees); the last one (the keg) leaves at about 6.6 s and is still falling at the cut |
   | roll | 7.50 to 13.50 | lever 7.90 s, first piston stroke 9.50 s, door 10.50 s, chest 11.30 s |
-  | farm | 13.50 to 18.50 | clock lever 14.00 s; bone meal at 14.25 s, 15.65 s and 17.05 s (wheat stages 0000, 2535, 7777: ripe after the second dose) |
+  | farm | 13.50 to 18.50 | clock lever 14.00 s; bone meal at 14.25 s, 15.65 s and 17.05 s (wheat stages 0000, 2522, 6774, 7777: ripe after the third dose) |
   | return | 18.50 to 27.25 | disassembled at 21.75 s, 4.7 cm from the starting point; end card from 24.15 s |
 
 - Captions: "Every block stays a real block" 0.10 to 1.85 s, "Physics on top of physics" 2.35 to 7.25 s, "Full
@@ -289,18 +336,23 @@ every shot agree between the two to a millionth of a block; the wheat grew diffe
   18.25 s, "Done flying?" 18.90 to 21.60 s, "Back to plain blocks" 21.80 to 24.15 s (2.35 s; version 1: 1.25 s),
   end card 24.15 to 27.25 s.
 - `check_encode.py`: passed (1,659 frames, cuts declared at 126, 462, 828 and 1134, no black or repeated frame).
-- Loop point: the last frame against the first differs by 4.85 of 255 on average; 7.1% of the pixels differ by more
+- The cargo: every piece's mesh has sky light 15 on all four sides and the top (14 below, 13 under the barrels).
+  At the last tick all eight pieces are off the deck: seven are on the grass and the stone of the headland or on
+  each other (three of them still rolling), the keg is in the air just above it. None is in the water.
+- Loop point: the last frame against the first differs by 4.87 of 255 on average; 7.2% of the pixels differ by more
   than 24. Ship and sky match. The water differs: the waves are in another phase, and there is a dark patch on the
   water under the hull in the last frame only. It appears in the first frame in which the ship is blocks again
-  (version 1 has it too). Not measured, but most likely sky light: placed blocks lower the sky light of the columns
-  below them and the shader darkens by it, while a vessel's blocks are stored elsewhere and change no light where
-  the ship is. Starting the film from placed blocks instead would put the assembly into the first frames.
-- Server load: 1.6 to 2.7 ms per tick, physics step 0.09 to 0.86 ms (nine vessels in the cargo shot: 1.9 ms and
-  0.30 ms). The film held 4 ticks at the disassembly.
-- Times: the render 6 min 33 s (319.5 s in the game, 222.8 s of it recording, 85 ms per frame); `deliver.py` 7 to
-  9.5 min (the PNG checks and the encode); the stills render 5 min 7 s.
-- README stills (`readme/`, 1600x900, 286 to 383 KB): `galleon-over-the-bay`, `cargo-spill`, `machine-wall`,
-  `deck-farm`, from a second render of the same showcase (`only=hook+cargo+roll+farm,fov=55`) with the same commit.
+  (version 1 has it too): a vessel changes no light in the world where it flies, placed blocks do (the mod's README
+  and DESIGN.md say so since 0.1.2). The castle's windows are also a little brighter as world blocks. Starting the
+  film from placed blocks instead would put the assembly into the first frames.
+- Server load: 1.7 to 2.6 ms per tick, physics step 0.08 to 0.55 ms (nine vessels in the cargo shot: 1.9 ms and
+  0.28 ms). The film held 5 ticks at the disassembly.
+- Times: the render 6 min 0 s (306.5 s in the game, 208.6 s of it recording, 77 ms per frame); `deliver.py` 6 min;
+  the stills render 4 min 58 s.
+- README stills (`readme/`, 1600x900, 288 to 376 KB): `galleon-over-the-bay`, `cargo-on-deck`, `cargo-spill`,
+  `machine-wall`, `deck-farm`, from a second render of the same showcase (`only=hook+cargo+roll+farm,fov=55`) with
+  the same commit (its wheat was ripe after the second dose).
+- The thumbnail is `cargo+217` (raw frame 343: the pieces in the air below the rolled ship).
 
 ## Decisions made for version 2
 
@@ -335,19 +387,23 @@ every shot agree between the two to a millionth of a block; the wheat grew diffe
 - **The wheat is not reset** before the return (see above); the lamps, pistons, door and chest are put back to their
   resting state by the same inputs that started them.
 - **Random ticks stay off** for the whole film, as in version 1.
-- **The hook's helm ramp is 9 ticks** (version 1: 6): with 0.1.2's hover hold the lift-off was a hair steeper and
-  tripped the smoothness check's 2x step rule at the first moving frames.
+- **The hook's helm ramp is 9 ticks** (version 1: 6): with the first 0.1.2 builds' hover hold the lift-off was a hair
+  steeper and tripped the smoothness check's 2x step rule at the first moving frames. It stayed with the release,
+  whose hold leaves an unpushed ship's flight as it was in 0.1.1.
+- **Five README stills**, not two or three: the galleon, the cargo on the deck, the spill, the machine wall, the
+  farm. They come from a landscape render of the same showcase (16:9, field of view 55), not from crops of the 4:5
+  frames.
 - **The return cuts in 15 blocks from home**; the autopilot plans a 6.5 m/s^2 deceleration (a pure proportional
   approach either overshot the spot by 1.8 blocks at gain 1.8 or took more than 5 s at gain 1).
 
 ## Lessons
 
 - With `NoDefaultCurrentDirectoryInExePath=1` in the environment, `cmd /c "gradlew.bat ..."` fails at once
-  ("'gradlew.bat' is not recognized"); write `.\gradlew.bat` in the lock helper's command.
+  ("'gradlew.bat' is not recognized"); write `.\gradlew.bat` in any command line that is handed to `cmd.exe`.
 - A run can hang at start, before the film's first log line (`=== Slipway film: ...`): the render thread parks in
   `Minecraft.postRunTasks` (Fabric client GameTest hook) and the test thread in `ThreadingImpl.enterPhase`. It
   happened once in about twenty starts. If that line has not appeared 30 s after Iris's "Creating pipeline" lines,
-  stop the film's java process by PID (its command line contains `Slipway-film`) and start again.
+  stop the film's java process by PID (its command line contains `slipway.film.shot`) and start again.
 - Frame sizes must be even (libx264 with yuv420p): rehearse at 544x680, not 540x675.
 - "Can't keep up!" lines in a render's log are the film itself: the tick loop waits while each tick's frames are
   rendered (up to half a second per tick in slow motion), so the server reports being seconds behind after every
@@ -362,11 +418,19 @@ every shot agree between the two to a millionth of a block; the wheat grew diffe
   from the hook had the lower ones, and the hay ended behind the main mast instead of on the ground). It rounds to
   the nearest block now and the heights in `FilmShips.cargo()` are the delivered ones. Where a piece bounces still
   depends on the ship's exact place: rehearse the cargo as `only=hook+cargo`, and read the "cargo at tick" lines
-  of the log (every piece must be on the ground, y 70 to 73, by tick 100).
+  of the log ("Checks and encoding" says what they must show).
+- Look at close views even when the film has none. The first deliveries showed the cargo from 30 blocks away, and
+  black west and north sides on the small pieces passed as shade. The close view made them obvious; the cause was
+  in the mod (a vessel's viewers were not sent the chunk columns next to its own, so faces on that border were lit
+  from nothing) and was fixed in 0.1.2. The film logs each piece's mesh light since.
+- When the mod changes how a ship moves, rehearse the whole film at 544x680 before the full render and compare
+  frames of every shot with the last render side by side (the release's hover hold moved the rolled ship three
+  blocks in the cargo shot; nothing needed re-tuning, but only the comparison shows that).
 - A lever's block, a lamp or a powered wall block next to a door opens it; keep powered blocks two away.
 - Vessel blocks that change (lamps, pistons, crops) need their mesh rebuilt before the frame is saved; the recorder
   now waits for it.
 
 ## Process hygiene
 
-If a run hangs, stop only the java process whose command line contains `Slipway-film`, by PID.
+If a run hangs, stop only the film's own java process (its command line contains `-Dslipway.film.shot=`), by PID,
+never by name: other game and Gradle processes may belong to someone else.

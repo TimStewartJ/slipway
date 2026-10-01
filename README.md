@@ -149,6 +149,9 @@ check on every push. Details are in [DESIGN.md](DESIGN.md), "Testing".
 
 `PATCHES.md` lists every mixin Slipway applies, with the reason and the test that covers it.
 
+[FILM.md](FILM.md) describes the film tool (`src/film`, `tools/film`, `gradlew runFilm`), which rendered the showcase
+video frame by frame inside the real game. It is development only: not part of `assemble`, `check` or the jar.
+
 ## License
 
 Apache-2.0. Bundled third-party components (jolt-jni, Jolt Physics, V-HACD) and their licenses are listed in

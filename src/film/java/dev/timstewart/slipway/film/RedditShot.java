@@ -41,8 +41,9 @@ import org.joml.Vector3d;
  *
  * <ol>
  * <li>hook: at rest over the bay, the galleon lifts off and rolls hard towards the camera;
- * <li>cargo: eight loose pieces (vessels of their own) drop onto the deck and pile up; the ship rolls and they slide
- * off through the open rail onto the shore;
+ * <li>cargo: eight loose pieces (vessels of their own) drop onto the deck and pile up, seen from close above the
+ * rail; the camera moves out to a wide view while the ship rolls, and they slide off through the open rail onto the
+ * shore;
  * <li>roll: slow motion with level mode off, a camera fixed to the ship while it rolls through inverted; on the
  * castle wall the lever starts a clock, lamps light in sequence, pistons pump, the door and the chest open;
  * <li>farm: wheat on deck grows as dispensers feed it bone meal on a redstone clock, sheep standing by;

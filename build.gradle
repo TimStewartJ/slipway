@@ -547,6 +547,17 @@ def filmShaderPack = providers.gradleProperty('slipwayShaderPack').map { file(it
 	def found = dir.isDirectory() ? dir.listFiles().findAll { it.name.endsWith('.zip') } : []
 	found.isEmpty() ? null : found.sort { it.name }.last()
 })()
+// The film's code is compiled against Sodium and Iris (the mod itself needs neither): say so instead of failing
+// with missing classes.
+def requireFilmMods = {
+	def missing = [Sodium: sodiumJar, Iris: irisJar].findAll { it.value == null }.keySet()
+	if (!missing.isEmpty()) {
+		throw new GradleException("The film needs ${missing.join(' and ')} in ${devmods}: run python tools/fetch-devmods.py (FILM.md, \"What is needed\").")
+	}
+}
+tasks.named('compileFilmJava').configure {
+	doFirst { requireFilmMods() }
+}
 tasks.register('prepareFilmRun') {
 	group = 'slipway'
 	description = 'Puts the shader pack, an Iris config with shaders on and the film Bliss settings into build/film.'
@@ -555,12 +566,9 @@ tasks.register('prepareFilmRun') {
 	inputs.file(blissSettings)
 	outputs.upToDateWhen { false }
 	doLast {
-		def missing = [Sodium: sodiumJar, Iris: irisJar].findAll { it.value == null }.keySet()
-		if (!missing.isEmpty()) {
-			throw new GradleException("The film needs ${missing.join(' and ')} in ${devmods}: run python tools/fetch-devmods.py (FILM.md, \"Render stack\").")
-		}
+		requireFilmMods()
 		if (filmShaderPack == null || !filmShaderPack.isFile()) {
-			throw new GradleException("The film needs a shader pack (it was made with Bliss v2.1.2; FILM.md, \"Render stack\"): put the zip into "
+			throw new GradleException("The film needs a shader pack (it was made with Bliss v2.1.2; FILM.md, \"What is needed\"): put the zip into "
 				+ "${new File(devmods, 'shaderpacks')} or pass -PslipwayShaderPack=<zip>." + (filmShaderPack == null ? '' : " Not found: ${filmShaderPack}"))
 		}
 		def packs = new File(runDir, 'shaderpacks')
