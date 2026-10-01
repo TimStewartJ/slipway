@@ -338,7 +338,10 @@ Now the vessel's picture is kept that long:
   plot is freed as before.
 - Client: on `VesselGone` without `keepProxy`, `ClientVessels` keeps the vessel as "gone" instead of forgetting it.
   The packet arrives before the packets that drop its plot chunks, so the mesh is complete and is frozen
-  (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`). `VesselRenderer`
+  (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`), each with the
+  light its renderer drew it with at that moment: a block entity's light is read from the level when it is drawn, and
+  the plot's light goes with its chunks (a chest beside a lamp was drawn with block light 0 for those ticks, and one
+  under a roof with full sky light; found in review). `VesselRenderer`
   draws that picture at the vessel's last poses. It stops when the terrain renderer has had nothing waiting for 2
   ticks, asked every frame (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's
   `isTerrainRenderComplete` by guarded reflection, hook `sodium-terrain-complete`), and after 6 ticks at the

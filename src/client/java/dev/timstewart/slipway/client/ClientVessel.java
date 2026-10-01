@@ -58,6 +58,8 @@ public final class ClientVessel {
 	/** The last client tick at which the terrain renderer still had work waiting (from {@link #goneAtTick} on). */
 	long terrainBusyAtTick;
 	public java.util.List<net.minecraft.world.level.block.entity.BlockEntity> keptBlockEntities = java.util.List.of();
+	/** The light each of {@link #keptBlockEntities} was drawn with when the vessel went: the plot's light goes with its chunks. */
+	public int[] keptBlockEntityLight = new int[0];
 
 	private final ArrayDeque<Snapshot> snapshots = new ArrayDeque<>();
 	private double playbackTick = Double.NaN;
@@ -277,6 +279,7 @@ public final class ClientVessel {
 			}
 		}
 		this.keptBlockEntities = kept;
+		this.keptBlockEntityLight = kept.stream().mapToInt(dev.timstewart.slipway.client.render.VesselRenderer::lightOf).toArray();
 		this.goneAtTick = clientTick;
 		this.terrainBusyAtTick = clientTick;
 	}
@@ -284,6 +287,7 @@ public final class ClientVessel {
 	void close() {
 		this.mesh.clear();
 		this.keptBlockEntities = java.util.List.of();
+		this.keptBlockEntityLight = new int[0];
 	}
 
 	private final dev.timstewart.slipway.vessel.VesselLookup.View view = new dev.timstewart.slipway.vessel.VesselLookup.View() {

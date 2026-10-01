@@ -36,8 +36,8 @@ final class DisassemblyScenarios {
 
 	static final int TICKS = 12;
 
-	/** A ship to disassemble: its blocks relative to the helm and the box that holds them. */
-	private record Ship(Map<BlockPos, BlockState> blocks, BlockPos min, BlockPos max) {
+	/** A ship to disassemble: its blocks relative to the helm, the box that holds them, and whether it has a chest on deck. */
+	private record Ship(Map<BlockPos, BlockState> blocks, BlockPos min, BlockPos max, boolean blockEntities) {
 	}
 
 	/** How many of the frames lack the ship, the largest part of it any frame lacks (1 = all of it), and for how many ticks the gone vessel was still drawn. */
@@ -48,6 +48,8 @@ final class DisassemblyScenarios {
 		Map<BlockPos, BlockState> blocks = Ships.deck(3, Blocks.GOLD_BLOCK.defaultBlockState());
 		blocks.put(BlockPos.ZERO, Ships.helm(Direction.NORTH));
 		blocks.put(new BlockPos(2, 0, 2), Blocks.CHEST.defaultBlockState());
+		// Next to the chest: its light (14 at the chest) is in the plot only, and goes with the plot's chunks.
+		blocks.put(new BlockPos(1, 0, 2), Blocks.GLOWSTONE.defaultBlockState());
 		for (int x = -3; x <= 3; x += 6) {
 			for (int z = -3; z <= 3; z += 6) {
 				blocks.put(new BlockPos(x, 0, z), Blocks.REDSTONE_BLOCK.defaultBlockState());
@@ -116,11 +118,33 @@ final class DisassemblyScenarios {
 		Game.waitClientComplete(ctx, id, 400);
 		Shots.waitStill(ctx, r, label + "-assembled", 1200);
 		Path before = Shots.take(ctx, r, label + "-1-before");
-		ctx.runOnClient(mc -> ClientVessels.keepGoneVessels = keep);
+		ctx.runOnClient(mc -> {
+			ClientVessels.keepGoneVessels = keep;
+			dev.timstewart.slipway.client.SlipwayDebug.blockEntitiesStart(id);
+		});
 		server.runCommand("slipway disassemble " + id);
 		int[] drawnTicks = new int[1];
 		List<Path> frames = framesOfTheNextTicks(ctx, r, label, id, drawnTicks);
 		r.metric(label + ".ticksTheGoneVesselWasDrawn", drawnTicks[0]);
+		// The chest of the kept picture: its plot chunk is gone by then, and it must still be lit as it was (open sky,
+		// and the glowstone beside it).
+		int[] keptLight = ctx.computeOnClient(mc -> {
+			int[] light = dev.timstewart.slipway.client.SlipwayDebug.keptBlockEntityLight();
+			dev.timstewart.slipway.client.SlipwayDebug.blockEntitiesStop();
+			return light;
+		});
+		if (ship.blockEntities()) {
+			r.metric(label + ".keptBlockEntityDraws", keptLight[0]);
+			r.metric(label + ".keptBlockEntityDarkestSkyLight", keptLight[1]);
+			r.metric(label + ".keptBlockEntityDarkestBlockLight", keptLight[2]);
+			if (keep) {
+				Check.atLeast(label + ": times a block entity of the kept picture was drawn", keptLight[0], 1);
+				Check.atLeast(label + ": lowest sky light a block entity of the kept picture was drawn with", keptLight[1], 14);
+				Check.atLeast(label + ": lowest block light a block entity of the kept picture was drawn with (glowstone beside the chest)", keptLight[2], 10);
+			} else {
+				Check.equal(label + ": block entities of a kept picture drawn with the picture turned off", keptLight[0], 0);
+			}
+		}
 		Check.that(server.computeOnServer(s -> Game.manager(s).registry().get(id) == null), "the vessel was not disassembled");
 		Game.waitTerrain(ctx, 600);
 		ctx.waitTicks(10);
@@ -179,9 +203,9 @@ final class DisassemblyScenarios {
 			int threads = BuildThreads.get();
 			try {
 				LooseScenarios.watch(ctx, sp, new Vec3(0.5, helm.getY() + 5, helm.getZ() + 14.5), Vec3.atCenterOf(helm));
-				pair(ctx, server, r, helm, new Ship(ship(), new BlockPos(-4, -2, -4), new BlockPos(4, 3, 4)), "small");
+				pair(ctx, server, r, helm, new Ship(ship(), new BlockPos(-4, -2, -4), new BlockPos(4, 3, 4), true), "small");
 
-				Ship carrier = new Ship(LooseScenarios.carrier(), new BlockPos(-LooseScenarios.HALF_X, -3, -LooseScenarios.HALF_Z), new BlockPos(LooseScenarios.HALF_X, 0, LooseScenarios.HALF_Z));
+				Ship carrier = new Ship(LooseScenarios.carrier(), new BlockPos(-LooseScenarios.HALF_X, -3, -LooseScenarios.HALF_Z), new BlockPos(LooseScenarios.HALF_X, 0, LooseScenarios.HALF_Z), false);
 				r.metric("carrier.blocks", carrier.blocks().size());
 				LooseScenarios.watch(ctx, sp, new Vec3(0.5, helm.getY() + 14, helm.getZ() + 30.5), Vec3.atCenterOf(helm));
 				pair(ctx, server, r, helm, carrier, "carrier");

@@ -194,6 +194,9 @@ public final class SlipwayDebug {
 	private static final List<double[]> TRACE = new ArrayList<>();
 	private static long blockEntitiesId = -1;
 	private static final java.util.Set<String> DRAWN_BLOCK_ENTITIES = new java.util.LinkedHashSet<>();
+	private static int keptBlockEntityDraws;
+	private static int keptBlockEntityDarkestSky = 15;
+	private static int keptBlockEntityDarkestBlock = 15;
 	private static final int RIDER_TRACE_LIMIT = 4_000;
 	private static long riderTraceId = -1;
 	private static final List<String> RIDER_TRACE = new ArrayList<>();
@@ -254,15 +257,34 @@ public final class SlipwayDebug {
 	/** Starts collecting which block entities of a vessel the renderer draws. */
 	public static String blockEntitiesStart(long id) {
 		DRAWN_BLOCK_ENTITIES.clear();
+		keptBlockEntityDraws = 0;
+		keptBlockEntityDarkestSky = 15;
+		keptBlockEntityDarkestBlock = 15;
 		blockEntitiesId = id;
 		return "watching block entities of " + id;
 	}
 
 	/** Called by the renderer for every block entity it has a render state for. */
-	public static void blockEntityDrawn(long id, net.minecraft.world.level.block.entity.BlockEntity blockEntity, BlockPos local) {
-		if (id == blockEntitiesId && DRAWN_BLOCK_ENTITIES.size() < TRACE_LIMIT) {
+	public static void blockEntityDrawn(long id, net.minecraft.world.level.block.entity.BlockEntity blockEntity, BlockPos local, int lightCoords, boolean kept) {
+		if (id != blockEntitiesId) {
+			return;
+		}
+		if (DRAWN_BLOCK_ENTITIES.size() < TRACE_LIMIT) {
 			DRAWN_BLOCK_ENTITIES.add(net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType()) + "@" + local.toShortString());
 		}
+		if (kept) {
+			keptBlockEntityDraws++;
+			keptBlockEntityDarkestSky = Math.min(keptBlockEntityDarkestSky, net.minecraft.util.LightCoordsUtil.sky(lightCoords));
+			keptBlockEntityDarkestBlock = Math.min(keptBlockEntityDarkestBlock, net.minecraft.util.LightCoordsUtil.block(lightCoords));
+		}
+	}
+
+	/**
+	 * Since the start: how often a block entity of the watched vessel was drawn as part of the kept picture of a vessel
+	 * that is gone, and the lowest sky light and block light (0 to 15) it was drawn with.
+	 */
+	public static int[] keptBlockEntityLight() {
+		return new int[] {keptBlockEntityDraws, keptBlockEntityDarkestSky, keptBlockEntityDarkestBlock};
 	}
 
 	/** Stops collecting: every block entity drawn since the start, as "type@x, y, z" (vessel-local), one per line. */
