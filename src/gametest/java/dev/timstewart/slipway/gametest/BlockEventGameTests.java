@@ -410,8 +410,13 @@ public class BlockEventGameTests {
 		ActiveVessel vessel = TestShips.active(helper, record);
 		ServerLevel level = helper.getLevel();
 		Spy viewer = spy(helper, Vec3.atCenterOf(helper.absolutePos(helm)).add(3, 0, 0));
-		// Six columns out. A cobweb has no collision box, so the vessel's body does not reach into the arenas next door.
+		// Six columns out, on both sides, so that the middle of the bounds stays where it is: the vessel's entity sits
+		// there, and with one block it would move fifty blocks, into the arena of another test (which removes every
+		// entity in it when it succeeds) or, from the last arena of a row, into chunks that are not loaded (where the
+		// vessel unloads). A cobweb has no collision box, so the vessel's body does not reach into the arenas next door.
 		BlockPos far = record.anchor.offset(100, 0, 0);
+		BlockPos farWest = record.anchor.offset(-100, 0, 0);
+		Vec3 entityAt = vessel.entity.position();
 		List<Long> before = new ArrayList<>();
 		int[] deferred = new int[1];
 		helper.startSequence()
@@ -421,7 +426,8 @@ public class BlockEventGameTests {
 				vessel.viewerGraceUntil = level.getGameTime() + 200;
 				before.addAll(vessel.viewChunks);
 				level.setBlock(far, Blocks.COBWEB.defaultBlockState(), 2);
-				check(helper, record.localMax.getX() == 100, "the bounds did not grow to the block: " + record.localMax);
+				level.setBlock(farWest, Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMax.getX() == 100 && record.localMin.getX() == -100, "the bounds did not grow to the blocks: " + record.localMin + ".." + record.localMax);
 				deferred[0] = vessel.unsentChunks.size();
 			})
 			.thenWaitUntil(() -> check(helper, vessel.unsentChunks.isEmpty(), vessel.unsentChunks.size() + " new columns are not loaded yet"))
@@ -435,9 +441,12 @@ public class BlockEventGameTests {
 						check(helper, hasChunk(viewer, chunk), "the viewer was not sent the new column " + ChunkPos.unpack(chunk));
 					}
 				}
-				// Six more columns of bounds, and the ring around them: four columns wide and one beyond the block.
-				check(helper, added == 24, added + " columns were added");
-				check(helper, hasChunk(viewer, ChunkPos.pack((far.getX() >> 4) + 1, far.getZ() >> 4)), "the column beyond the block was not sent");
+				// Six more columns of bounds on either side, and the ring around them: four columns wide and one beyond each block.
+				check(helper, added == 48, added + " columns were added");
+				check(helper, hasChunk(viewer, ChunkPos.pack((far.getX() >> 4) + 1, far.getZ() >> 4)) && hasChunk(viewer, ChunkPos.pack((farWest.getX() >> 4) - 1, farWest.getZ() >> 4)),
+					"a column beyond a block was not sent");
+				check(helper, VesselManager.get(level).active(record.id) == vessel && vessel.entity.position().distanceTo(entityAt) < 1.0,
+					"the vessel's entity moved " + vessel.entity.position().distanceTo(entityAt) + " blocks, or the vessel unloaded");
 				vessel.viewers.remove(viewer.player());
 				// Its bounds stay long; take it away so it does not lie across the arenas next door.
 				VesselManager.get(level).remove(record.id);

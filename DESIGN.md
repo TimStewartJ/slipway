@@ -862,6 +862,16 @@ with the chunk its entity is in; the runner releases forced chunks at the end of
 ships.
 Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
 sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
+Every run starts in a new world, as on CI (`runGametest` deletes `build/gametest/world` first): the world of an
+earlier run holds that run's vessels, its registry with the freed plots, and whatever the code it ran left in them.
+The runner puts the arenas at a random place, eight to a row, in an order that differs from run to run, and runs at
+most 50 tests at a time (the rest follow as a second batch), so a test must not depend on what is beside it. One did:
+a vessel's entity sits at the middle of its bounds, and a block set 100 blocks out moved it 50 blocks, into the arena
+of another test or, from the last arena of a row and depending on where the chunk borders fell, into chunks that are
+not loaded, where the vessel unloaded (`columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`; it now sets
+a block on either side, which leaves the middle where it is).
+A check that fails inside a step of a test sequence does not end the test at once: the sequence runs for one more
+tick, and the failure that is reported is the last one.
 
 **Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs seventeen
 scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and

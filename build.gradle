@@ -449,6 +449,13 @@ tasks.register('checkPatches') {
 tasks.named('check').configure { dependsOn 'checkPatches' }
 
 tasks.named('check').configure { dependsOn 'runGametest' }
+// Every run of the server GameTests starts in a new world, as on CI. The world of an earlier run holds that run's
+// vessels and whatever the code it ran left in their plots, and its freed plots would be handed to this run's vessels.
+tasks.matching { it.name == 'runGametest' }.configureEach {
+	doFirst {
+		project.delete(file('build/gametest/world'))
+	}
+}
 
 // The client GameTests use the Bliss shader pack, as the play instance does. It is copied from the author's Tellus 26.3
 // instance (-PslipwayShaderPack=<zip> overrides); a missing pack makes the shader tests fail, not skip.
