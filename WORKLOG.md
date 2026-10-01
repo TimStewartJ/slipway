@@ -40,7 +40,73 @@ Progress:
 - 15:01 play instance: DH leakfix.9 -> irisfix.1 (SHA256 B9FE6130...A79E), all 5 jars match
   E:\slipway-e2e\play-instance-expected-sha256.json; backup E:\slipway-e2e\play-instance-backups\Slipway-MC-26.3-Fabric-0.1.1-leakfix.9-20260930-150107.
   No native launch yet (film run uses the GPU); the same jar set passed the packaged-jar check earlier today.
-Next: push; cleanup (now items); Phase 1 (fork.7 branches `rebase-3.3.4` in both DH repos, builds, tests, PATCHES.md).
+- 15:05 pushed 1f992ef..33f69c5 (CI green, run 36783132935). 15:10 cleanup: Slipway-Test2 instance, e2e scratch,
+  leakfix.1-8 + from-source stock jars deleted (0.39 GB); 9b0ebf4 (local) drops Test2 from the e2e module.
+- 15:30 Phase 1 done in work clone E:\dh-fork7 (core clone at E:\dh-fork7\coreSubProjects), copied to
+  E:\distant-horizons as local branches `rebase-3.3.4` (wrapper cf1d0cd21, core b055cc841), nothing pushed.
+  Core: P-series rebased onto core 3.3.4 (one conflict, P1 FullDataUpdatePropagatorV2 catch body), + B, C, E, A
+  (A adapted: P9 already frees failed slots) + I2 (kept: official 3.3.4 still logs Iris's "Unexpected; somehow the
+  Opaque + Translucent pass" once per film run, 12 of 12 film logs). Wrapper: series rebased onto wrapper 3.3.4
+  (only version lines + 4 submodule pointers), + D, F, G, release commit (fork.7, PATCHES.md). range-diff: no other
+  change to any fork commit. Builds (gradlew --priority low --no-daemon): 26.3 + 26.2 Fabric/NeoForge, core tests
+  106/106. Jars in E:\slipway-e2e\dh\fork7 (fabric 26.3 SHA256 BCF32F99...FEF10, 26.2 3FDFEE9C...4224); logs in
+  E:\slipway-e2e\dh\fork7-build. devmods/test now has fork.7 (irisfix.1 kept in E:\slipway-e2e\dh).
+  Config: DH 3.3.4 deletes configs with _version < 5 (ConfigFileHandler); migration = set _version = 5 (+ ",grass" in
+  blocksDontUseSideTextureCsv for the three Tellus configs).
+Next: wait for the film to finish (then Phase 2: Slipway full build with fork.7, stock-3.3.4 lane, blotch diag,
+Tellus check on Tellus-MC-26.3-Fabric via the tellus-e2e harness).
+Prepared (E:\slipway-e2e\tools, not in any repo): dh-fork7-rollout.ps1 (Backup-DhInstance, Set-DhJar,
+Convert-DhConfigToV5 - dry run on copies of all five configs: only _version and the grass entry change, idempotent;
+Test-DhInstanceTitleScreen - background launch to the title screen, mod-list DH version, no config reset, no mixin
+errors, clean close) and tellus-dh-check.ps1 (fresh copy of save mc263-sp on Tellus-MC-26.3-Fabric, spectator flight
+8 x 256 blocks, DH DB growth, far screenshot, log checks for the Tellus generator, guard P5/P6/plan overrides and the
+P7 handoff; run on fork.6 first as the baseline).
+- 16:02 user: film is done, proceed. Film watcher cancelled. The deck-luminance script (lost from %TEMP%) was
+  recreated as E:\slipway-e2e\diag\deck-luminance.py; its region was fitted to the six recorded numbers.
+- Phase 2, Tellus check on Tellus-MC-26.3-Fabric (reports in E:\slipway-e2e\tellus-dh-check\<label>-<stamp>):
+  fork.6 baseline PASS (491 LOD rows added, generator + P5/P6/plan overrides, handoff via DH OpenGL, 0 errors);
+  fork.6 + Bliss PASS (490 rows, handoff via Iris DH shader, 1 Iris "Unexpected ... pass" error);
+  instance swapped to fork.7 + config v5 (backup E:\slipway-e2e\instance-backups\Tellus-MC-26.3-Fabric-before-fork7-20260930-161657);
+  fork.7 PASS (491 rows, same log lines, 0 errors, settings kept);
+  fork.7 + Bliss INTERRUPTED at 16:24 (user asked to pause). Game closed cleanly, iris.properties back to
+  enableShaders=false, dhcheck save removed. That partial run showed: handoff active via Iris DH shader, 0 Iris
+  "Unexpected" messages, and ONE DH error at close (16:24:48, DH-ClientTickTimer "Quad Tree tick exception",
+  RejectedExecutionException from a terminated pool, game closed while in the world) - OPEN: check whether fork.6 or
+  official 3.3.4 do the same before calling it harmless.
+PAUSED by the user at 16:24. Not run yet: fork.7 + Bliss Tellus check (rerun), Slipway full build with fork.7, the
+official-3.3.4 lane, the blotch diagnostic. No play instance has fork.7 (Slipway play: irisfix.1; Tellus-Expeditions
+26.3 and 26.2: fork.6). Tellus-MC-26.3-Fabric (test) has fork.7.
+- 17:35 user: do the no-game work now, game tests only on "go"; put fork.7 into the play instances before the tests.
+  Done without any game launch:
+  - Shutdown error explained, not a fork.7 regression, no rebuild. The rejected executor is LodQuadTree's
+    fullDataRetrievalQueueThread (shutdownNow in LodQuadTree.close); the 100 ms ClientTickTimer is cancelled only at the
+    end of DhClientServerWorld.close, and ClientLevelModule.clientTick skips closing levels only when the player is
+    gone, so a tick in flight while the window is closed in-world can hit the terminated pool. That code is identical
+    in official 3.3.4 and fork.7 (no fork commit touches it) and the same in 3.3.1 except for the extra super.close().
+    Logs on disk: 0 hits in 255 other logs; "Closed DhWorld" appears 4x per world on official 3.3.4 and fork.7, 2x on
+    3.3.1-based builds (upstream db7a34e4b). The three finished checks left the world before closing. Not reproduced
+    on official 3.3.4 (no in-world close of it on disk). Candidate for the DH upstreaming task.
+  - Screenshots of the finished Tellus checks reviewed (they were saved as Proceed-far.png: $label/$Label clash in the
+    script, fixed): fork.6 vs fork.7 shaders off MSD 0.00018, far terrain to the horizon, no holes.
+  - Static checks: all four fork.7 jars pass the fork's check-mixin-annotations.py; same 27 Fabric mixin classes as
+    the installed jars. FOUND: upstream now writes `fabricloader >= fabric_loader_version` into fabric.mod.json
+    (c1959b8d7) and raised 26.2's loader to 0.19.5 "for testing" (d0491973c); Tellus-Expeditions-MC-26.2-Fabric has
+    loader 0.19.3, so fork.7 would not load there. That instance stays on fork.6 until its loader is updated together
+    with a launch check.
+  - fork.7 installed (backup, jar swap, config v5, hash check; E:\slipway-e2e\instance-backups\<id>-before-fork7-20260930-1741xx)
+    in Tellus-Expeditions-MC-26.3-Fabric, Slipway-MC-26.3-Fabric (expected-sha json updated, 5 of 5 match) and
+    Slipway-Test-MC-26.3-Fabric. NOT launched.
+  - Slipway: devmods now fork.7 (both devmods and devmods/test); `gradlew assemble test runGametest checkPatches`
+    green (E:\slipway-e2e\cgt\fork7-headless): main and client sources compile against fork.7, the jar is unchanged,
+    unit tests up to date (60, classes unchanged), server GameTests 28/28 re-run, checkPatches 13. PLAYTEST and README
+    updated (local commit, not pushed).
+  - Release notes draft: E:\slipway-e2e\dh\fork7\RELEASE-NOTES-draft.md. For publishing: push the official tag 3.3.4
+    to both fork repos (the GitHub fork only has 3.2.0b, so fork.6's notes named the wrong base), extend the notes
+    template in release.yml, and afterwards replace the locally built jars in the instances with the release assets
+    (the fork.6 jars in the instances were the GitHub release assets).
+WAITING for the user's "go" for the game tests: Tellus check with Bliss (rerun), Slipway full build with fork.7
+(client GameTests, packaged-jar check), official-3.3.4 lane, blotch diagnostic, one launch per swapped instance
+(Tellus-Expeditions 26.3 title screen, Slipway play sandbox), then the 26.2 instance (loader 0.19.5 + fork.7 + launch).
 
 ## Previous goal (shader blotches)
 
