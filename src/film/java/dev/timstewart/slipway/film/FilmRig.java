@@ -104,7 +104,7 @@ final class FilmRig {
 			o.simulationDistance().set(Math.min(renderDistance, 12));
 			o.chatVisibility().set(ChatVisiblity.HIDDEN);
 			o.inactivityFpsLimit().set(InactivityFpsLimit.MINIMIZED);
-			o.fov().set(70);
+			o.fov().set((int)optDouble("fov", 70));
 			o.bobView().set(false);
 		});
 		ctx.runOnClient(mc -> {

@@ -202,8 +202,8 @@ final class RedditShot {
 		});
 		int hookTicks = (int)FilmRig.optDouble("hookTicks", 42);
 		for (int i = 0; i < hookTicks; i++) {
-			// the helm is pushed over within a few ticks, as a player's analogue input would be
-			double ramp = Math.max(0, Math.min(1, (i - 7) / 6.0));
+			// the helm is pushed over within half a second, as a player's analogue input would be
+			double ramp = Math.max(0, Math.min(1, (i - 5) / 9.0));
 			FilmPilot.Input in = new FilmPilot.Input(0.5 * ramp, 0, 0.9 * ramp, 0, -0.35 * ramp, -1 * ramp);
 			this.server.runOnServer(s -> FilmPilot.apply(s, id, in));
 			this.rec.tick(3);
@@ -227,13 +227,13 @@ final class RedditShot {
 		Vec3 bay = pose.localToWorld(FilmShips.shipPoint(-0.5, 0, 1.5));
 		Vec3 port = dir(pose, -1, 0, 0);
 		Vec3 fore = dir(pose, 0, 0, -1);
-		double dist = FilmRig.optDouble("cargoCamDist", 27);
+		double dist = FilmRig.optDouble("cargoCamDist", 30);
 		double height = FilmRig.optDouble("cargoCamY", -4);
 		double along = FilmRig.optDouble("cargoCamAlong", 3);
 		Vec3 camA = bay.add(port.scale(dist)).add(fore.scale(along)).add(0, height, 0);
 		Vec3 camB = camA.add(port.scale(-FilmRig.optDouble("cargoPush", 3))).add(0, FilmRig.optDouble("cargoRise", 1.5), 0);
 		Vec3 aimA = bay.add(port.scale(FilmRig.optDouble("cargoAimOut", 3))).add(0, FilmRig.optDouble("cargoAimY", 0.5), 0);
-		Vec3 aimB = aimA.add(port.scale(FilmRig.optDouble("cargoAimOutB", 3))).add(0, FilmRig.optDouble("cargoAimDrop", -3.5), 0);
+		Vec3 aimB = aimA.add(port.scale(FilmRig.optDouble("cargoAimOutB", 3))).add(fore.scale(FilmRig.optDouble("cargoAimFore", 1.5))).add(0, FilmRig.optDouble("cargoAimDrop", -5.0), 0);
 		int cargoTicks = (int)FilmRig.optDouble("cargoTicks", 112);
 		long[] b2 = {Long.MAX_VALUE};
 		FilmCamera.set((t, p) -> {
@@ -260,8 +260,8 @@ final class RedditShot {
 		this.rec.cut("cargo");
 		this.event("cargo");
 		b2[0] = FilmCamera.ticks();
-		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 24);
-		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 30);
+		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 22);
+		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 33);
 		double rollInput = FilmRig.optDouble("cargoRoll", 1.0);
 		int slowFrom = (int)FilmRig.optDouble("cargoSlowFrom", 1000);
 		int slowTo = (int)FilmRig.optDouble("cargoSlowTo", 1000);
@@ -272,7 +272,7 @@ final class RedditShot {
 				this.event("spill");
 			}
 			// the only input of the shot: from rollAt the pilot rolls the ship to port; with level mode off it then stays rolled
-			double ramp = Math.max(0, Math.min(1, Math.min((j - rollAt + 1) / 5.0, (rollAt + rollTicks - j) / 5.0)));
+			double ramp = Math.max(0, Math.min(1, Math.min((j - rollAt + 1) / 10.0, (rollAt + rollTicks - j) / 5.0)));
 			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0, 0, 0, 0, 0, -rollInput * ramp)));
 			this.rec.tick(j >= slowFrom && j < slowTo ? 4 : 3);
 			if (j % 10 == 9 || j == cargoTicks - 1) {
