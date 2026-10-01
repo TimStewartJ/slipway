@@ -8,12 +8,15 @@ import dev.timstewart.slipway.vessel.ActiveVessel;
 import dev.timstewart.slipway.vessel.HelmBlock;
 import dev.timstewart.slipway.vessel.VesselManager;
 import dev.timstewart.slipway.vessel.VesselRecord;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -241,9 +244,11 @@ public class PhysicsGameTests {
 		// ground that has to stay loaded, or the ships would be unloaded with it. The test runner releases forced
 		// chunks when its batch ends.
 		BlockPos base = helper.absolutePos(new BlockPos(8, 0, 8));
+		List<ChunkPos> under = new ArrayList<>();
 		for (int cx = base.getX() - 56 >> 4; cx <= base.getX() + 56 >> 4; cx++) {
 			for (int cz = base.getZ() - 56 >> 4; cz <= base.getZ() + 56 >> 4; cz++) {
 				level.setChunkForced(cx, cz, true);
+				under.add(new ChunkPos(cx, cz));
 			}
 		}
 		Vec3[] centres = new Vec3[2];
@@ -258,6 +263,8 @@ public class PhysicsGameTests {
 		};
 		helper.startSequence()
 			.thenWaitUntil(() -> check(helper, a.hasBody && b.hasBody && a.mass != null && b.mass != null, "no physics bodies yet"))
+			// Chunks are loaded on other threads, and the test server does not wait for them between ticks.
+			.thenWaitUntil(() -> check(helper, under.stream().allMatch(chunk -> level.getChunkSource().getChunkNow(chunk.x(), chunk.z()) != null), "the chunks under the flight are not loaded yet"))
 			.thenExecute(() -> {
 				manager.teleport(a, held.pose.withPosition(held.pose.x(), base.getY() + 60, held.pose.z()));
 				manager.teleport(b, plain.pose.withPosition(plain.pose.x(), base.getY() + 100, plain.pose.z()));

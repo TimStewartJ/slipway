@@ -162,6 +162,8 @@ public class BlockEventGameTests {
 		VesselManager.get(level).teleport(vessel, TestShips.poseAboutHelm(helper.absolutePos(helm), 90, 0, 0));
 		ServerPlayer[] user = new ServerPlayer[1];
 		helper.startSequence()
+			// The chest looks for its users in scheduled ticks: the test counts on them from here on.
+			.thenWaitUntil(() -> check(helper, TestShips.plotTicks(level, vessel), "the vessel's blocks are not ticked yet"))
 			.thenIdle(2)
 			.thenExecute(() -> {
 				user[0] = helper.makeMockServerPlayerInLevel();

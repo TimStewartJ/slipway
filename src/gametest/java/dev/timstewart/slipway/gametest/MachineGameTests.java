@@ -133,7 +133,7 @@ public class MachineGameTests {
 			}
 		});
 		helper.startSequence()
-			.thenWaitUntil(() -> check(helper, settled(vessel), "the vessel has no body yet"))
+			.thenWaitUntil(() -> check(helper, settled(vessel) && TestShips.plotTicks(level, vessel), "the vessel has no body yet, or its blocks are not ticked yet"))
 			// Start the clock with a pulse as long as one repeater's delay.
 			.thenExecute(() -> {
 				flying[0] = true;
@@ -222,7 +222,7 @@ public class MachineGameTests {
 			}
 		});
 		helper.startSequence()
-			.thenWaitUntil(() -> check(helper, settled(vessel), "the vessel has no body yet"))
+			.thenWaitUntil(() -> check(helper, settled(vessel) && TestShips.plotTicks(level, vessel), "the vessel has no body yet, or its blocks are not ticked yet"))
 			.thenExecute(() -> {
 				flying[0] = true;
 				vessel.viewers.add(viewer.player());
@@ -320,7 +320,7 @@ public class MachineGameTests {
 			}
 		});
 		helper.startSequence()
-			.thenWaitUntil(() -> check(helper, settled(vessel), "the vessel has no body yet"))
+			.thenWaitUntil(() -> check(helper, settled(vessel) && TestShips.plotTicks(level, vessel), "the vessel has no body yet, or its blocks are not ticked yet"))
 			.thenExecute(() -> {
 				flying[0] = true;
 				vessel.viewers.add(viewer.player());

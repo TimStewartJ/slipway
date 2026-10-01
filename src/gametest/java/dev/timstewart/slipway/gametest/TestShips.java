@@ -130,6 +130,21 @@ final class TestShips {
 		return vessel != null && vessel.hasBody && vessel.mass != null && !vessel.shapeDirty;
 	}
 
+	/**
+	 * The vessel's blocks are ticked: scheduled ticks, block entities and random ticks run in every column of its plot
+	 * that holds its blocks. That begins some ticks after assembly, when the columns around them have been made and
+	 * the columns' entities read, both on other threads; the test server does not wait between ticks, so how many
+	 * ticks that takes depends on the machine. A test that counts ticks from a redstone signal waits for this first.
+	 */
+	static boolean plotTicks(ServerLevel level, ActiveVessel vessel) {
+		for (long chunk : vessel.ticketChunks) {
+			if (!level.isPositionTickingWithEntitiesLoaded(chunk)) {
+				return false;
+			}
+		}
+		return !vessel.ticketChunks.isEmpty();
+	}
+
 	/** The same boxes, as far as their mass, centre and inertia tell: one more solid block changes all three. */
 	static boolean sameMass(BoxList.MassProperties a, BoxList.MassProperties b) {
 		boolean same = Math.abs(a.mass() - b.mass()) < 1.0e-6 && Math.abs(a.comX() - b.comX()) < 1.0e-6 && Math.abs(a.comY() - b.comY()) < 1.0e-6
