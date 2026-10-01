@@ -104,10 +104,20 @@ final class FilmPilot {
 	 * thrust 12 m/s^2 per unit input and drag 0.5/s), and a yaw rate towards the heading. Assumes hover and level.
 	 */
 	static Input autopilot(State st, Vec3 target, double heading, double gain, double maxSpeed) {
+		return autopilot(st, target, heading, gain, maxSpeed, 8.0);
+	}
+
+	/**
+	 * As above, approaching no faster than the vessel can stop from: the wanted speed is also limited to
+	 * sqrt(2 x brake x distance), the speed a steady deceleration of {@code brake} m/s^2 ends at the target with (the
+	 * thrust gives 12 m/s^2), so it arrives without running past.
+	 */
+	static Input autopilot(State st, Vec3 target, double heading, double gain, double maxSpeed, double brake) {
 		Vec3 error = target.subtract(st.position());
 		Vec3 want = error.scale(gain);
-		if (want.length() > maxSpeed) {
-			want = want.normalize().scale(maxSpeed);
+		double limit = Math.min(maxSpeed, Math.sqrt(2 * brake * error.length()));
+		if (want.length() > limit) {
+			want = want.normalize().scale(limit);
 		}
 		Vector3d f = st.pose().rotate(0, 0, -1, new Vector3d());
 		Vector3d r = st.pose().rotate(1, 0, 0, new Vector3d());

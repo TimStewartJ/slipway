@@ -43,12 +43,12 @@ final class FilmShips {
 	/** The lamp strip in the wall's top row, in the order the signal reaches them, and the pistons in front of the wall. */
 	static final BlockPos[] HERO_LAMPS = {ship(-4, 3, 6), ship(-2, 3, 6), ship(0, 3, 6), ship(2, 3, 6), ship(4, 3, 6)};
 	static final BlockPos[] HERO_PISTONS = {ship(2, 0, 5), ship(3, 0, 5), ship(4, 0, 5)};
-	/** The farm bed on the starboard side of the main deck: wheat, the dispensers that face it, and the clock's lever. */
-	static final BlockPos[] HERO_WHEAT = {ship(3, 0, -10), ship(3, 0, -9), ship(3, 0, -7), ship(3, 0, -6)};
-	static final BlockPos[] HERO_DISPENSERS = {ship(4, 0, -10), ship(4, 0, -9), ship(4, 0, -7), ship(4, 0, -6)};
-	static final BlockPos HERO_FARM_LEVER = ship(2, 1, -4);
-	/** Where riders stand on the main deck (helm-relative block positions of the deck surface). */
-	static final BlockPos[] HERO_DECK_SPOTS = {ship(0, 0, -13), ship(2, 0, -14), ship(4, 0, -13), ship(-2, 0, -11)};
+	/** The farm bed along the middle of the main deck, between the fore and main masts: wheat, the dispensers that face it, and the clock's lever. */
+	static final BlockPos[] HERO_WHEAT = {ship(0, 0, -9), ship(0, 0, -8), ship(0, 0, -6), ship(0, 0, -5)};
+	static final BlockPos[] HERO_DISPENSERS = {ship(1, 0, -9), ship(1, 0, -8), ship(1, 0, -6), ship(1, 0, -5)};
+	static final BlockPos HERO_FARM_LEVER = ship(1, 1, -2);
+	/** Where riders stand on the main deck: to starboard of the farm bed (helm-relative block positions of the deck surface). */
+	static final BlockPos[] HERO_DECK_SPOTS = {ship(3, 0, -9), ship(4, 0, -7), ship(2, 0, -6), ship(4, 0, -10)};
 
 	static BlockPos ship(int x, int y, int z) {
 		return new BlockPos(x, y, z).subtract(HERO_HELM);
@@ -153,7 +153,7 @@ final class FilmShips {
 				}
 			}
 		}
-		// railings on the main deck and forecastle (not along the castle); the port rail is open for five blocks aft of the
+		// railings on the main deck and forecastle (not along the castle); the port rail is open for six blocks aft of the
 		// main mast, where cargo is loaded (and spills)
 		for (int z = -22; z <= 5; z++) {
 			int w = halfWidth(z, -1);
@@ -267,7 +267,8 @@ final class FilmShips {
 		// lanterns on railing posts
 		for (int x : new int[] {-1, 1}) {
 			s.put(new BlockPos(x * halfWidth(-13, -1), 1, -13), lantern);
-			s.put(new BlockPos(x * halfWidth(4, -1), 1, 4), lantern);
+			// the port one stands on the first rail post aft of the cargo bay's opening
+			s.put(new BlockPos(x * halfWidth(4, -1), 1, x < 0 ? CARGO_GAP_TO + 1 : 4), lantern);
 			s.put(new BlockPos(x * halfWidth(-20, -1), 3, -20), lantern);
 			s.put(new BlockPos(x * halfWidth(5, -1), 6, 5), lantern);
 			s.put(new BlockPos(x * (halfWidth(14, -1) - 1), 6, 15), lantern);
@@ -324,7 +325,7 @@ final class FilmShips {
 
 	/** The port rail is open from here to there (ship z): the cargo bay. */
 	static final int CARGO_GAP_FROM = -1;
-	static final int CARGO_GAP_TO = 3;
+	static final int CARGO_GAP_TO = 4;
 
 	private static BlockState wire() {
 		return Blocks.REDSTONE_WIRE.defaultBlockState();
@@ -412,43 +413,46 @@ final class FilmShips {
 	}
 
 	/**
-	 * The farm bed on the starboard side of the main deck: four wheat plants (just planted) on moist farmland set
-	 * into the deck around a waterlogged slab (water source blocks are not assembled; a waterlogged block is), a
-	 * birch fence on the open sides, and behind the wheat four dispensers that face it. Redstone dust on top of the
-	 * dispensers joins them to a clock aft of the bed: a lever on a block, a comparator in subtract mode reading that
-	 * block, and two repeaters leading its output back into its side. While the lever is on, the dispensers fire
-	 * once per period.
+	 * The farm bed along the middle of the main deck, between the fore and main masts: four wheat plants (just
+	 * planted) on moist farmland set into the deck around a waterlogged slab (water source blocks are not assembled;
+	 * a waterlogged block is), a birch fence on the port side and at both ends, and on the starboard side four
+	 * dispensers that face the wheat (a barrel stands behind the water). Redstone dust on top of the dispensers joins
+	 * them to a clock aft of the bed: a lever on a block beside the main mast, a comparator in subtract mode reading
+	 * that block, and two repeaters leading its output back into its side. While the lever is on, the dispensers fire
+	 * once per period (2 x (1 + the two repeater delays) redstone ticks).
 	 */
 	private static void farm(Map<BlockPos, BlockState> s) {
 		BlockState fence = Blocks.BIRCH_FENCE.defaultBlockState();
-		for (int z = -10; z <= -6; z++) {
-			boolean water = z == -8;
-			s.put(new BlockPos(3, -1, z), water
+		for (int z = -9; z <= -5; z++) {
+			boolean water = z == -7;
+			s.put(new BlockPos(0, -1, z), water
 				? Blocks.SPRUCE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM).setValue(SlabBlock.WATERLOGGED, true)
 				: Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE, FarmlandBlock.MAX_MOISTURE));
 			if (!water) {
-				s.put(new BlockPos(3, 0, z), Blocks.WHEAT.defaultBlockState());
+				s.put(new BlockPos(0, 0, z), Blocks.WHEAT.defaultBlockState());
 			}
-			s.put(new BlockPos(4, 0, z), water ? Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING, Direction.UP)
+			s.put(new BlockPos(1, 0, z), water ? Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING, Direction.UP)
 				: Blocks.DISPENSER.defaultBlockState().setValue(DispenserBlock.FACING, Direction.WEST));
-			s.put(new BlockPos(4, 1, z), wire());
+			s.put(new BlockPos(1, 1, z), wire());
 		}
-		for (int z = -11; z <= -5; z++) {
-			s.put(new BlockPos(2, 0, z), fence);
+		for (int z = -10; z <= -4; z++) {
+			s.put(new BlockPos(-1, 0, z), fence);
 		}
-		s.put(new BlockPos(3, 0, -11), fence);
-		s.put(new BlockPos(4, 0, -11), fence);
-		s.put(new BlockPos(3, 0, -5), fence);
-		// the clock
-		s.put(new BlockPos(4, 0, -5), wire());
-		s.put(new BlockPos(2, 0, -4), Blocks.SPRUCE_PLANKS.defaultBlockState());
-		s.put(new BlockPos(2, 1, -4), Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR).setValue(LeverBlock.FACING, Direction.NORTH));
-		s.put(new BlockPos(3, 0, -4), comparator(Direction.WEST));
+		s.put(new BlockPos(0, 0, -10), fence);
+		s.put(new BlockPos(1, 0, -10), fence);
+		s.put(new BlockPos(0, 0, -4), fence);
+		// the clock: comparator (input from the lever's block to its south, output north), its output led east through a
+		// repeater, round and back through a second repeater into the comparator's east side
+		s.put(new BlockPos(1, 0, -4), wire());
+		s.put(new BlockPos(1, 0, -3), comparator(Direction.SOUTH));
+		s.put(new BlockPos(1, 0, -2), Blocks.SPRUCE_PLANKS.defaultBlockState());
+		s.put(new BlockPos(1, 1, -2), Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR).setValue(LeverBlock.FACING, Direction.NORTH));
+		s.put(new BlockPos(2, 0, -4), wire());
+		s.put(new BlockPos(3, 0, -4), repeater(Direction.WEST, (int)FilmRig.optDouble("farmDelayA", 4)));
 		s.put(new BlockPos(4, 0, -4), wire());
-		s.put(new BlockPos(4, 0, -3), repeater(Direction.NORTH, (int)FilmRig.optDouble("farmDelayA", 4)));
-		s.put(new BlockPos(4, 0, -2), wire());
-		s.put(new BlockPos(3, 0, -2), wire());
-		s.put(new BlockPos(3, 0, -3), repeater(Direction.SOUTH, (int)FilmRig.optDouble("farmDelayB", 2)));
+		s.put(new BlockPos(4, 0, -3), wire());
+		s.put(new BlockPos(3, 0, -3), wire());
+		s.put(new BlockPos(2, 0, -3), repeater(Direction.EAST, (int)FilmRig.optDouble("farmDelayB", 2)));
 	}
 
 	/** Fills the hero ship's containers (helm at {@code helm}): the chest, and bone meal for the dispensers. */
@@ -512,7 +516,7 @@ final class FilmShips {
 	static java.util.List<Cargo> cargo() {
 		BlockState barrel = Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING, Direction.UP);
 		BlockState hay = Blocks.HAY_BLOCK.defaultBlockState();
-		BlockState log = Blocks.SPRUCE_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
+		BlockState log = Blocks.BIRCH_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
 		BlockState beam = Blocks.STRIPPED_OAK_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
 		BlockState pumpkin = Blocks.PUMPKIN.defaultBlockState();
 		BlockState wool = Blocks.WOOL.pick(DyeColor.LIGHT_BLUE).defaultBlockState();
@@ -525,13 +529,13 @@ final class FilmShips {
 		java.util.List<Cargo> pieces = new java.util.ArrayList<>();
 		// kept clear of the main mast and its yards (forward of z = 0) and of the quarterdeck's overhang (z = 5)
 		pieces.add(new Cargo("barrels", box(-1, 1, -1, 1, -1, 1, barrel), -2.0, 2.0, 3));
-		pieces.add(new Cargo("keg", keg, 3.2, 2.6, 3));
-		pieces.add(new Cargo("crate", box(-1, 1, 0, 1, 0, 1, planks), 2.2, 1.6, 7));
+		pieces.add(new Cargo("keg", keg, 2.2, 0.8, 3));
+		pieces.add(new Cargo("crate", box(-1, 1, 0, 1, 0, 1, planks), 1.6, 2.4, 7));
 		pieces.add(new Cargo("pumpkins", pumpkins, -3.0, 2.5, 7));
-		pieces.add(new Cargo("logs", box(0, 1, 0, 1, -1, 2, log), -0.3, 2.3, 10));
-		pieces.add(new Cargo("hay", box(0, 1, 0, 1, 0, 1, hay), 2.3, 2.6, 13));
+		pieces.add(new Cargo("logs", box(0, 1, 0, 1, -1, 2, log), -0.3, 2.0, 10));
+		pieces.add(new Cargo("hay", box(0, 1, 0, 1, 0, 1, hay), 0.6, 1.4, 13));
 		pieces.add(new Cargo("beam", box(0, 0, 0, 0, -2, 2, beam), -3.0, 2.3, 13));
-		pieces.add(new Cargo("wool", box(0, 1, 0, 1, 0, 1, wool), 0.0, 2.5, 16));
+		pieces.add(new Cargo("wool", box(0, 1, 0, 1, 0, 1, wool), -0.2, 2.6, 16));
 		return pieces;
 	}
 

@@ -254,18 +254,15 @@ final class RedditShot {
 		if (!real[0]) {
 			FilmMain.LOG.warn("Reddit: this Slipway build has no loose mode; the cargo falls with hover and level off (controller drag and spin braking remain)");
 		}
-		Vec3 hold = FilmPilot.state(this.server, id).position();
-		int lead = (int)FilmRig.optDouble("cargoLead", 12);
-		for (int i = 0; i < lead; i++) {
-			this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(FilmPilot.state(s, id), hold, CARGO_HEADING, 0.8, 4)));
-			this.ctx.waitTick();
-		}
+		// the helm is let go: the ship hovers where it is and holds that point under the load (hover mode)
+		this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.Input.NONE));
+		this.ctx.waitTicks((int)FilmRig.optDouble("cargoLead", 12));
 		this.rec.cut("cargo");
 		this.event("cargo");
 		b2[0] = FilmCamera.ticks();
-		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 28);
-		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 34);
-		double rollInput = FilmRig.optDouble("cargoRoll", 0.85);
+		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 24);
+		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 30);
+		double rollInput = FilmRig.optDouble("cargoRoll", 1.0);
 		int slowFrom = (int)FilmRig.optDouble("cargoSlowFrom", 1000);
 		int slowTo = (int)FilmRig.optDouble("cargoSlowTo", 1000);
 		for (int i = 0; i < cargoTicks; i++) {
@@ -274,12 +271,9 @@ final class RedditShot {
 				FilmPilot.modes(this.server, id, true, false);
 				this.event("spill");
 			}
-			// the pilot holds the ship over the spot and, from rollAt, rolls it to port; with level mode off it then stays rolled
+			// the only input of the shot: from rollAt the pilot rolls the ship to port; with level mode off it then stays rolled
 			double ramp = Math.max(0, Math.min(1, Math.min((j - rollAt + 1) / 5.0, (rollAt + rollTicks - j) / 5.0)));
-			this.server.runOnServer(s -> {
-				FilmPilot.Input in = FilmPilot.autopilot(FilmPilot.state(s, id), hold, CARGO_HEADING, 0.8, 4);
-				FilmPilot.apply(s, id, new FilmPilot.Input(in.forward(), in.strafe(), in.vertical(), 0, j < rollAt ? in.yaw() : 0, -rollInput * ramp));
-			});
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0, 0, 0, 0, 0, -rollInput * ramp)));
 			this.rec.tick(j >= slowFrom && j < slowTo ? 4 : 3);
 			if (j % 10 == 9 || j == cargoTicks - 1) {
 				this.cargoReport(pieces, j);
@@ -444,9 +438,9 @@ final class RedditShot {
 		this.flyTo(FARM_AT, 0, 2400, 0.4);
 		List<Integer> sheep = this.server.computeOnServer(s -> spawnSheep(s, id));
 		this.ctx.waitTicks(60);
-		Vec3 from = FilmShips.shipPoint(FilmRig.optDouble("farmX", -4.2), FilmRig.optDouble("farmY", 5.6), FilmRig.optDouble("farmZ", -6.2));
-		Vec3 fromB = from.add(FilmRig.optDouble("farmDX", 0.8), FilmRig.optDouble("farmDY", -0.5), FilmRig.optDouble("farmDZ", -0.4));
-		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("farmLookX", 3.2), FilmRig.optDouble("farmLookY", 0.4), FilmRig.optDouble("farmLookZ", -8.8));
+		Vec3 from = FilmShips.shipPoint(FilmRig.optDouble("farmX", -4.2), FilmRig.optDouble("farmY", 3.9), FilmRig.optDouble("farmZ", -7.0));
+		Vec3 fromB = from.add(FilmRig.optDouble("farmDX", 0.4), FilmRig.optDouble("farmDY", -0.3), FilmRig.optDouble("farmDZ", -0.2));
+		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("farmLookX", 1.0), FilmRig.optDouble("farmLookY", 1.1), FilmRig.optDouble("farmLookZ", -7.0));
 		int farmTicks = (int)FilmRig.optDouble("farmTicks", 102);
 		long[] b4 = {Long.MAX_VALUE};
 		FilmCamera.set((t, p) -> {
@@ -545,20 +539,23 @@ final class RedditShot {
 		FilmRig.followCamera(this.ctx);
 		FilmRig.waitWorld(this.ctx, 3000);
 		this.settle();
-		int runUp = (int)FilmRig.optDouble("returnRunUp", 26);
-		for (int i = 0; i < runUp; i++) {
-			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
-			this.ctx.waitTick();
-		}
-		this.rec.cut("return");
-		this.event("return");
+		// the approach starts unfilmed (the same autopilot as the filmed part); the shot cuts in for the last stretch
 		double returnGain = FilmRig.optDouble("returnGain", 1.8);
 		double returnSpeed = FilmRig.optDouble("returnSpeed", 17);
+		double returnBrake = FilmRig.optDouble("returnBrake", 6.5);
+		double cutAt = FilmRig.optDouble("returnCut", 15);
+		for (int i = 0; i < 400 && FilmPilot.state(this.server, id).position().distanceTo(rest) > cutAt; i++) {
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(FilmPilot.state(s, id), rest, 0, returnGain, returnSpeed, returnBrake)));
+			this.ctx.waitTick();
+		}
+		this.logState("return cut");
+		this.rec.cut("return");
+		this.event("return");
 		int after = -1;
 		for (int i = 0; i < 600; i++) {
 			if (after < 0) {
 				FilmPilot.State st = FilmPilot.state(this.server, id);
-				if (i > 20 && FilmPilot.settled(st, rest, 0, 0.06)) {
+				if (i > 10 && FilmPilot.settled(st, rest, 0, 0.06)) {
 					this.logState("settled, disassembling");
 					VesselAssembly.Outcome outcome = this.server.computeOnServer(s -> VesselManager.get(s.overworld()).disassemble(id, null));
 					if (!outcome.success()) {
@@ -573,7 +570,7 @@ final class RedditShot {
 					FilmMain.LOG.info("Reddit: disassembled; held film time {} ticks until the placed blocks were drawn", held);
 					continue;
 				} else {
-					this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(st, rest, 0, returnGain, returnSpeed)));
+					this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(st, rest, 0, returnGain, returnSpeed, returnBrake)));
 				}
 			}
 			this.rec.tick(3);
