@@ -275,7 +275,9 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
 - Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
   sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
   blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and
-  costs a remesh of the whole vessel for every block placed beyond the bounds.
+  costs a remesh of the whole vessel for every block placed beyond the bounds. Each new column goes out once: at
+  once when it is loaded (the columns next to the bounds are, tickets reach two columns out), otherwise in the tick
+  it has loaded (`ActiveVessel.unsentChunks`; a command can set a block many columns outside the vessel).
 - A push that would put the head or a block into the 32-block margin of the plot is refused
   (`PistonStructureResolverMixin`, like vanilla's refusal at the build height): pistons are the one thing that moves
   blocks by itself, and a slime-block flying machine must not walk into the neighbouring plot. A block that gets
@@ -677,7 +679,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 44 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 45 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

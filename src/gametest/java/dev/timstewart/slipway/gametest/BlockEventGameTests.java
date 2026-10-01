@@ -20,6 +20,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -389,5 +390,51 @@ public class BlockEventGameTests {
 				level.setBlock(margin, Blocks.AIR.defaultBlockState(), 2);
 			})
 			.thenSucceed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded(GameTestHelper helper) {
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		ServerLevel level = helper.getLevel();
+		Spy viewer = spy(helper, Vec3.atCenterOf(helper.absolutePos(helm)).add(3, 0, 0));
+		// Six columns out. A cobweb has no collision box, so the vessel's body does not reach into the arenas next door.
+		BlockPos far = record.anchor.offset(100, 0, 0);
+		List<Long> before = new ArrayList<>();
+		int[] deferred = new int[1];
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, settled(vessel) && vessel.chunksReady, "the vessel is not ready yet"))
+			.thenExecute(() -> {
+				vessel.viewers.add(viewer.player());
+				vessel.viewerGraceUntil = level.getGameTime() + 200;
+				before.addAll(vessel.ticketChunks);
+				level.setBlock(far, Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMax.getX() == 100, "the bounds did not grow to the block: " + record.localMax);
+				deferred[0] = vessel.unsentChunks.size();
+			})
+			.thenWaitUntil(() -> check(helper, vessel.unsentChunks.isEmpty(), vessel.unsentChunks.size() + " new columns are not loaded yet"))
+			.thenExecute(() -> {
+				// The columns between the old bounds and the block were not loaded when the bounds grew.
+				check(helper, deferred[0] > 0, "every new column was loaded at once: the test did not reach the waiting columns");
+				int added = 0;
+				for (long chunk : vessel.ticketChunks) {
+					if (!before.contains(chunk)) {
+						added++;
+						check(helper, hasChunk(viewer, chunk), "the viewer was not sent the new column " + ChunkPos.unpack(chunk));
+					}
+				}
+				check(helper, added >= 6, "only " + added + " columns were added");
+				vessel.viewers.remove(viewer.player());
+				// Its bounds stay long; take it away so it does not lie across the arenas next door.
+				VesselManager.get(level).remove(record.id);
+			})
+			.thenSucceed();
+	}
+
+	/** Whether a chunk column was sent to the player or waits in its send queue (a mock player takes one batch only). */
+	private static boolean hasChunk(Spy spy, long chunk) {
+		return spy.player().connection.chunkSender.isPending(chunk) || spy.received(ClientboundLevelChunkWithLightPacket.class).stream()
+			.anyMatch(packet -> ChunkPos.pack(packet.x(), packet.z()) == chunk);
 	}
 }

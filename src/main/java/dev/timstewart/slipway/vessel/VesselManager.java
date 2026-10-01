@@ -528,6 +528,9 @@ public final class VesselManager {
 				vessel.entity.updateFrom(record.pose, record.helm, record.helmFacing, worldCentre(record));
 				this.broadcastPose(vessel, gameTime);
 			}
+			if (!vessel.unsentChunks.isEmpty()) {
+				this.sendNewChunks(vessel);
+			}
 			this.syncViewers(vessel);
 		}
 		this.proxies.tick(gameTime);
@@ -631,6 +634,7 @@ public final class VesselManager {
 			this.level.getChunkSource().removeTicketWithRadius(SlipwayRegistry.VESSEL_TICKET, ChunkPos.unpack(chunk), 2);
 		}
 		vessel.ticketChunks.clear();
+		vessel.unsentChunks.clear();
 	}
 
 	/** The plot chunk columns covering a vessel's current bounds. */
@@ -657,19 +661,36 @@ public final class VesselManager {
 
 	/**
 	 * Grows a vessel's bounds to include a local position and loads and shares any new plot chunk column. Only new
-	 * columns are sent: sending a chunk again replaces it on the client, which costs a full remesh and deletes what
-	 * the client keeps there by itself (the moving blocks of a piston's stroke).
+	 * columns are sent, each once: sending a chunk again replaces it on the client, which costs a full remesh and
+	 * deletes what the client keeps there by itself (the moving blocks of a piston's stroke).
 	 */
 	public void includeLocal(ActiveVessel vessel, BlockPos local) {
 		BlockPos oldMin = vessel.record.localMin;
 		BlockPos oldMax = vessel.record.localMax;
 		vessel.record.include(local);
 		if (!oldMin.equals(vessel.record.localMin) || !oldMax.equals(vessel.record.localMax)) {
-			List<Long> added = this.addTickets(vessel);
-			for (ServerPlayer viewer : vessel.viewers) {
-				this.sendChunks(viewer, added);
-			}
+			vessel.unsentChunks.addAll(this.addTickets(vessel));
+			this.sendNewChunks(vessel);
 			this.registry.setDirty();
+		}
+	}
+
+	/**
+	 * Sends viewers the columns ticketed since they got the plot. A column next to the old bounds is loaded already
+	 * (tickets reach two columns out) and goes out at once; one further off (a block set far outside the vessel by a
+	 * command) goes out in the tick it has loaded.
+	 */
+	private void sendNewChunks(ActiveVessel vessel) {
+		var chunks = vessel.unsentChunks.iterator();
+		while (chunks.hasNext()) {
+			long chunk = chunks.nextLong();
+			var levelChunk = this.level.getChunkSource().getChunkNow(ChunkPos.getX(chunk), ChunkPos.getZ(chunk));
+			if (levelChunk != null) {
+				for (ServerPlayer viewer : vessel.viewers) {
+					viewer.connection.chunkSender.markChunkPendingToSend(levelChunk);
+				}
+				chunks.remove();
+			}
 		}
 	}
 

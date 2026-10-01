@@ -17,6 +17,8 @@ public final class ActiveVessel {
 	public final LongLinkedOpenHashSet ticketChunks = new LongLinkedOpenHashSet();
 	/** True once every ticketed plot chunk is loaded. */
 	public boolean chunksReady;
+	/** Columns ticketed when the bounds grew that viewers have not been sent yet (each goes out once it is loaded). */
+	public final LongLinkedOpenHashSet unsentChunks = new LongLinkedOpenHashSet();
 	/** Players who have been sent this vessel's plot chunks. */
 	public final Set<ServerPlayer> viewers = new HashSet<>();
 	/** Until this game time, viewers sent the vessel at assembly are kept although they do not track its entity yet. */
