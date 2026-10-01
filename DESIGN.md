@@ -332,6 +332,12 @@ of the twelve frames in most runs and from none in some: the gap is about a tick
 cover the frame at a tick's end. In free-running play the film agent measured two ticks without the ship (four and
 eight in other runs of its 2,503-block galleon under shaders at film resolution, where frames are slow).
 
+What still changes in the picture at that moment is light. The placed blocks are shaded by the world's light and the
+vessel by its own, and a vessel changes no light where it flies (its blocks are in the plot): the film agent saw the
+water under the hovering galleon evenly lit, and a dark patch under the hull from the first frame in which it was
+blocks again (Bliss darkens by sky light, which the placed blocks lower in the columns below them). Not measured
+here; it is the same in 0.1.1.
+
 The mirror problem at assembly (the vessel can be drawn incomplete for a tick or two while its plot chunks arrive)
 has a different cause and is not changed: the world blocks are removed by block updates in one tick, and the
 vessel's mesh needs the plot chunks, which come as chunk packets within the following ticks. Keeping the world
