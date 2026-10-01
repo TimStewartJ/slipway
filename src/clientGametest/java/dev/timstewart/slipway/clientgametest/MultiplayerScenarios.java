@@ -69,7 +69,9 @@ final class MultiplayerScenarios {
 				Check.that(!WatcherProcess.NAME.equals(Game.clientName), "both clients have the same name");
 				server.waitFor(s -> s.getPlayerList().getPlayerCount() == 2, 200);
 				server.runOnServer(s -> Game.player(s, WatcherProcess.NAME).teleportTo(s.overworld(), 16.5, helm.getY() + 4, 46.5, java.util.Set.of(), 120f, 15f, true));
-				watcher.call(ctx, 1200, "wait-vessel", String.valueOf(id));
+				Properties inStep = watcher.call(ctx, 2600, "wait-vessel", String.valueOf(id));
+				r.metric("watcher.playbackLagWhenReady", inStep.getProperty("lagWhenReady"));
+				r.metric("watcher.ticksUntilInStep", inStep.getProperty("ticksUntilInStep"));
 
 				// A flies while both clients' views are recorded against the server's pose at the same server tick.
 				ServerPoses.record(id);

@@ -84,6 +84,18 @@ final class Watcher {
 					case "wait-vessel" -> {
 						long id = Long.parseLong(cmd.getProperty("arg0"));
 						Game.waitClientReady(ctx, id, 1200);
+						// A client that has just joined still sets up its renderer in long frames, and under the test
+						// harness a client never makes up ticks (one per frame at most), so its playback is left behind
+						// the server's poses: it then runs 10% fast for up to 100 ticks, or jumps once it is more than
+						// 10 ticks behind. What the watcher sees is measured from when its playback is in step.
+						reply.setProperty("lagWhenReady", String.format(Locale.ROOT, "%.2f", playbackLag(ctx, id)));
+						int waited = 0;
+						for (int inStep = 0; inStep < 20; waited++) {
+							Check.that(waited < 1200, "the watcher's playback of vessel %s did not get in step: %.2f ticks behind the newest pose", id, playbackLag(ctx, id));
+							ctx.waitTick();
+							inStep = playbackLag(ctx, id) <= ClientVessel.DELAY_TICKS + 1.05 ? inStep + 1 : 0;
+						}
+						reply.setProperty("ticksUntilInStep", String.valueOf(waited - 20));
 					}
 					case "trace-start" -> {
 						long id = Long.parseLong(cmd.getProperty("arg0"));
@@ -141,6 +153,14 @@ final class Watcher {
 			WatcherProcess.write(dir.resolve("reply-" + n + ".properties"), reply);
 			n++;
 		}
+	}
+
+	/** Ticks the vessel's shown pose is behind the newest pose this client has; NaN if it has none. */
+	private static double playbackLag(ClientGameTestContext ctx, long id) {
+		return ctx.computeOnClient(mc -> {
+			ClientVessel v = ClientVessels.get(id);
+			return v == null ? Double.NaN : v.playbackLag();
+		});
 	}
 
 	private static void writeSamples(Path file, List<Sample> samples) {

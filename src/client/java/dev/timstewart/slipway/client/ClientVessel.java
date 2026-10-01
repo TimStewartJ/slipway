@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * partial tick, exactly as entities do.
  */
 public final class ClientVessel {
-	static final double DELAY_TICKS = 2.0;
+	public static final double DELAY_TICKS = 2.0;
 	/** Largest fraction by which the playback clock runs fast or slow to return to the target delay. */
 	static final double MAX_RATE_CHANGE = 0.1;
 	/** Playback further off the target delay than this jumps to it. */
@@ -181,6 +181,15 @@ public final class ClientVessel {
 	/** The server game time (with fraction) that {@link #tickPose()} shows; NaN before the first pose. */
 	public double playbackTick() {
 		return this.playbackTick;
+	}
+
+	/**
+	 * How far {@link #tickPose()} is behind the newest pose received, in server ticks: {@value #DELAY_TICKS} when in
+	 * step, more while playback catches up after this client stalled; NaN before the first pose.
+	 */
+	public double playbackLag() {
+		Snapshot newest = this.snapshots.peekLast();
+		return newest == null ? Double.NaN : newest.tick - this.playbackTick;
 	}
 
 	@Nullable

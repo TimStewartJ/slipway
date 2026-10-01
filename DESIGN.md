@@ -760,6 +760,15 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   assert on the frame they save. With the view still, built and assembled pictures differ by 0.0001 (before:
   0.0001 to 0.0012), and the outline check counts the outline alone (about 960 changed pixels; before, about 4,940
   including drifting clouds and the hand's sway between the two frames).
+- A client under Fabric's client GameTest never makes up ticks: the harness limits it to one tick per frame, where a
+  normal client runs up to ten to catch up after a long frame. A second client that has just joined sets up its
+  renderer in long frames (Distant Horizons compiles its shaders then), so its game clock, and with it the pose
+  playback, is left behind the server's poses: measured 5 to 8 ticks behind when the vessel first shows and in step
+  again only 80 to 100 ticks later (playback runs at most 10% fast), or with a jump when it gets more than 10 ticks
+  behind. The multiplayer scenario used to start its smoothness trace as soon as the watcher had the vessel, in the
+  middle of that; it passed while the lag stayed under 10 ticks and failed the first 0.1.2 release build when it did
+  not (one jump of 11.5 ticks, 1.6 blocks, eight ticks into the trace). The watcher now reports ready once its
+  playback has been in step for 20 ticks (`ClientVessel.playbackLag`), and the scenario records how long that took.
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client
