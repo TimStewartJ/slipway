@@ -53,6 +53,14 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   jukebox's music stays where the vessel was when the disc started. Torches and furnaces on a vessel show no flame
   or smoke particles.
 
+### Known issues
+
+- A block that ends up outside a vessel's size limit by other means than a piston or a placed block item (a plant
+  growing, water flowing, the far half of a bed, a command) is left in the vessel's storage area when the vessel is
+  disassembled or removed. Storage areas are reused, so that block can turn up as part of the next vessel assembled
+  there. It needs a vessel that already spans `maxVesselSpan`: unlikely at the default of 512 blocks, likely on a
+  server with a small limit. Found in review; a fix is in work for 0.1.3.
+
 ### Saves
 
 0.1.0 and 0.1.1 worlds load. Vessels saved by 0.1.2 carry one more optional field (`loose`).

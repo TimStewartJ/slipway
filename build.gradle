@@ -44,6 +44,10 @@ sourceSets {
 	// The packaged-jar check's tiny test mod (see runPackagedJarCheck).
 	packagedCheck {
 	}
+	// The film tool: renders promotional footage with the client GameTest API (see src/film and FILM.md). Never part
+	// of the release jar or of check.
+	film {
+	}
 }
 
 // Distant Horizons for the client GameTests: another build in devmods/test when there is one (tools/setup-devmods.ps1
@@ -74,6 +78,9 @@ loom {
 		}
 		slipway_client_gametest {
 			sourceSet sourceSets.clientGametest
+		}
+		slipway_film {
+			sourceSet sourceSets.film
 		}
 	}
 
@@ -133,6 +140,29 @@ loom {
 			vmArg '-XX:+UseZGC'
 			vmArg '-Xmx8G'
 		}
+		// The film tool (src/film, FILM.md): the play stack in a real client window that never takes focus, driven by
+		// the client GameTest API; it writes PNG frames and a frame log to build/film/out/<shot>. -PslipwayFilm=<shot>
+		// picks the shot, -PslipwayFilmSize=<w>x<h> the frame size, -PslipwayFilmSubframes=<n> the frames per tick,
+		// -PslipwayFilmOpts=k=v,k=v shot options.
+		film {
+			client()
+			name = 'Slipway Film'
+			source sourceSets.film
+			runDir 'build/film'
+			programArgs '--username', 'SlipwayFilm'
+			vmArg '-Dfabric.client.gametest'
+			vmArg '-Dfabric.noGui=true'
+			vmArg '-Dslipway.film.shot=' + (providers.gradleProperty('slipwayFilm').orNull ?: 'spike')
+			vmArg '-Dslipway.film.size=' + (providers.gradleProperty('slipwayFilmSize').orNull ?: '1080x1350')
+			vmArg '-Dslipway.film.subframes=' + (providers.gradleProperty('slipwayFilmSubframes').orNull ?: '3')
+			vmArg '-Dslipway.film.out=' + file('build/film/out').absolutePath
+			// shot-specific options, key=value pairs separated by commas (FilmRig.opt)
+			vmArg '-Dslipway.film.opts=' + (providers.gradleProperty('slipwayFilmOpts').orNull ?: '')
+			vmArg '--enable-native-access=ALL-UNNAMED'
+			vmArg '-XX:StackShadowPages=32'
+			vmArg '-XX:+UseZGC'
+			vmArg '-Xmx10G'
+		}
 	}
 }
 
@@ -141,6 +171,8 @@ loom {
 sourceSets.clientGametest.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
 sourceSets.clientGametest.runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
 sourceSets.packagedCheck.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
+sourceSets.film.compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output + sourceSets.client.compileClasspath + sourceSets.client.output
+sourceSets.film.runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output + sourceSets.client.runtimeClasspath + sourceSets.client.output
 
 configurations {
 	// Platform-specific jolt-jni native libraries; their binaries are copied into the mod jar's resources.
@@ -191,6 +223,13 @@ dependencies {
 	[sodium: sodiumJar, iris: irisJar, dh: testDhJar].each { name, jar ->
 		if (clientGametestMods.contains(name) && jar != null) {
 			clientGametestRuntimeOnly files(jar)
+		}
+	}
+	filmCompileOnly files(dhJar)
+	[irisJar, sodiumJar].findAll { it != null }.each { filmCompileOnly files(it) }
+	[sodium: sodiumJar, iris: irisJar, dh: testDhJar].each { name, jar ->
+		if (clientGametestMods.contains(name) && jar != null) {
+			filmRuntimeOnly files(jar)
 		}
 	}
 
@@ -526,6 +565,59 @@ tasks.register('prepareClientGametestRun') {
 tasks.matching { it.name == 'runClientGametest' }.configureEach {
 	dependsOn 'prepareClientGametestRun'
 	// the report file is written by the tests; a failing test also makes the game (and this task) exit non-zero
+	outputs.upToDateWhen { false }
+}
+// The film run (FILM.md): shaders on from the start with the film's own Bliss settings (src/film/bliss.txt). The
+// shader pack is not in the repository and has no default place outside it: -PslipwayShaderPack=<zip>, or the newest
+// zip in <devmods>/shaderpacks (git-ignored, like the mods).
+def filmShaderPack = providers.gradleProperty('slipwayShaderPack').map { file(it) }.orNull ?: ({
+	def dir = new File(devmods, 'shaderpacks')
+	def found = dir.isDirectory() ? dir.listFiles().findAll { it.name.endsWith('.zip') } : []
+	found.isEmpty() ? null : found.sort { it.name }.last()
+})()
+// The film's code is compiled against Sodium and Iris (the mod itself needs neither): say so instead of failing
+// with missing classes.
+def requireFilmMods = {
+	def missing = [Sodium: sodiumJar, Iris: irisJar].findAll { it.value == null }.keySet()
+	if (!missing.isEmpty()) {
+		throw new GradleException("The film needs ${missing.join(' and ')} in ${devmods}: run python tools/fetch-devmods.py (FILM.md, \"What is needed\").")
+	}
+}
+tasks.named('compileFilmJava').configure {
+	doFirst { requireFilmMods() }
+}
+tasks.register('prepareFilmRun') {
+	group = 'slipway'
+	description = 'Puts the shader pack, an Iris config with shaders on and the film Bliss settings into build/film.'
+	def runDir = file('build/film')
+	def blissSettings = file('src/film/bliss.txt')
+	inputs.file(blissSettings)
+	outputs.upToDateWhen { false }
+	doLast {
+		requireFilmMods()
+		if (filmShaderPack == null || !filmShaderPack.isFile()) {
+			throw new GradleException("The film needs a shader pack (it was made with Bliss v2.1.2; FILM.md, \"What is needed\"): put the zip into "
+				+ "${new File(devmods, 'shaderpacks')} or pass -PslipwayShaderPack=<zip>." + (filmShaderPack == null ? '' : " Not found: ${filmShaderPack}"))
+		}
+		def packs = new File(runDir, 'shaderpacks')
+		packs.mkdirs()
+		def target = new File(packs, filmShaderPack.name)
+		if (!target.isFile() || target.length() != filmShaderPack.length()) {
+			target.bytes = filmShaderPack.bytes
+		}
+		def config = new File(runDir, 'config')
+		config.mkdirs()
+		new File(config, 'iris.properties').setText([
+			'allowUnknownShaders=false', 'colorSpace=SRGB', 'disableUpdateMessage=true', 'enableDebugOptions=false',
+			'enableShaders=true', 'maxShadowRenderDistance=32', "shaderPack=${filmShaderPack.name}".toString()
+		].join('\n') + '\n', 'UTF-8')
+		new File(packs, "${filmShaderPack.name}.txt").setText(blissSettings.getText('UTF-8'), 'UTF-8')
+		logger.lifecycle("Film run: shader pack ${filmShaderPack.name}, Distant Horizons ${clientGametestMods.contains('dh') ? testDhJar.name : 'off'}, "
+			+ "${sodiumJar.name}, ${irisJar.name}")
+	}
+}
+tasks.matching { it.name == 'runFilm' }.configureEach {
+	dependsOn 'prepareFilmRun'
 	outputs.upToDateWhen { false }
 }
 tasks.named('check').configure { dependsOn 'runClientGametest' }

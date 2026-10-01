@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"id": "slipway_film",
+	"version": "1.0.0",
+	"name": "Slipway film tool",
+	"description": "Renders promotional footage of Slipway frame by frame with the client GameTest API. Development only.",
+	"license": "Apache-2.0",
+	"environment": "client",
+	"entrypoints": {
+		"preLaunch": [
+			"dev.timstewart.slipway.film.FilmPreLaunch"
+		],
+		"fabric-client-gametest": [
+			"dev.timstewart.slipway.film.FilmMain"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"slipway": "*",
+		"fabric-client-gametest-api-v1": "*"
+	},
+	"mixins": [
+		"slipway_film.mixins.json"
+	]
+}
