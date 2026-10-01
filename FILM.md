@@ -126,7 +126,7 @@ The film does not need the Tellus Distant Horizons fork. The reddit-v1 videos an
 | Fabric API | 0.160.7+26.3 | `devmods/` |
 | Sodium | 0.9.2+mc26.3 | `devmods/` |
 | Iris | 1.11.7+mc26.3 (shadow-pass fixes) | `devmods/` (1.11.6 moved to `devmods/superseded/`) |
-| Distant Horizons | 3.3.4-26.3, stock from Modrinth | `build/devmods-stock/`, selected by `slipwayTestDhJar` in `gradle.properties` |
+| Distant Horizons | 3.3.4-26.3, stock from Modrinth | `devmods/DistantHorizons-fabric-3.3.4-26.3.jar` (what `tools/fetch-devmods.py` downloads) |
 | Shader pack | Bliss v2.1.2 (Chocapic13 Shaders edit), settings in `src/film/bliss.txt` | `shaderPackSource` in `build.gradle` |
 
 Do not use DH 3.3.1-tellus-fork.6 (or its leakfix builds) for film. It has the GL blend-state bug that causes dark
