@@ -309,19 +309,29 @@ Now the vessel's picture is kept that long:
 - Client: on `VesselGone` without `keepProxy`, `ClientVessels` keeps the vessel as "gone" instead of forgetting it.
   The packet arrives before the packets that drop its plot chunks, so the mesh is complete and is frozen
   (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`). `VesselRenderer`
-  draws that picture at the vessel's last poses. It stops, asked every frame, when the terrain renderer has nothing
-  left to build (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's `isTerrainRenderComplete` by
-  guarded reflection, hook `sodium-terrain-complete`), not before 2 ticks (the renderer only starts on the new
-  blocks in the next frames) and not after 6. A gone vessel is no vessel for anything else: no collision, no
+  draws that picture at the vessel's last poses. It stops when the terrain renderer has had nothing waiting for 2
+  ticks, asked every frame (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's
+  `isTerrainRenderComplete` by guarded reflection, hook `sodium-terrain-complete`), and after 6 ticks at the
+  latest. Both answers are about the build queue only (Sodium's is `ChunkBuilder.isBuildQueueEmpty`): the renderer
+  starts on the new blocks in its next frame, hands out a limited number of sections per frame, and a section being
+  built or waiting to be uploaded is not in the queue. One "nothing waiting" therefore does not mean the blocks
+  are on the screen; two ticks without any do. A gone vessel is no vessel for anything else: no collision, no
   picking, no plot.
-- Both are drawn together for at most the frame in which the terrain appears. When the terrain renderer is busy
-  for another reason (new terrain streaming in while flying), the picture stays for the full 6 ticks over the
-  blocks that are already there; the two differ by the snap to the block grid at most.
+- Both are drawn together for those two ticks. When the terrain renderer is busy for another reason (new terrain
+  streaming in while flying), the picture stays for the full 6 ticks over the blocks that are already there; the two
+  differ by the snap to the block grid at most. A rebuild that takes longer than 6 ticks would still show the ship
+  late in places; that was not seen (for a 2,080-block ship the terrain renderer was last busy in the tick of the
+  disassembly with all build threads, and one tick later with a single one).
 
-Measured by the client GameTest `disassembly` (pictures after each of the ten ticks following a disassembly,
-compared with the picture before): with the picture kept the ship is in all ten; with it turned off
-(`ClientVessels.keepGoneVessels`, for this test) the ship is missing from the first. In free-running play the
-film agent measured about two ticks without the ship.
+Measured by the client GameTest `disassembly`: the frame on the screen before each of the twelve ticks following a
+disassembly (copied with the game's own screenshot copy, which skips no tick; a test screenshot takes several) is
+compared with the picture before, for a 58-block ship, for a 2,080-block carrier, and for the carrier with Sodium
+limited to one build thread. With the picture kept the ship is whole in every frame of every run (largest
+difference 3% of what a missing ship makes: the blocks' lighting) and the gone vessel is drawn for 2 ticks, 3 with
+one build thread. With it turned off (`ClientVessels.keepGoneVessels`, for this test) the ship is missing from one
+of the twelve frames in most runs and from none in some: the gap is about a tick long there and does not always
+cover the frame at a tick's end. In free-running play the film agent measured two ticks without the ship (four and
+eight in other runs of its 2,503-block galleon under shaders at film resolution, where frames are slow).
 
 The mirror problem at assembly (the vessel can be drawn incomplete for a tick or two while its plot chunks arrive)
 has a different cause and is not changed: the world blocks are removed by block updates in one tick, and the

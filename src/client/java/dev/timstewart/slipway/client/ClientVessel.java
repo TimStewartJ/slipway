@@ -55,6 +55,8 @@ public final class ClientVessel {
 	 * it went at, and its block entities as they were, kept because its plot chunks are dropped.
 	 */
 	long goneAtTick = -1;
+	/** The last client tick at which the terrain renderer still had work waiting (from {@link #goneAtTick} on). */
+	long terrainBusyAtTick;
 	public java.util.List<net.minecraft.world.level.block.entity.BlockEntity> keptBlockEntities = java.util.List.of();
 
 	private final ArrayDeque<Snapshot> snapshots = new ArrayDeque<>();
@@ -276,6 +278,7 @@ public final class ClientVessel {
 		}
 		this.keptBlockEntities = kept;
 		this.goneAtTick = clientTick;
+		this.terrainBusyAtTick = clientTick;
 	}
 
 	void close() {
