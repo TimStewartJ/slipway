@@ -44,6 +44,7 @@ public final class ClientVessel {
 	public float mass;
 	public boolean hover;
 	public boolean level;
+	public boolean loose;
 	public boolean hasBody;
 	public boolean hasInfo;
 	public Vec3 velocity = Vec3.ZERO;
@@ -88,9 +89,10 @@ public final class ClientVessel {
 		this.entityId = update.entityId();
 		this.velocity = update.velocity();
 		this.angularVelocity = update.angularVelocity();
-		this.hover = (update.flags() & 1) != 0;
-		this.level = (update.flags() & 2) != 0;
-		this.hasBody = (update.flags() & 4) != 0;
+		this.hover = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_HOVER) != 0;
+		this.level = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_LEVEL) != 0;
+		this.hasBody = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_BODY) != 0;
+		this.loose = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_LOOSE) != 0;
 		Snapshot last = this.snapshots.peekLast();
 		if (last != null && update.gameTime() <= last.tick) {
 			if (update.gameTime() == last.tick) {

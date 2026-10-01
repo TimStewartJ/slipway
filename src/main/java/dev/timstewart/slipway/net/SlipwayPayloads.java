@@ -16,9 +16,17 @@ public final class SlipwayPayloads {
 	private SlipwayPayloads() {
 	}
 
-	/** Server to client, every tick to players tracking the vessel: the authoritative pose and velocities. */
+	/**
+	 * Server to client, every tick to players tracking the vessel: the authoritative pose and velocities, and the
+	 * vessel's modes as flag bits.
+	 */
 	public record PoseUpdate(long vesselId, int entityId, long gameTime, VesselPoseData pose, Vec3 velocity, Vec3 angularVelocity, byte flags)
 		implements CustomPacketPayload {
+		public static final byte FLAG_HOVER = 1;
+		public static final byte FLAG_LEVEL = 2;
+		/** The vessel has a physics body. */
+		public static final byte FLAG_BODY = 4;
+		public static final byte FLAG_LOOSE = 8;
 		public static final Type<PoseUpdate> TYPE = new Type<>(Slipway.id("vessel_pose"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, PoseUpdate> CODEC = CustomPacketPayload.codec(PoseUpdate::write, PoseUpdate::new);
 
@@ -158,13 +166,14 @@ public final class SlipwayPayloads {
 	}
 
 	/**
-	 * Client to server while piloting: control axes in [-1, 1] and edge-triggered toggles (bit 0 hover, bit 1 level).
-	 * The server checks that the sender pilots the named vessel and sanitises every number.
+	 * Client to server while piloting: control axes in [-1, 1] and edge-triggered toggles (bit 0 hover, bit 1 level,
+	 * bit 2 loose). The server checks that the sender pilots the named vessel and sanitises every number.
 	 */
 	public record HelmControl(long vesselId, int sequence, float forward, float strafe, float vertical, float pitch, float yaw, float roll, byte toggles)
 		implements CustomPacketPayload {
 		public static final byte TOGGLE_HOVER = 1;
 		public static final byte TOGGLE_LEVEL = 2;
+		public static final byte TOGGLE_LOOSE = 4;
 		public static final Type<HelmControl> TYPE = new Type<>(Slipway.id("helm_control"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, HelmControl> CODEC = CustomPacketPayload.codec(HelmControl::write, HelmControl::new);
 

@@ -36,9 +36,9 @@ public final class SlipwayDebug {
 			}
 			double[] a = pose.attitudeDegrees();
 			Vec3 centre = vessel.worldCentre(pose);
-			out.append(String.format(Locale.ROOT, "#%d ready=%s centre=%.3f,%.3f,%.3f pos=%.3f,%.3f,%.3f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f vertices=%d blocks=%d speed=%.3f hover=%s level=%s body=%s",
+			out.append(String.format(Locale.ROOT, "#%d ready=%s centre=%.3f,%.3f,%.3f pos=%.3f,%.3f,%.3f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f vertices=%d blocks=%d speed=%.3f hover=%s level=%s loose=%s body=%s",
 				vessel.id, vessel.ready(), centre.x, centre.y, centre.z, pose.x(), pose.y(), pose.z(), a[0], a[1], a[2], pose.tiltDegrees(),
-				vessel.mesh.vertexCount(), vessel.blocks, vessel.velocity.length(), vessel.hover, vessel.level, vessel.hasBody));
+				vessel.mesh.vertexCount(), vessel.blocks, vessel.velocity.length(), vessel.hover, vessel.level, vessel.loose, vessel.hasBody));
 		}
 		return out.length() == 0 ? "none" : out.toString();
 	}

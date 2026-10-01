@@ -37,7 +37,7 @@ final class HelmHud {
 		lines.add(Component.translatable("slipway.hud.attitude", String.format(Locale.ROOT, "%+.0f", attitude[0]), String.format(Locale.ROOT, "%+.0f", attitude[2]),
 			String.format(Locale.ROOT, "%03.0f", heading)));
 		lines.add(Component.translatable("slipway.hud.modes", Component.literal(vessel.hover ? "ON" : "off"), Component.literal(vessel.level ? "ON" : "off"),
-			String.format(Locale.ROOT, "%.1f", vessel.mass / 1000.0)));
+			Component.literal(vessel.loose ? "ON" : "off"), String.format(Locale.ROOT, "%.1f", vessel.mass / 1000.0)));
 		int width = 0;
 		for (Component line : lines) {
 			width = Math.max(width, mc.font.width(line));

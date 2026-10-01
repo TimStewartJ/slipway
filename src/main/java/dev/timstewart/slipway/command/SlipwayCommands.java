@@ -121,7 +121,7 @@ public final class SlipwayCommands {
 			ActiveVessel active = manager.active(record.id);
 			Vec3 centre = VesselManager.worldCentre(record);
 			text.append(String.format(Locale.ROOT, "\n#%d blocks=%d centre=%.1f,%.1f,%.1f %s", record.id, record.blockCount, centre.x, centre.y, centre.z,
-				active == null ? "inactive" : active.hasBody ? "flying" : "loading"));
+				active == null ? "inactive" : !active.hasBody ? "loading" : !record.loose ? "flying" : active.bodyAwake ? "loose" : "loose, at rest"));
 		}
 		return reply(ctx, true, text.toString());
 	}
@@ -139,11 +139,13 @@ public final class SlipwayCommands {
 		Vec3 centre = VesselManager.worldCentre(record);
 		String text = String.format(Locale.ROOT,
 			"vessel %d: blocks=%d plot=%d anchor=%s bounds=%s..%s pos=%.3f,%.3f,%.3f centre=%.2f,%.2f,%.2f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f "
-				+ "speed=%.3f spin=%.3f hover=%s level=%s active=%s body=%s mass=%.1f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f plotAnchor=%d,%d,%d input=%s",
+				+ "speed=%.3f spin=%.3f hover=%s level=%s loose=%s active=%s body=%s awake=%s mass=%.1f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f "
+				+ "plotAnchor=%d,%d,%d input=%s",
 			id, record.blockCount, record.plot, record.anchor.toShortString(), record.localMin.toShortString(), record.localMax.toShortString(),
 			pose.x(), pose.y(), pose.z(), centre.x, centre.y, centre.z, attitude[0], attitude[1], attitude[2], pose.tiltDegrees(),
-			record.linearVelocity.length(), record.angularVelocity.length(), record.hover, record.level, active != null,
-			active != null && active.hasBody, active == null || active.mass == null ? 0.0 : active.mass.mass(),
+			record.linearVelocity.length(), record.angularVelocity.length(), record.hover, record.level, record.loose, active != null,
+			active != null && active.hasBody, active != null && active.hasBody && active.bodyAwake,
+			active == null || active.mass == null ? 0.0 : active.mass.mass(),
 			pose.qx(), pose.qy(), pose.qz(), pose.qw(), record.linearVelocity.x, record.linearVelocity.y, record.linearVelocity.z,
 			record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(),
 			active == null ? "none" : String.format(Locale.ROOT, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f", active.input.forward, active.input.strafe,
@@ -214,8 +216,9 @@ public final class SlipwayCommands {
 		switch (mode) {
 			case "hover" -> vessel.record.hover = on;
 			case "level" -> vessel.record.level = on;
+			case "loose" -> vessel.record.loose = on;
 			default -> {
-				return reply(ctx, false, "mode is hover or level");
+				return reply(ctx, false, "mode is hover, level or loose");
 			}
 		}
 		return reply(ctx, true, "vessel " + vessel.record.id + " " + mode + "=" + on);

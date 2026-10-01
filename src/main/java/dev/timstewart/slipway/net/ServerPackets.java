@@ -88,6 +88,10 @@ public final class ServerPackets {
 			vessel.record.level = !vessel.record.level;
 			player.sendOverlayMessage(Component.translatable(vessel.record.level ? "slipway.helm.level_on" : "slipway.helm.level_off"));
 		}
+		if ((payload.toggles() & SlipwayPayloads.HelmControl.TOGGLE_LOOSE) != 0) {
+			vessel.record.loose = !vessel.record.loose;
+			player.sendOverlayMessage(Component.translatable(vessel.record.loose ? "slipway.helm.loose_on" : "slipway.helm.loose_off"));
+		}
 		return null;
 	}
 }

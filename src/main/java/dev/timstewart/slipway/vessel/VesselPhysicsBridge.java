@@ -18,7 +18,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
 
@@ -96,6 +95,13 @@ public final class VesselPhysicsBridge {
 			if (vessel.chunksReady && vessel.shapeDirty) {
 				this.rebuildShape(vessel);
 			}
+			if (vessel.hasBody && vessel.bodyLoose != vessel.record.loose) {
+				long id = vessel.record.id;
+				boolean loose = vessel.record.loose;
+				vessel.bodyLoose = loose;
+				vessel.bodyAwake = true;
+				this.world().submit(engine -> engine.setVesselLoose(id, loose));
+			}
 			anyBody |= vessel.hasBody;
 		}
 		if (anyBody) {
@@ -117,11 +123,13 @@ public final class VesselPhysicsBridge {
 			Slipway.LOGGER.warn("Vessel {} produced a non-finite physics state; restoring its last pose", record.id);
 			VesselPose last = record.pose;
 			vessel.poseValidFromStep = this.world().nextStepIndex();
+			vessel.holdReset = true;
 			this.world().submit(engine -> engine.teleportVessel(record.id, last));
 			record.linearVelocity = Vec3.ZERO;
 			record.angularVelocity = Vec3.ZERO;
 			return;
 		}
+		vessel.bodyAwake = state.active;
 		record.pose = state.pose();
 		record.linearVelocity = new Vec3(state.vx, state.vy, state.vz);
 		record.angularVelocity = new Vec3(state.wx, state.wy, state.wz);
@@ -165,6 +173,8 @@ public final class VesselPhysicsBridge {
 		Vector3d angular = new Vector3d(record.angularVelocity.x, record.angularVelocity.y, record.angularVelocity.z);
 		if (!vessel.hasBody) {
 			vessel.poseValidFromStep = this.world().nextStepIndex();
+			vessel.bodyLoose = false;
+			vessel.holdReset = true;
 		}
 		this.world().submit(engine -> engine.setVesselShape(id, boxes, pose, velocity, angular));
 		vessel.hasBody = true;
@@ -174,35 +184,26 @@ public final class VesselPhysicsBridge {
 		SlipwayConfig config = SlipwayConfig.get();
 		VesselController.Params params = new VesselController.Params(config.thrustAcceleration, config.maxSpeed, config.angularAcceleration,
 			config.maxTurnRate, config.levelStrength);
-		List<ControlJob> jobs = new ArrayList<>();
+		List<VesselController.Drive> drives = new ArrayList<>();
 		LongArrayList ids = new LongArrayList();
 		for (ActiveVessel vessel : this.manager.activeVessels()) {
 			if (!vessel.hasBody || vessel.mass == null) {
 				continue;
 			}
-			ids.add(vessel.record.id);
-			Vector3d forward = new Vector3d(vessel.record.helmFacing.getOpposite().getStepX(), 0, vessel.record.helmFacing.getOpposite().getStepZ());
-			jobs.add(new ControlJob(vessel.record.id, vessel.input.copy(), vessel.record.hover, vessel.record.level, vessel.mass, forward));
+			VesselRecord record = vessel.record;
+			ids.add(record.id);
+			Vector3d forward = new Vector3d(record.helmFacing.getOpposite().getStepX(), 0, record.helmFacing.getOpposite().getStepZ());
+			HelmInput in = vessel.input;
+			drives.add(new VesselController.Drive(record.id, new VesselController.Axes(in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll),
+				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.hold));
+			vessel.holdReset = false;
 		}
 		PhysicsEngine.BodyState scratch = new PhysicsEngine.BodyState();
 		this.world().startStep(ids.toLongArray(), engine -> {
-			for (ControlJob job : jobs) {
-				if (!engine.readVessel(job.id, scratch) || !scratch.isFinite()) {
-					continue;
-				}
-				HelmInput in = job.input;
-				VesselController.Command command = VesselController.compute(params, in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll,
-					job.hover, job.level, new Quaterniond(scratch.qx, scratch.qy, scratch.qz, scratch.qw),
-					new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
-					job.mass.mass(), job.mass.inertia(), job.forward);
-				if (command.isFinite()) {
-					engine.applyForceAndTorque(job.id, command.force(), command.torque());
-				}
+			for (VesselController.Drive drive : drives) {
+				VesselController.drive(engine, params, drive, scratch);
 			}
 		});
-	}
-
-	private record ControlJob(long id, HelmInput input, boolean hover, boolean level, BoxList.MassProperties mass, Vector3d forward) {
 	}
 
 	// ---------------------------------------------------------------------------------------------------------
@@ -322,6 +323,8 @@ public final class VesselPhysicsBridge {
 			this.world.submit(engine -> engine.removeVessel(id));
 		}
 		vessel.hasBody = false;
+		vessel.bodyLoose = false;
+		vessel.bodyAwake = true;
 		vessel.shapeDirty = true;
 		vessel.poseValidFromStep = Long.MAX_VALUE;
 	}
@@ -331,6 +334,7 @@ public final class VesselPhysicsBridge {
 			long id = vessel.record.id;
 			VesselPose pose = vessel.record.pose;
 			vessel.poseValidFromStep = this.world.nextStepIndex();
+			vessel.holdReset = true;
 			this.world.submit(engine -> engine.teleportVessel(id, pose));
 		}
 	}

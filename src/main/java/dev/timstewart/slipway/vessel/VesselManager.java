@@ -189,7 +189,7 @@ public final class VesselManager {
 			Component.keybind("key.jump"), Component.keybind("key.slipway.descend"), Component.keybind("key.slipway.pitch_up"),
 			Component.keybind("key.slipway.pitch_down"), Component.keybind("key.slipway.roll_left"), Component.keybind("key.slipway.roll_right"),
 			Component.keybind("key.slipway.strafe_left"), Component.keybind("key.slipway.strafe_right"), Component.keybind("key.slipway.toggle_hover"),
-			Component.keybind("key.slipway.toggle_level"), Component.keybind("key.sneak"));
+			Component.keybind("key.slipway.toggle_level"), Component.keybind("key.slipway.toggle_loose"), Component.keybind("key.sneak"));
 	}
 
 	public VesselAssembly.Outcome assemble(BlockPos helmPos, @Nullable ServerPlayer player) {
@@ -545,7 +545,8 @@ public final class VesselManager {
 
 	private SlipwayPayloads.PoseUpdate posePayload(ActiveVessel vessel, long gameTime) {
 		VesselRecord record = vessel.record;
-		byte flags = (byte)((record.hover ? 1 : 0) | (record.level ? 2 : 0) | (vessel.hasBody ? 4 : 0));
+		byte flags = (byte)((record.hover ? SlipwayPayloads.PoseUpdate.FLAG_HOVER : 0) | (record.level ? SlipwayPayloads.PoseUpdate.FLAG_LEVEL : 0)
+			| (vessel.hasBody ? SlipwayPayloads.PoseUpdate.FLAG_BODY : 0) | (record.loose ? SlipwayPayloads.PoseUpdate.FLAG_LOOSE : 0));
 		return new SlipwayPayloads.PoseUpdate(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), gameTime,
 			SlipwayPayloads.VesselPoseData.of(record.pose), record.linearVelocity, record.angularVelocity, flags);
 	}

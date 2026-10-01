@@ -62,6 +62,11 @@ public class PacketGameTests {
 		boolean hoverBefore = record.hover;
 		ServerPackets.handleHelmControl(pilot, control(record.id, 0f, 0f, SlipwayPayloads.HelmControl.TOGGLE_HOVER));
 		check(helper, record.hover != hoverBefore, "hover toggle ignored");
+		check(helper, !record.loose, "a new vessel is loose");
+		ServerPackets.handleHelmControl(pilot, control(record.id, 0f, 0f, SlipwayPayloads.HelmControl.TOGGLE_LOOSE));
+		check(helper, record.loose && record.hover != hoverBefore, "the loose toggle did not make the vessel loose, or changed hover");
+		ServerPackets.handleHelmControl(pilot, control(record.id, 0f, 0f, SlipwayPayloads.HelmControl.TOGGLE_LOOSE));
+		check(helper, !record.loose, "the loose toggle did not end loose");
 		helper.succeed();
 	}
 

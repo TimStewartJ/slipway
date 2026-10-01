@@ -141,12 +141,60 @@ computed before a teleport or body creation so stale poses are dropped.
 - Mass and inertia: `BoxList.massProperties` (solid boxes plus the parallel-axis theorem) feeds the controller; Jolt
   computes the same from the shapes.
 - Control (`VesselController`): forces scale with mass and torques with the world inertia tensor, so a raft and a
-  1,000-block barge accelerate and turn alike. Hover cancels gravity and brakes idle axes; level adds a rate that
-  rotates the up axis back to world up. All inputs, forces and states are checked for NaN/Infinity; a non-finite
-  physics state restores the last good pose.
+  1,000-block barge accelerate and turn alike. Hover cancels gravity, brakes idle axes and holds the position the
+  brake ends at; level adds a rate that rotates the up axis back to world up. All inputs, forces and states are
+  checked for NaN/Infinity; a non-finite physics state restores the last good pose. A loose vessel is not controlled
+  (below).
 - Leaks: every jolt-jni object is closed by its owner (`JoltEngine.release` for shape references, bodies destroyed on
   removal, the engine closed on level unload). `JoltEngineTest.anEngineLifecycleFreesEveryNativeObject` runs a full
   lifecycle with the Debug natives' allocation counters and requires news == deletes.
+
+### Loose vessels, holding and sleeping (0.1.2)
+
+**Loose.** `VesselRecord.loose` (saved as an optional field, so 0.1.0 and 0.1.1 saves load as not loose; bit 3 of the
+pose packet's flags) makes a vessel a plain rigid body: `VesselController.drive` applies no force and no torque to it,
+whatever the helm, hover and level say, so only gravity, contacts and friction move it. Hover and level keep their
+values and apply again when loose ends. It is switched by `/slipway mode <id> loose true|false` and by the pilot's
+"Toggle loose" key. The key's default is U: G, the neighbour of H, is vanilla 26.3's quick-actions key, and Iris
+takes K, O and R.
+
+**Holding.** Until 0.1.1 a hovering vessel only had its weight cancelled and its speed braked, and with level off only
+its turn rate braked. That is no hold: anything resting on it pushed it down for as long as it lay there (10 crates on
+a 2,000-block carrier sank it by a quarter of a block per second), and cargo lying off centre turned a vessel with
+level off until the cargo slid away. So hover now holds (`VesselController.Hold`, one per vessel, used only on the
+physics thread):
+
+- Position: the point the brake would stop the vessel at. Along a local axis with input the point follows the
+  vessel; along an idle axis the vessel is pulled to it by a critically damped spring `a = -2wv - w²e` with
+  `w = BRAKE_GAIN` (1.5/s). Started from `e = -v/w` this is exactly the old brake `a = -wv`, so an unloaded vessel
+  flies and stops as before (unit test `aReleasedHoveringVesselStopsWhereThePlainBrakeStopsIt`). Under a load of a
+  fraction `f` of its weight it sags `f g / w²` (4.4 blocks per unit of `f`: 0.10 blocks for the 2.3% in the client
+  GameTest, measured 0.103). The pull is limited to `HOLD_SLACK` = 2 blocks of spring (a load of 46% of the vessel's
+  weight); beyond that the point gives way and the vessel sinks slowly instead of winding up. A vessel pushed aside by
+  another comes back by at most those 2 blocks.
+- Attitude, only with level off: the same with `k = RATE_GAIN` (3/s) about each local axis, `alpha = -2kw - k²e`,
+  limited to 20 degrees. With level on, levelling is the hold for pitch and roll, and gives by `asin(torque / (4.5 I))`
+  (three degrees for a two-block crate 2.2 blocks off the centre of a 7x7 raft).
+- The hold is taken anew after a teleport, a restored pose, hover off and on, level on and off, and loose.
+
+**Jolt settings checked for small bodies on a deck** (unit tests in `LooseCargoTest`, on the Debug natives; server
+GameTests in `LooseGameTests`; client GameTest `loose-cargo`):
+
+| Setting | Value | Finding |
+| --- | --- | --- |
+| Step | 0.05 s in 3 collision steps (60 Hz), 10 velocity and 2 position iterations (Jolt's defaults) | Crates dropped from 3 to 8 blocks land without bouncing through or being thrown; a pile of 8 to 10 comes to rest within 70 ticks. |
+| Convex radius | 0.05 (less for thin boxes) | Kept. Resting bodies overlap by Jolt's penetration slop of 0.02 blocks and no more; nothing sinks in over time. |
+| Friction | 0.6 on vessels, 0.8 on terrain, combined by geometric mean | Kept. Cargo holds on a deck up to atan(0.6) = 31 degrees and slides beyond (it starts between 28 and 36 in the unit test). It also means the deck can pass on at most 0.6 g = 5.9 m/s²: the stop of a released helm brakes at 1.5 times the speed per second, so from more than 4 m/s cargo slides forward, and tall thin pieces topple. Fly gently or build a rail. |
+| Restitution | 0.05 (Jolt takes the larger of two) | Kept: nothing bounces. |
+| Motion quality | LinearCast for every vessel | Kept: a crate at terminal speed does not pass through a one-block deck. |
+| Sleeping | off for controlled vessels, on for loose ones | A controlled vessel gets forces every step and can never sleep. A loose vessel at rest on terrain or on other sleeping vessels is put to sleep after 0.5 s and then costs nothing (0.004 ms per step for 30 of them, against 0.5 ms awake, Debug natives). What rests on a hovering carrier is in the carrier's island and stays awake, as it must to ride along. Jolt wakes a sleeper that is touched, but not one whose support goes away: `JoltEngine` wakes loose vessels around a terrain section that changes and all of them when a vessel is removed, reshaped or teleported. |
+| Enhanced internal edge removal | on for every vessel | A deck or the ground is many boxes side by side; a body sliding fast over the buried edges between them caught on them (a cube at 8 m/s over single-block boxes tumbled within four blocks). With the option, vessels slide over terrain seams as over one slab (`vesselsSlideOverTerrainSeamsAsOverOneSlab`). It only removes the edges of the second body of a pair. Terrain is always second; of two vessels the one with the higher Jolt body id is, which jolt-jni 6.1.1 gives no way to choose (no `CreateBodyWithID`). So a crate sliding fast over a seam of a deck that is older than the crate still tumbles there. Slow sliding and resting are not affected. Left as is. |
+
+Cost, client GameTest `loose-cargo` (Release natives; 10 loose vessels of 2 to 30 blocks, 110 blocks together, on a
+2,080-block carrier of 4,990 t; 11 plots loaded): physics step 0.24 ms mean while they land (worst 2.2 ms), 0.20 ms
+at rest on the deck, 0.18 ms while the carrier flies, 0.16 ms while they slide off and fall, 0.08 ms once all ten
+sleep on the ground; Slipway's part of the server tick (the exchange) 0.1 ms or less; server tick 0.8 to 2.0 ms mean,
+4.5 ms worst. The client's poses are the server's (offset 0.0 blocks over 748 compared poses).
 
 ### Networking
 
