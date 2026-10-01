@@ -125,6 +125,12 @@ loom {
 			vmArg '-Dslipway.clientGametest.reportDir=' + file('build/client-gametest').absolutePath
 			vmArg '-Dslipway.clientGametest.only=' + (providers.gradleProperty('slipwayClientGametestOnly').orNull ?: '')
 			vmArg '-Dslipway.clientGametest.soakMinutes=' + (providers.gradleProperty('slipwaySoakMinutes').orNull ?: '2')
+			// inputs of the diagnostic scenarios (run only when named; see DiagScenarios)
+			vmArg '-Dslipway.diag.world=' + (providers.gradleProperty('slipwayDiagWorld').orNull ?: '')
+			vmArg '-Dslipway.diag.packOptions=' + (providers.gradleProperty('slipwayDiagPackOptions').orNull ?: '')
+			vmArg '-Dslipway.diag.variants=' + (providers.gradleProperty('slipwayDiagVariants').orNull ?: '')
+			vmArg '-Dslipway.diag.series=' + (providers.gradleProperty('slipwayDiagSeries').orNull ?: 'false')
+			vmArg '-Dslipway.diag.freshLods=' + (providers.gradleProperty('slipwayDiagFreshLods').orNull ?: 'false')
 			vmArg '--enable-native-access=ALL-UNNAMED'
 			vmArg '-XX:StackShadowPages=32'
 			// the multiplayer test removes vanilla's dedicated-server shutdown hook once its server stopped
@@ -486,6 +492,7 @@ tasks.named('check').configure { dependsOn 'runGametest' }
 // instance (-PslipwayShaderPack=<zip> overrides); a missing pack makes the shader tests fail, not skip.
 def shaderPackSource = providers.gradleProperty('slipwayShaderPack').map { file(it) }.orNull ?:
 	file("${System.getenv('APPDATA')}/PrismLauncher/instances/Tellus-Expeditions-MC-26.3-Fabric/.minecraft/shaderpacks/Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip")
+def testDhConfigSource = providers.gradleProperty('slipwayTestDhConfig').map { file(it) }.orNull
 tasks.register('prepareClientGametestRun') {
 	group = 'slipway'
 	description = 'Puts the shader pack and a shaders-off Iris config into the client GameTest run directory.'
@@ -504,6 +511,16 @@ tasks.register('prepareClientGametestRun') {
 		}
 		def config = new File(runDir, 'config')
 		config.mkdirs()
+		// Every run starts from the game's and Distant Horizons' defaults plus the tests' own options: Fabric's client
+		// GameTest takes its "default" options after options.txt is loaded, so a value saved by an earlier run (such as
+		// a diagnostic's field of view) would otherwise carry into every later run and change what the shots show.
+		new File(runDir, 'options.txt').delete()
+		def dhConfig = new File(config, 'DistantHorizons.toml')
+		dhConfig.delete()
+		// -PslipwayTestDhConfig=<file>: start Distant Horizons from that config instead (diagnostic runs)
+		if (testDhConfigSource != null) {
+			dhConfig.bytes = testDhConfigSource.bytes
+		}
 		// shaders start off; the tests turn them on through Iris's API where they need them
 		new File(config, 'iris.properties').setText([
 			'allowUnknownShaders=false', 'colorSpace=SRGB', 'disableUpdateMessage=true', 'enableDebugOptions=false',

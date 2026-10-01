@@ -32,4 +32,5 @@ which need mod configurations without Slipway and so cannot run as client GameTe
 (`tools/verify-play-instance.ps1`, `tools/make-sandbox-world.ps1`).
 
 The scripts are kept as they were at retirement (only their paths to the shared helpers were updated). They are not
-run by any build and may break as the shared helpers change.
+run by any build and may break as the shared helpers change. The second Prism instance that `multiplayer.ps1` and
+`deploy-test-build.ps1` expect, `Slipway-Test2-MC-26.3-Fabric`, was deleted on 2026-09-30.

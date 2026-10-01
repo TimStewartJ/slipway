@@ -1,8 +1,9 @@
 # SlipwayE2E.psm1 - end-to-end harness for Slipway on Minecraft 26.3 (Fabric).
 #
 # Same approach as the Tellus harness, but fully separate: a dedicated Fabric server in E:\slipway-e2e\server that
-# we control over RCON, and Prism test instances (Slipway-Test-MC-26.3-Fabric and, for multiplayer,
-# Slipway-Test2-MC-26.3-Fabric) that carry the test-only agent mod (tools/e2e/agent). The agent reads commands from
+# we control over RCON, and the Prism test instance Slipway-Test-MC-26.3-Fabric that carries the test-only agent mod
+# (tools/e2e/agent). (The second instance, Slipway-Test2, served only the retired multiplayer scenario and was deleted
+# on 2026-09-30.) The agent reads commands from
 # <gameDir>\slipway-agent\commands.txt, so nothing here takes window focus, keyboard or mouse. Screenshots are the
 # game's own framebuffer. Scenario runs are written to E:\slipway-e2e\runs\<scenario>-<stamp>\report.md and
 # recorded in the repository's validation.json.
@@ -22,7 +23,6 @@ $script:JavaW = "$env:USERPROFILE\.jdks\jdk-25.0.3+9\bin\javaw.exe"
 $script:PrismRoot = "$env:APPDATA\PrismLauncher"
 $script:PrismExe = "$env:LOCALAPPDATA\Programs\PrismLauncher\prismlauncher.exe"
 $script:InstanceA = 'Slipway-Test-MC-26.3-Fabric'
-$script:InstanceB = 'Slipway-Test2-MC-26.3-Fabric'
 $script:ServerPort = 25601
 $script:RconPort = 25600
 $script:RconPassword = 'slipway-e2e'

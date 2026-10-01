@@ -9,8 +9,10 @@ angle.
 
 - Prism instance **Slipway - Minecraft 26.3 (Fabric)** (`Slipway-MC-26.3-Fabric`): Minecraft 26.3, Fabric loader
   0.19.5, Fabric API, Sodium, Iris (Bliss shaders on), Distant Horizons, Slipway. Your Tellus 26.3 options and key
-  layout were copied over. Distant Horizons here is `3.3.1-tellus-fork.6-leakfix.9`: your fork.6 plus the fixes from
-  the leak investigation (local branch `slipway-leak-fix` in `E:\distant-horizons`); your Tellus instances keep fork.6.
+  layout were copied over. Distant Horizons here is `3.3.4-tellus-fork.7`: official Distant Horizons 3.3.4 plus the
+  Tellus patches and the fixes from the leak investigation (local branch `rebase-3.3.4` in `E:\distant-horizons`).
+  Your Tellus instances (26.3 and 26.2) have the same build; the 26.2 one needed its Fabric loader raised from 0.19.3
+  to 0.19.5 for it.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
 
@@ -113,6 +115,11 @@ you remove, not touching the ground.
   the graphics driver), so restart the game after many world switches with shaders on. Closed worlds themselves are
   freed now.
 - Pre-1.0: saves from this version may not load in later versions.
+- With shaders on, Distant Horizons builds before 3.3.3 make ordinary world blocks (not vessels) look dark and blotchy,
+  most visibly right after joining the world or reloading shaders. This is a Distant Horizons bug on Minecraft 26.2+,
+  not Slipway or Bliss (DESIGN.md, "Dark blotches on world blocks under shaders"). Your instances now have a build
+  with upstream's fix (measured clean on a copy of the sandbox world). Players using official Distant Horizons should
+  use 3.3.3 or newer.
 
 ## Reporting issues
 
