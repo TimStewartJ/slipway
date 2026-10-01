@@ -1,6 +1,7 @@
 package dev.timstewart.slipway.clientgametest;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import dev.timstewart.slipway.client.ClientVessel;
 import dev.timstewart.slipway.client.ClientVessels;
 import dev.timstewart.slipway.vessel.VesselRecord;
 import java.io.IOException;
@@ -77,7 +78,9 @@ final class DisassemblyScenarios {
 			ctx.waitTick();
 			int index = tick;
 			ctx.runOnClient(mc -> {
-				if (ClientVessels.drawn(id) != null) {
+				// Only the kept picture counts: until the client hears of the disassembly the vessel itself is still there.
+				ClientVessel drawn = ClientVessels.drawn(id);
+				if (drawn != null && drawn.gone()) {
 					kept[0]++;
 				}
 				Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> images.set(index, image));
