@@ -195,13 +195,13 @@ public final class VesselPhysicsBridge {
 			Vector3d forward = new Vector3d(record.helmFacing.getOpposite().getStepX(), 0, record.helmFacing.getOpposite().getStepZ());
 			HelmInput in = vessel.input;
 			drives.add(new VesselController.Drive(record.id, new VesselController.Axes(in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll),
-				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.hold));
+				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.brakeOnly ? null : vessel.hold));
 			vessel.holdReset = false;
 		}
 		PhysicsEngine.BodyState scratch = new PhysicsEngine.BodyState();
 		this.world().startStep(ids.toLongArray(), engine -> {
 			for (VesselController.Drive drive : drives) {
-				VesselController.drive(engine, params, drive, scratch);
+				VesselController.drive(engine, params, PhysicsWorld.STEP, drive, scratch);
 			}
 		});
 	}

@@ -42,6 +42,8 @@ public final class ActiveVessel {
 	final dev.timstewart.slipway.physics.VesselController.Hold hold = new dev.timstewart.slipway.physics.VesselController.Hold();
 	/** The hold point is stale (the vessel was teleported): the next step takes a new one. */
 	boolean holdReset;
+	/** Set by tests to fly a reference: hover only brakes and holds nothing, as before 0.1.2. */
+	public boolean brakeOnly;
 	/** Whether the physics body has been told it is loose; differs from the record until the next exchange. */
 	boolean bodyLoose;
 	/** False while the body sleeps: a loose vessel that has come to rest is not simulated until something disturbs it. */

@@ -27,7 +27,7 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 - **A hovering vessel holds its place under load.** Before, a hovering vessel only had its weight cancelled and its
   speed braked, so anything resting on it pushed it down for as long as it lay there, and with level off, weight off
   centre slowly turned it. Hover now holds the position (and, with level off, the attitude) the vessel stopped at.
-  Flying and stopping an unloaded vessel feel the same as before.
+  A vessel that nothing pushes flies, turns and stops exactly as in 0.1.1.
 - **No blink at disassembly.** A disassembled vessel stays drawn until the terrain shows its blocks (it vanished for
   a moment before).
 - **No black sides.** Sides of a vessel that lie on a chunk border of its storage area were drawn black, in any

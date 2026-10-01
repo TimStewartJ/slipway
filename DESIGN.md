@@ -166,25 +166,60 @@ a 2,000-block carrier sank it by a quarter of a block per second), and cargo lyi
 level off until the cargo slid away. So hover now holds (`VesselController.Hold`, one per vessel, used only on the
 physics thread):
 
-- Position: the point the brake would stop the vessel's centre of mass at. It is the centre of mass that is held
-  because that is the point the velocity belongs to and the one a turn leaves in place. The first version held the
-  vessel's origin (the helm's corner) with the same force through the centre of mass: a ship whose helm is not at
-  its centre was then pulled round its helm when it turned, where in 0.1.1 it turned about its centre (found in
-  review; unit test `aHoveringVesselTurnsAboutItsCentreOfMass`: a hull with its origin 6 blocks from its centre
-  turns more than 90 degrees and the centre moves less than 0.02 blocks). When blocks change, the centre of mass
-  shifts in the vessel's frame and the held point shifts with it, so the vessel stays where it is
-  (`aHoveringVesselStaysWhereItIsWhenItsCentreOfMassShifts`). Along a local axis with input the point follows the
-  vessel; along an idle axis the vessel is pulled to it by a critically damped spring `a = -2wv - w²e` with
-  `w = BRAKE_GAIN` (1.5/s). Started from `e = -v/w` this is exactly the old brake `a = -wv`, so an unloaded vessel
-  flies and stops as before (unit test `aReleasedHoveringVesselStopsWhereThePlainBrakeStopsIt`). Under a load of a
-  fraction `f` of its weight it sags `f g / w²` (4.4 blocks per unit of `f`: 0.10 blocks for the 2.3% in the client
-  GameTest, measured 0.103). The pull is limited to `HOLD_SLACK` = 2 blocks of spring (a load of 46% of the vessel's
-  weight); beyond that the point gives way and the vessel sinks slowly instead of winding up. A vessel pushed aside by
-  another comes back by at most those 2 blocks.
-- Attitude, only with level off: the same with `k = RATE_GAIN` (3/s) about each local axis, `alpha = -2kw - k²e`,
-  limited to 20 degrees. With level on, levelling is the hold for pitch and roll, and gives by `asin(torque / (4.5 I))`
-  (three degrees for a two-block crate 2.2 blocks off the centre of a 7x7 raft).
+- Position: the point the brake would stop the vessel's centre of mass at. Along an idle local axis the point stays
+  and the vessel is pulled to it by a spring on top of the brake, `a = -wv - w²(e + tv)`, with `w = BRAKE_GAIN`
+  (1.5/s), `e` the distance from the point and `t` the brake's stopping time. A vessel that nothing pushes has
+  `e = -tv`, and there the law is the old brake `a = -wv`. Along an axis with input nothing is held: the point is
+  put where the brake would stop the vessel now. Under a load of a fraction `f` of its weight the vessel sags
+  `f g / w²` (4.4 blocks per unit of `f`: 0.10 blocks for the 2.3% in the client GameTest, measured 0.103). The pull
+  is limited to `HOLD_SLACK` = 2 blocks of spring (a load of 46% of the vessel's weight); beyond that the point gives
+  way and the vessel sinks slowly instead of winding up. A vessel pushed aside by another comes back by at most those
+  2 blocks.
+- Attitude, only with level off: the same with `k = RATE_GAIN` (3/s) about each local axis,
+  `alpha = -kw - k²(e + tw)`, limited to 20 degrees. With level on, levelling is the hold for pitch and roll, and
+  gives by `asin(torque / (4.5 I))` (three degrees for a two-block crate 2.2 blocks off the centre of a 7x7 raft).
 - The hold is taken anew after a teleport, a restored pose, hover off and on, level on and off, and loose.
+
+*A vessel that nothing pushes must fly exactly as it did under the plain brake of 0.1.1*, wherever its helm is and
+whatever it does. Three things were needed for that, the first two found by the review of the first version:
+
+- It is the centre of mass that is held, because that is the point the velocity belongs to and the one a turn leaves
+  in place. The first version held the vessel's origin (the helm's corner) with the same force through the centre
+  of mass: a ship whose helm is not at its centre was pulled round its helm when it turned, drifted in turns and
+  flew a different circle depending on where the helm stood. The engine reports the position of the shape's origin
+  and the velocity of the centre of mass; `drive` adds the rotated centre (`BoxList.MassProperties`, in the
+  vessel's frame) to the position.
+- The hold works in the engine's steps, not in continuous time. The engine advances a body in
+  `PhysicsWorld.SUBSTEPS` = 3 parts of 0.05 s under the force of one call, velocity first (`VesselController.Step`).
+  So the plain brake stops a vessel after `t = 1/w - (2/3) 0.05` = 0.633 s of its speed, not `1/w`; and while the
+  vessel turns, the axes the hold works along turn between two calls. Both are made up for exactly: `t` is the
+  stepped stopping time, and at the end of every call the point is moved by what the plain controller's own
+  acceleration `a` changes about where the vessel will stop, `0.05 (v + a/w)` (nothing along an idle axis, the
+  vessel's travel along one with input). The held attitude is turned along the same way, by stepping the plain rate
+  controller's torque as the engine will (the torque stays as it is in the world while the hull and its inertia turn
+  through the three parts). A version without this (holding the centre, but following input only at the start of a
+  step) flew a full-thrust turn 1.4% faster and wider than the plain brake, stopped half a block further on, and
+  with level off ended a 15-second manoeuvre on all six axes 5 blocks away.
+- When blocks change, the centre of mass shifts in the vessel's frame, and the held point is shifted with it
+  (`aHoveringVesselStaysWhereItIsWhenItsCentreOfMassShifts`). The review proposed to take the hold anew instead. That
+  lets go of a load: the vessel's present place becomes the point, so a loaded carrier would sink by its sag at every
+  block change, and a ship with cargo and a piston clock would sink all the time
+  (`aLoadedHoveringVesselKeepsItsHeightWhenItsBlocksChange`: ten block changes under a load that sags the carrier
+  1.3 blocks leave it at its height).
+
+`ActiveVessel.brakeOnly` (set by tests only) drives a vessel without the hold, as 0.1.1 did: the reference the tests
+compare with, flown side by side in the same engine. Unit tests on the real engine (`LooseCargoTest`):
+`aHoveringVesselTurnsAboutItsCentreOfMass` (a hull with its origin 6 blocks from its centre turns more than 90
+degrees on the spot, level on and off, and the centre moves less than 0.02 blocks);
+`aCruiseTurnWithTheHoldIsTheTurnOfThePlainBrakeWhereverTheHelmIs` (ten seconds of full thrust and full yaw, then the
+stop, with the helm at the stern and at the bow: speed and radius within 0.01% of the reference and of each other,
+the path within 0.001 blocks; measured 0.00001); `withNothingPushingItAVesselFliesWithTheHoldAsWithThePlainBrake`
+(a lopsided hull flown on all six axes for 15 seconds, level on and off: within 0.001 blocks and 0.01 degrees of the
+reference). Each fails when one of the corrections above is taken out. Server GameTest
+`aShipSteeredFromItsSternTurnsAboutItsCentreAndFliesAsUnderThePlainBrake`: a ship with its helm 8 blocks from its
+centre of mass, in the open above the arenas beside its reference; a quarter turn on the spot moves the centre of
+mass 0.0000 blocks, and at full thrust and yaw both fly 13.6743 blocks per second on a radius of 15.1937 blocks and
+are 0.00001 blocks apart after eight seconds and after the stop.
 
 **Jolt settings checked for small bodies on a deck** (unit tests in `LooseCargoTest`, on the Debug natives; server
 GameTests in `LooseGameTests`; client GameTest `loose-cargo`):
@@ -748,6 +783,10 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 framework closes with barrier blocks (walls, floor and ceiling). Vessels collide with barriers like with any block,
 so a vessel in a server GameTest flies inside its box (rising, sinking, turning) and cannot reach the test beside
 it. Blocks changed in one arena can still wake a loose vessel sleeping in the next (terrain sections are shared).
+One test needs room (a turn at full thrust is 30 blocks across): it moves its two ships 60 and 100 blocks above the
+arenas with `VesselManager.teleport` and force-loads the chunks under their flight, because a vessel is unloaded
+with the chunk its entity is in; the runner releases forced chunks at the end of the batch, and the test removes its
+ships.
 Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
 sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
 
