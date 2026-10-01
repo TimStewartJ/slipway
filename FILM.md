@@ -77,7 +77,8 @@ python tools/film/readme_stills.py build/film/out/reddit-1600x900 <delivery fold
 ```
 
 `readme_stills.py` picks frames by event and offset (defaults: the galleon at rest, the cargo in mid-air, the machine
-wall with lamps lit and a piston up, the farm with ripe wheat) and saves them 1600 px wide as JPEG under 500 KB.
+wall with lamps lit, the pistons in mid-sequence and the chest open while the ship is upside down, the farm with
+ripe wheat and bone meal sparkle) and saves them 1600 px wide as JPEG under 500 KB.
 
 ## Shots
 
@@ -140,13 +141,17 @@ Everything in the picture is the game and the mod running; the film only gives i
   a player's click calls) at tick 6; lamps and pistons follow from the circuit alone. The door is opened with
   `DoorBlock.setOpen` (what a player's click calls) at tick 32. The chest gets its own open event at tick 40:
   `level.blockEvent(pos, chest, 1, 1)`, which is what a chest sends when a player opens it (no player is looking in,
-  so the film sends the event itself). After the shot, unfilmed, the lever is pulled again, the door closed and the
+  so the film sends the event itself; the lid then stays open until the close event). Piston strokes and the lid are
+  animated on a vessel since Slipway 0.1.2, which passes block events on to the players who see the vessel. After the shot, unfilmed, the lever is pulled again, the door closed and the
   chest sent its close event.
 - **The farm** (`FilmShips.farm`): four wheat plants, just planted, on moist farmland set into the deck around a
   waterlogged slab (water source blocks are not assembled; a waterlogged block is), four dispensers with bone meal
   that face the wheat, dust on top of the dispensers, and a second comparator clock (period 28 game ticks). In the
   shot the clock's lever is pulled with `LeverBlock.pull` at tick 10; each pulse makes the dispensers fire, vanilla's
-  bone meal behaviour grows the wheat by two to five stages per dose. The wheat is not reset afterwards (it ends the
+  bone meal behaviour grows the wheat by two to five stages per dose (three doses in the shot, at ticks 15, 43 and
+  71). The green sparkle at the wheat and the smoke at the dispensers are the game's own effects, which Slipway
+  0.1.2 shows at the vessel; they are placed in the world when they are made and do not follow the ship, which is
+  why the ship only cruises at 3.4 blocks per second here. The wheat is not reset afterwards (it ends the
   video fully grown; from the opening camera it is hidden behind the hull). The world's random ticks are off (as in
   version 1, so that nothing in the landscape changes between the first and the last frame), which means crops do
   not grow by themselves in this world: all growth in the shot is bone meal from the dispensers. No game rule is

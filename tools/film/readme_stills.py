@@ -14,7 +14,7 @@ import sys
 
 from PIL import Image
 
-DEFAULT = ["galleon-over-the-bay=hook+0", "cargo-spill=cargo+205", "machine-wall=roll+356", "deck-farm=farm+280"]
+DEFAULT = ["galleon-over-the-bay=hook+0", "cargo-spill=cargo+205", "machine-wall=roll+314", "deck-farm=farm+219"]
 
 
 def main() -> int:
