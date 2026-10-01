@@ -17,6 +17,14 @@ public final class ActiveVessel {
 	public final LongLinkedOpenHashSet ticketChunks = new LongLinkedOpenHashSet();
 	/** True once every ticketed plot chunk is loaded. */
 	public boolean chunksReady;
+	/**
+	 * Plot chunk columns that viewers get: the ticketed ones and the ring of columns around them. A client lights a
+	 * face by the block next to it, so without the ring every face on the outer edge of the ticketed columns was drawn
+	 * black (the helm stands on a chunk corner of the plot: a vessel that begins at its helm has such faces).
+	 */
+	public final LongLinkedOpenHashSet viewChunks = new LongLinkedOpenHashSet();
+	/** Columns of {@link #viewChunks} that were not loaded yet when viewers got the others; each goes out once it is. */
+	public final LongLinkedOpenHashSet unsentChunks = new LongLinkedOpenHashSet();
 	/** Players who have been sent this vessel's plot chunks. */
 	public final Set<ServerPlayer> viewers = new HashSet<>();
 	/** Until this game time, viewers sent the vessel at assembly are kept although they do not track its entity yet. */
@@ -34,6 +42,8 @@ public final class ActiveVessel {
 	final dev.timstewart.slipway.physics.VesselController.Hold hold = new dev.timstewart.slipway.physics.VesselController.Hold();
 	/** The hold point is stale (the vessel was teleported): the next step takes a new one. */
 	boolean holdReset;
+	/** Set by tests to fly a reference: hover only brakes and holds nothing, as before 0.1.2. */
+	public boolean brakeOnly;
 	/** Whether the physics body has been told it is loose; differs from the record until the next exchange. */
 	boolean bodyLoose;
 	/** False while the body sleeps: a loose vessel that has come to rest is not simulated until something disturbs it. */

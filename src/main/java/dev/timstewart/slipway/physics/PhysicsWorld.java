@@ -27,6 +27,8 @@ public final class PhysicsWorld implements AutoCloseable {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Slipway/Physics");
 	public static final float STEP_SECONDS = 0.05F;
 	public static final int SUBSTEPS = 3;
+	/** The step every world takes, as the controller needs to know it. */
+	public static final VesselController.Step STEP = new VesselController.Step(STEP_SECONDS, SUBSTEPS);
 
 	private final ExecutorService thread;
 	private final String name;

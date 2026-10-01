@@ -87,9 +87,12 @@ final class LeakScenarios {
 				RenderScenarios.checkPackInUse(ctx, r);
 			}
 			ctx.waitFor(mc -> ClientVessels.all().stream().filter(v -> v.ready()).count() >= 3, 1200);
-			int engines = JoltEngine.liveEngines();
-			int bodies = JoltEngine.liveBodies();
-			Check.that(engines >= 1 && bodies >= 3, "%s cycle %d: physics is not running with the world open (engines %d, bodies %d)", phase, n, engines, bodies);
+			// The client has a vessel from the first packets about its entity; its body is made when its plot chunks
+			// have loaded, which under load can be some ticks later.
+			for (int waited = 0; JoltEngine.liveEngines() < 1 || JoltEngine.liveBodies() < 3; waited++) {
+				Check.that(waited < 400, "%s cycle %d: physics is not running with the world open (engines %d, bodies %d)", phase, n, JoltEngine.liveEngines(), JoltEngine.liveBodies());
+				ctx.waitTick();
+			}
 			List<Long> ids = server.computeOnServer(s -> Game.manager(s).registry().all().stream().map(v -> v.id).toList());
 			Check.equal(phase + " cycle " + n + ": vessels in the world", ids.size(), 3);
 			for (long id : ids) {
@@ -194,6 +197,33 @@ final class LeakScenarios {
 					grew.put(name, growth);
 				}
 			}
+			if (!grew.isEmpty()) {
+				// A thread that ends by itself is no leak, however many of its kind there are at one moment. Distant
+				// Horizons starts two timer threads per level of every world ("DH-ChunkSaveIgnoreTimer") and never
+				// cancels them: each ends when its last task has run (5 s after the last chunk DH generated) and its
+				// generator has been collected. A second after a world closes they are there or not, depending on
+				// whether DH generated a chunk in that world's last seconds, so the counts at the cycles' ends can
+				// rise (0, 0, 6, 6, 12 in one run; 0, 6, 0, 0, 0 in another) with nothing piling up. What rose is
+				// therefore counted again once such threads have had time to end; a thread leaked per world stays.
+				r.metric(phase + ".threadGroupsThatRoseAtCycleEnds", grew.toString());
+				ctx.waitTicks(20 * 8);
+				Map<String, Integer> later = new HashMap<>();
+				for (int round = 0; round < 5 && !grew.isEmpty(); round++) {
+					gc(ctx);
+					ctx.waitTicks(20);
+					later.clear();
+					later.putAll(threadGroups());
+					grew.keySet().removeIf(name -> later.getOrDefault(name, 0) - second.threads().getOrDefault(name, 0) < 2);
+				}
+				Map<String, Integer> settled = new TreeMap<>();
+				for (String name : last.threads().keySet()) {
+					if (!later.getOrDefault(name, 0).equals(last.threads().get(name))) {
+						settled.put(name, later.getOrDefault(name, 0));
+					}
+				}
+				r.metric(phase + ".threadGroupsThatChangedAfterTheLastCycle", settled.toString());
+				grew.replaceAll((name, growth) -> later.getOrDefault(name, 0) - second.threads().getOrDefault(name, 0));
+			}
 			r.metric(phase + ".threadGroupsThatGrew", grew.toString());
 			// Every group whose size changed, per cycle, so the report shows where the total went.
 			Map<String, List<Integer>> changing = new TreeMap<>();
@@ -236,10 +266,7 @@ final class LeakScenarios {
 	static Cycle measure(int n) throws Exception {
 		double heap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() / 1048576.0;
 		double privateMb = ((com.sun.management.OperatingSystemMXBean)ManagementFactory.getOperatingSystemMXBean()).getCommittedVirtualMemorySize() / 1048576.0;
-		Map<String, Integer> threads = new HashMap<>();
-		for (Thread t : Thread.getAllStackTraces().keySet()) {
-			threads.merge(t.getName().replaceAll("\\d+", "#"), 1, Integer::sum);
-		}
+		Map<String, Integer> threads = threadGroups();
 		Map<String, Long> live = new java.util.LinkedHashMap<>();
 		String histogram = (String)ManagementFactory.getPlatformMBeanServer().invoke(new ObjectName("com.sun.management:type=DiagnosticCommand"), "gcClassHistogram",
 			new Object[] {new String[0]}, new String[] {String[].class.getName()});
@@ -256,6 +283,15 @@ final class LeakScenarios {
 			}
 		}
 		return new Cycle(n, heap, privateMb, threads, live);
+	}
+
+	/** Live threads counted by name, with numbers in the names taken out. */
+	static Map<String, Integer> threadGroups() {
+		Map<String, Integer> threads = new HashMap<>();
+		for (Thread t : Thread.getAllStackTraces().keySet()) {
+			threads.merge(t.getName().replaceAll("\\d+", "#"), 1, Integer::sum);
+		}
+		return threads;
 	}
 
 	/** Entries in Iris's pipeline override cache (the map Slipway's closed-world cleanup clears). */

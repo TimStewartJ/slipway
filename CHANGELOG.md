@@ -27,12 +27,19 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 - **A hovering vessel holds its place under load.** Before, a hovering vessel only had its weight cancelled and its
   speed braked, so anything resting on it pushed it down for as long as it lay there, and with level off, weight off
   centre slowly turned it. Hover now holds the position (and, with level off, the attitude) the vessel stopped at.
-  Flying and stopping an unloaded vessel feel the same as before.
+  A vessel that nothing pushes flies, turns and stops exactly as in 0.1.1.
 - **No blink at disassembly.** A disassembled vessel stays drawn until the terrain shows its blocks (it vanished for
   a moment before).
+- **No black sides.** Sides of a vessel that lie on a chunk border of its storage area were drawn black, in any
+  light: most often the west and north sides of a small build that begins at its helm (a crate, a keg, a raft with
+  the helm on its edge). In 0.1.0 and 0.1.1.
 - Placing a block outside a vessel's bounds no longer sends the whole vessel to its viewers again.
-- A piston refuses a push that would carry blocks out of the vessel's storage area; disassembling while a piston
-  moves lets the stroke finish first.
+- **A vessel stays within the largest size after assembly too** (`maxVesselSpan`, 512 blocks across unless changed).
+  A piston does not push a block further out (it does not move, as against obsidian), and a block cannot be placed
+  there (the reason is shown, the item is kept). In 0.1.1 the size was only checked at assembly: a slime-block
+  flying machine on a vessel could stretch it to the edge of its storage area, 2,016 blocks out, with every chunk
+  column in between loaded, ticked, saved and sent to everyone who saw the vessel.
+- Disassembling while a piston moves lets the stroke finish first.
 
 ### Known limits of the new features
 

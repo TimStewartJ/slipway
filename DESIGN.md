@@ -166,18 +166,60 @@ a 2,000-block carrier sank it by a quarter of a block per second), and cargo lyi
 level off until the cargo slid away. So hover now holds (`VesselController.Hold`, one per vessel, used only on the
 physics thread):
 
-- Position: the point the brake would stop the vessel at. Along a local axis with input the point follows the
-  vessel; along an idle axis the vessel is pulled to it by a critically damped spring `a = -2wv - w²e` with
-  `w = BRAKE_GAIN` (1.5/s). Started from `e = -v/w` this is exactly the old brake `a = -wv`, so an unloaded vessel
-  flies and stops as before (unit test `aReleasedHoveringVesselStopsWhereThePlainBrakeStopsIt`). Under a load of a
-  fraction `f` of its weight it sags `f g / w²` (4.4 blocks per unit of `f`: 0.10 blocks for the 2.3% in the client
-  GameTest, measured 0.103). The pull is limited to `HOLD_SLACK` = 2 blocks of spring (a load of 46% of the vessel's
-  weight); beyond that the point gives way and the vessel sinks slowly instead of winding up. A vessel pushed aside by
-  another comes back by at most those 2 blocks.
-- Attitude, only with level off: the same with `k = RATE_GAIN` (3/s) about each local axis, `alpha = -2kw - k²e`,
-  limited to 20 degrees. With level on, levelling is the hold for pitch and roll, and gives by `asin(torque / (4.5 I))`
-  (three degrees for a two-block crate 2.2 blocks off the centre of a 7x7 raft).
+- Position: the point the brake would stop the vessel's centre of mass at. Along an idle local axis the point stays
+  and the vessel is pulled to it by a spring on top of the brake, `a = -wv - w²(e + tv)`, with `w = BRAKE_GAIN`
+  (1.5/s), `e` the distance from the point and `t` the brake's stopping time. A vessel that nothing pushes has
+  `e = -tv`, and there the law is the old brake `a = -wv`. Along an axis with input nothing is held: the point is
+  put where the brake would stop the vessel now. Under a load of a fraction `f` of its weight the vessel sags
+  `f g / w²` (4.4 blocks per unit of `f`: 0.10 blocks for the 2.3% in the client GameTest, measured 0.103). The pull
+  is limited to `HOLD_SLACK` = 2 blocks of spring (a load of 46% of the vessel's weight); beyond that the point gives
+  way and the vessel sinks slowly instead of winding up. A vessel pushed aside by another comes back by at most those
+  2 blocks.
+- Attitude, only with level off: the same with `k = RATE_GAIN` (3/s) about each local axis,
+  `alpha = -kw - k²(e + tw)`, limited to 20 degrees. With level on, levelling is the hold for pitch and roll, and
+  gives by `asin(torque / (4.5 I))` (three degrees for a two-block crate 2.2 blocks off the centre of a 7x7 raft).
 - The hold is taken anew after a teleport, a restored pose, hover off and on, level on and off, and loose.
+
+*A vessel that nothing pushes must fly exactly as it did under the plain brake of 0.1.1*, wherever its helm is and
+whatever it does. Three things were needed for that, the first two found by the review of the first version:
+
+- It is the centre of mass that is held, because that is the point the velocity belongs to and the one a turn leaves
+  in place. The first version held the vessel's origin (the helm's corner) with the same force through the centre
+  of mass: a ship whose helm is not at its centre was pulled round its helm when it turned, drifted in turns and
+  flew a different circle depending on where the helm stood. The engine reports the position of the shape's origin
+  and the velocity of the centre of mass; `drive` adds the rotated centre (`BoxList.MassProperties`, in the
+  vessel's frame) to the position.
+- The hold works in the engine's steps, not in continuous time. The engine advances a body in
+  `PhysicsWorld.SUBSTEPS` = 3 parts of 0.05 s under the force of one call, velocity first (`VesselController.Step`).
+  So the plain brake stops a vessel after `t = 1/w - (2/3) 0.05` = 0.633 s of its speed, not `1/w`; and while the
+  vessel turns, the axes the hold works along turn between two calls. Both are made up for exactly: `t` is the
+  stepped stopping time, and at the end of every call the point is moved by what the plain controller's own
+  acceleration `a` changes about where the vessel will stop, `0.05 (v + a/w)` (nothing along an idle axis, the
+  vessel's travel along one with input). The held attitude is turned along the same way, by stepping the plain rate
+  controller's torque as the engine will (the torque stays as it is in the world while the hull and its inertia turn
+  through the three parts). A version without this (holding the centre, but following input only at the start of a
+  step) flew a full-thrust turn 1.4% faster and wider than the plain brake, stopped half a block further on, and
+  with level off ended a 15-second manoeuvre on all six axes 5 blocks away.
+- When blocks change, the centre of mass shifts in the vessel's frame, and the held point is shifted with it
+  (`aHoveringVesselStaysWhereItIsWhenItsCentreOfMassShifts`). The review proposed to take the hold anew instead. That
+  lets go of a load: the vessel's present place becomes the point, so a loaded carrier would sink by its sag at every
+  block change, and a ship with cargo and a piston clock would sink all the time
+  (`aLoadedHoveringVesselKeepsItsHeightWhenItsBlocksChange`: ten block changes under a load that sags the carrier
+  1.3 blocks leave it at its height).
+
+`ActiveVessel.brakeOnly` (set by tests only) drives a vessel without the hold, as 0.1.1 did: the reference the tests
+compare with, flown side by side in the same engine. Unit tests on the real engine (`LooseCargoTest`):
+`aHoveringVesselTurnsAboutItsCentreOfMass` (a hull with its origin 6 blocks from its centre turns more than 90
+degrees on the spot, level on and off, and the centre moves less than 0.02 blocks);
+`aCruiseTurnWithTheHoldIsTheTurnOfThePlainBrakeWhereverTheHelmIs` (ten seconds of full thrust and full yaw, then the
+stop, with the helm at the stern and at the bow: speed and radius within 0.01% of the reference and of each other,
+the path within 0.001 blocks; measured 0.00001); `withNothingPushingItAVesselFliesWithTheHoldAsWithThePlainBrake`
+(a lopsided hull flown on all six axes for 15 seconds, level on and off: within 0.001 blocks and 0.01 degrees of the
+reference). Each fails when one of the corrections above is taken out. Server GameTest
+`aShipSteeredFromItsSternTurnsAboutItsCentreAndFliesAsUnderThePlainBrake`: a ship with its helm 8 blocks from its
+centre of mass, in the open above the arenas beside its reference; a quarter turn on the spot moves the centre of
+mass 0.0000 blocks, and at full thrust and yaw both fly 13.6743 blocks per second on a radius of 15.1937 blocks and
+are 0.00001 blocks apart after eight seconds and after the stop.
 
 **Jolt settings checked for small bodies on a deck** (unit tests in `LooseCargoTest`, on the Debug natives; server
 GameTests in `LooseGameTests`; client GameTest `loose-cargo`):
@@ -207,6 +249,67 @@ tick, and `VesselGone` (with `keepProxy` when only the near view ends). The only
 accepted only from the vessel's pilot, rate-limited (40 per second), with NaN/Infinity rejected and axes clamped to
 [-1, 1] (`ServerPackets`). Vanilla use/break packets aimed at plot positions are checked for reach against where
 the block is in the world (`PlayerMixin`).
+
+**Which plot chunks viewers get (0.1.2).** The columns that hold the vessel's blocks (ticketed,
+`ActiveVessel.ticketChunks`) and the ring of columns around them (`viewChunks`). The ring is empty, and it is what
+lights the vessel's outer faces: vanilla's block renderer takes a face's light from the block next to it, and in a
+column the client does not have, the client's light is 0. Up to 0.1.1 viewers got the ticketed columns only, so every
+face on their outer edge was drawn black. That is common, because the helm stands in the middle of the plot, which is a
+chunk corner: a build that begins at its helm (a keg, a raft with the helm on its edge, a 2x2x2 crate) had black west
+and north sides, in any light and at any attitude. Found by the film agent in a close view of cargo; it measured sky
+light 0 on exactly those faces and 15 on all others.
+
+*Why the ring, and not a mesher that never asks for light outside the sent columns.* Both cure the black faces. A
+stand-in (open sky for every block outside the client's columns) costs no packets, but it is a guess, and the light
+next to an outer face is not always the open sky's: a lamp on the vessel lights the faces round the corner through
+the neighbouring column (block light 11 on the west faces beside a glowstone in the test, 10 on the north faces; a
+stand-in would give 0, which shows at night). The stand-in would also have to be put into everything that samples
+round a block: the mesh, the moving blocks of a piston's stroke (drawn as block models from the level), fluids. With
+the ring the client has what the server has, real light in real chunks, kept up to date by the ordinary light
+packets (viewers count as tracking these columns, `ChunkMapMixin`), and every renderer is right without knowing
+about it. The price is 8 more empty chunk packets for a vessel in one column (14 for one of three by two), sent
+once; the server has those columns loaded anyway, because the tickets reach two columns out.
+
+- Assembly loads the ring with the vessel's own columns so that both go out in the same tick
+  (`VesselAssembly.loadPlotChunks`); for a vessel loaded from a save a ring column that is not loaded yet follows
+  when it is (`unsentChunks`). When a column's light is switched on, the client marks the columns around it for
+  rebuilding (vanilla's `enableChunkLight`, through `ClientLevelMixin`), so the faces are remeshed when the ring
+  arrives.
+- When the bounds grow (`VesselManager.includeLocal`), the columns that are new to the bounds and to their ring are
+  added and sent the same way. A piston or a placed block moves an edge by a block or a few, so the ring is always a
+  column ahead of it; only a command can put a block on a far chunk border whose neighbouring column is new to
+  viewers, and that column is sent as soon as it has loaded.
+- Smooth lighting blends, at each vertex, the light of the block next to the face with that of three blocks round
+  it; at a chunk corner one of them is in the column diagonally across, which is part of the ring. That is not what
+  made faces black: vanilla's blend (`LightCoordsUtil.smoothBlend`) takes the face's own light in place of a sample
+  of light 0, so only a face whose own neighbour is missing goes dark (the test below passes without the diagonal
+  columns). They are sent all the same, so that a lamp's light at a corner is the real one. How much a corner is
+  darkened by ambient occlusion depends on the blocks round it, which are air there with or without the ring.
+- A block entity takes its light from its own place, in one of the vessel's own columns: it was never affected.
+
+Checked by the client GameTest `small-vessel-light`: vessels in daylight without shaders, a 2x2x2 crate of white
+wool under its helm towards +x and +z, the same crate round its helm (in all four columns at the corner; never
+affected), a build at the corner with glowstone and a chest, and a row with a piston.
+
+- Pictures of the crate taken square on from the west and the east, and from the north and the south, are equally
+  bright in the middle (luminance 100.8 and 100.7 of 255; 134.4 and 134.5; limit 10%). Without the ring the west
+  side has 13% of the east side's brightness (13.2 against 100.7), and the north side the same share.
+- Every vertex of every face that looks sideways or up has sky light 15, on all three vessels, and on the third
+  again after a block was set at the east end of its column and after one at the west end of the next column (lit
+  in the tick the block showed, or the tick after). On a fourth vessel a piston pushes a block of wool to the east
+  end of its column: the block's east, north, south and top faces have sky light 15. (The extended piston has 14
+  there: it is no full block and is lit by its own place under the redstone block, as it is in the world.)
+- The darkest vertex of the faces beside the glowstone has block light 11 (west) and 10 (north); the chest at the
+  edge is drawn with sky light 15 and block light 14.
+
+And by `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten pieces,
+which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by `save-reload` (a
+crate that begins at its helm and is in view when the world is reopened: 15 before quitting and after loading; 0
+without the ring), by a picture in `assemble-mixed` (the wool crate seen from the north-west, where the two sides
+fill the view: assembled, it differs from the blocks it was built from by less than 0.00001 mean squared
+difference, limit 0.001; with the sides black it was 0.0069) and by the server GameTests
+`viewersHaveTheColumnsAroundAVesselToo` and `columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`. Not
+measured: the moving blocks of a piston's stroke at a chunk border (they take their light as the mesh does).
 
 ### Client
 
@@ -272,10 +375,39 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
   is rebuilt at the next exchange). In mid-stroke the plot holds `minecraft:moving_piston` blocks whose collision
   shape is the moved block's, shifted by its progress; `SectionShapes` weighs such a block as the block it moves (an
   iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink.
+- Bounds do not grow past the configured largest size (`maxVesselSpan`, the rule assembly applies; 0.1.2, found in
+  review). Before, the size was only checked at assembly and bounds grew to the plot's edge, 2,016 blocks out: two
+  slime-block flying machines at right angles made a vessel of 15,876 chunk columns, each ticketed, ticked, saved,
+  sent to every viewer and walked at every shape rebuild, frame and disassembly. The rule is
+  `VesselRecord.fitsSpan`: along each axis the bounds may grow only while they span at most `maxVesselSpan` blocks;
+  a position inside the bounds always fits, so a vessel that is larger than the limit (assembled under a larger
+  setting, or stretched under 0.1.1) keeps working and only cannot grow. It is applied in three places:
+  - A piston does not make a push that would carry a block or its head past it (`PistonStructureResolverMixin`,
+    server side; the client follows the strokes it is sent). It does not move, as against an immovable block, and
+    nothing is lost. Server GameTest `aPistonAtTheEdgeOfAVesselThatSpansTheLimitDoesNotExtend`: powered by a
+    redstone block, the piston moves neither on the neighbour update nor when its stroke event is carried out, and
+    with a block of room it pushes; `aVesselDoesNotGrowPastTheLargestSpan` for the edge cases of the rule.
+  - A block item is not placed past it (`BlockItemMixin` on `BlockItem.place`, behind `updatePlacementContext`, so
+    for the position the item settles on, for players and dispensers): the placement fails as vanilla's does above
+    the build height, and the item is kept. The server decides, because the size is its setting and the client does
+    not know it; so the client has placed the block and taken the item by itself. Vanilla takes the block back (the
+    server does not confirm the prediction); Slipway tells the player why (overlay message) and sends the inventory
+    again. Server GameTest `blockItemsAreNotPlacedWhereAVesselMayNotGrow`; client GameTest `interaction` (without
+    the resent inventory the client showed 14 of its 15 stones).
+  - Whatever else sets a block further out (a plant growing, water flowing, the far half of a bed, a command) is not
+    taken into the bounds, like a block in the plot's margin (`VesselManager.onPlotBlockChanged`). Such a block is
+    in the plot but not part of the vessel: it is left there when the vessel is disassembled. Refusing every such
+    change in `Level.setBlock` would be the complete rule; it was left out because it changes what every block
+    change in a plot may do, for a case that needs a vessel 512 blocks across.
+
+  With the rule the plot's margin cannot be reached any more: the bounds always hold the helm's place at the plot's
+  centre, and the largest setting (2,000) is less than the 2,016 blocks to the margin. The margin checks stay.
 - Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
   sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
   blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and
-  costs a remesh of the whole vessel for every block placed beyond the bounds.
+  costs a remesh of the whole vessel for every block placed beyond the bounds. Each new column (of the bounds or of
+  the ring around them, see "Which plot chunks viewers get") goes out once: at once when it is loaded, otherwise in
+  the tick it has loaded (`ActiveVessel.unsentChunks`; a command can set a block many columns outside the vessel).
 - A push that would put the head or a block into the 32-block margin of the plot is refused
   (`PistonStructureResolverMixin`, like vanilla's refusal at the build height): pistons are the one thing that moves
   blocks by itself, and a slime-block flying machine must not walk into the neighbouring plot. A block that gets
@@ -306,20 +438,41 @@ Now the vessel's picture is kept that long:
   plot is freed as before.
 - Client: on `VesselGone` without `keepProxy`, `ClientVessels` keeps the vessel as "gone" instead of forgetting it.
   The packet arrives before the packets that drop its plot chunks, so the mesh is complete and is frozen
-  (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`). `VesselRenderer`
-  draws that picture at the vessel's last poses. It stops, asked every frame, when the terrain renderer has nothing
-  left to build (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's `isTerrainRenderComplete` by
-  guarded reflection, hook `sodium-terrain-complete`), not before 2 ticks (the renderer only starts on the new
-  blocks in the next frames) and not after 6. A gone vessel is no vessel for anything else: no collision, no
+  (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`), each with the
+  light its renderer drew it with at that moment: a block entity's light is read from the level when it is drawn, and
+  the plot's light goes with its chunks (a chest beside a lamp was drawn with block light 0 for those ticks, and one
+  under a roof with full sky light; found in review). The `disassembly` test's small ship has both, a chest on deck
+  beside glowstone and a chest walled in and roofed over: in the kept picture each is drawn with the light of its last
+  draw before (sky 15 and block 14, and 0 and 0, in six draws each; without the kept light two of three draws had
+  block light 0 on deck and sky light 15 in the dark). `VesselRenderer`
+  draws that picture at the vessel's last poses. It stops when the terrain renderer has had nothing waiting for 2
+  ticks, asked every frame (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's
+  `isTerrainRenderComplete` by guarded reflection, hook `sodium-terrain-complete`), and after 6 ticks at the
+  latest. Both answers are about the build queue only (Sodium's is `ChunkBuilder.isBuildQueueEmpty`): the renderer
+  starts on the new blocks in its next frame, hands out a limited number of sections per frame, and a section being
+  built or waiting to be uploaded is not in the queue. One "nothing waiting" therefore does not mean the blocks
+  are on the screen; two ticks without any do. A gone vessel is no vessel for anything else: no collision, no
   picking, no plot.
-- Both are drawn together for at most the frame in which the terrain appears. When the terrain renderer is busy
-  for another reason (new terrain streaming in while flying), the picture stays for the full 6 ticks over the
-  blocks that are already there; the two differ by the snap to the block grid at most.
+- Both are drawn together for those two ticks. When the terrain renderer is busy for another reason (new terrain
+  streaming in while flying), the picture stays for the full 6 ticks over the blocks that are already there; the two
+  differ by the snap to the block grid at most. A rebuild that takes longer than 6 ticks would still show the ship
+  late in places; that was not seen (for a 2,080-block ship the terrain renderer was last busy in the tick of the
+  disassembly with all build threads, and one tick later with a single one).
 
-Measured by the client GameTest `disassembly` (pictures after each of the ten ticks following a disassembly,
-compared with the picture before): with the picture kept the ship is in all ten; with it turned off
-(`ClientVessels.keepGoneVessels`, for this test) the ship is missing from the first. In free-running play the
-film agent measured about two ticks without the ship.
+Measured by the client GameTest `disassembly`: the frame on the screen before each of the twelve ticks following a
+disassembly (copied with the game's own screenshot copy, which skips no tick; a test screenshot takes several) is
+compared with the picture before, for a 58-block ship, for a 2,080-block carrier, and for the carrier with Sodium
+limited to one build thread. With the picture kept the ship is whole in every frame of every run (largest
+difference 3% of what a missing ship makes: the blocks' lighting) and the gone vessel is drawn for 2 or 3 ticks. With it turned off (`ClientVessels.keepGoneVessels`, for this test) the ship is missing from one
+of the twelve frames in most runs and from none in some: the gap is about a tick long there and does not always
+cover the frame at a tick's end. In free-running play the film agent measured two ticks without the ship (four and
+eight in other runs of its 2,503-block galleon under shaders at film resolution, where frames are slow).
+
+What still changes in the picture at that moment is light. The placed blocks are shaded by the world's light and the
+vessel by its own, and a vessel changes no light where it flies (its blocks are in the plot): the film agent saw the
+water under the hovering galleon evenly lit, and a dark patch under the hull from the first frame in which it was
+blocks again (Bliss darkens by sky light, which the placed blocks lower in the columns below them). Not measured
+here; it is the same in 0.1.1.
 
 The mirror problem at assembly (the vessel can be drawn incomplete for a tick or two while its plot chunks arrive)
 has a different cause and is not changed: the world blocks are removed by block updates in one tick, and the
@@ -515,15 +668,17 @@ kept growing because of chain 8.
 
 **Fixes.**
 - Distant Horizons, at the source: local branch `slipway-leak-fix` of `E:\distant-horizons` (wrapper `aa2e97405`,
-  core `5e93372c4`, not pushed), patches L1-L8 in its `PATCHES.md`, with core unit tests for the injector
+  core `5e93372c4`; never pushed, kept as the local tag `archive/slipway-leak-fix`), patches L1-L8 in its
+  `PATCHES.md`, with core unit tests for the injector
   (`testWorldGeneratorUnbindReleasesTheLevel`, `testConcurrentWorldGeneratorBinding`, the latter failing on the old
   map). The build `3.3.1-tellus-fork.6-leakfix.9` was used by the client GameTests (`devmods/test`) and the test
   instance, and since 0.1.1 by the play instance (the player's choice); the client GameTests now use its successor
   `...-leakfix.9-irisfix.1` (below, "Dark blotches"). The same work fixed a DH thread leak (one "World Gen Progress Updater"
   thread per level per world) and a DH bug that dropped every block-use packet when a client hosts a dedicated server
   in-process.
-  Since the evening of 2026-09-30 the fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
-  `rebase-3.3.4`). It carries the versions of these fixes prepared for upstream (A-G in its `PATCHES.md`) instead of
+  Since the evening of 2026-09-30 the fork is rebased onto official 3.3.4 and published as
+  [`3.3.4-tellus-fork.7`](https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7). It
+  carries the versions of these fixes prepared for upstream (A-G in its `PATCHES.md`) instead of
   L1-L8, and it is the Distant Horizons of the client GameTests and of the play instance.
 - Iris and vanilla, mitigated in Slipway: `ClosedWorldCleanup` (client, the first tick without a world) clears
   vanilla's visible-section list and Iris's override cache through guarded reflection (hook `iris-overrides-cache` in
@@ -555,6 +710,15 @@ after most cycles and 3 after two consecutive cycles of one run, never more, wit
 `DhChunkGenerator.close()` would be a one-line change on the DH branch; it was not made because it would have
 required re-validating the whole suite on a new DH build for a thread that already goes away.
 
+0.1.2: in the runs for the release these threads were seen more often and in sixes (two timers for each of the three
+levels; in `devmods`' fork.7 jar neither generator's bytecode calls `Timer.cancel`). Their tasks run 5 s after the
+last chunk DH generated, so a second after a world closes they are there whenever DH generated a chunk in that
+world's last seconds, and they end at the first collection after those tasks. Counts at the ends of the five cycles:
+0, 6, 0, 0, 0 in one run, none in another, and 0, 0, 6, 6, 12 in a third, which the leak check's rule for a growing
+thread group (see below) took for growth and failed. The rule now counts again what rose, eight seconds after the
+last cycle and after collections, and fails for what is still there. Tried both ways with threads made for the
+purpose: six that end after 6 s, started after cycles 3 and 5, are let through; two per cycle that never end fail it.
+
 **The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
 world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
 every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
@@ -563,8 +727,9 @@ explained in chain 6), no live `IntegratedServer` or `ServerLevel` at all, no li
 Slipway's Jolt engines, bodies, level managers and client vessels at zero, Iris's override cache empty, heap after
 GC growing under 16 MB per cycle, no thread group that keeps growing (Netty's local event-loop group is one static
 pool of at most two threads per core, started lazily: it gains three threads per world opening, the only group that
-grows, and the report lists every group that changed), and without shaders native memory growing under 64 MB per
-cycle. Any surviving world writes a heap
+grows, and the report lists every group that changed; a group that rose at the cycles' ends is counted again eight
+seconds after the last one, because a thread that ends by itself is no leak), and without shaders native memory
+growing under 64 MB per cycle. Any surviving world writes a heap
 dump for the path to its GC roots. There is no attribution: anything retained fails, whoever holds it.
 
 **Native memory.** Windows private bytes do not include ZGC's heap (mapped as shared memory), so they measure native
@@ -627,7 +792,8 @@ fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the b
    the camera is still and changes when it moves (what is already in the buffers, section draw order) is inferred,
    not traced.
 
-**Fixes** (Distant Horizons fork, local branch `slipway-iris-fixes`, not pushed; see its PATCHES.md):
+**Fixes** (Distant Horizons fork, local branch `slipway-iris-fixes`; never pushed, kept as the local tag
+`archive/slipway-iris-fixes`; see its PATCHES.md):
 - I1, wrapper d50c680f3: backport of upstream `95bbccaff`; on 26.2+ every buffer is set through
   `GlStateManager._enableBlend(i)`/`_disableBlend(i)` and `glEnablei`/`glDisablei`, so cache and GL stay equal.
 - I2, core 9572e8aa0: the render pass is chosen again after `DhApiBeforeRenderEvent`, where Iris sets its
@@ -642,12 +808,17 @@ fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the b
   where Iris reads it on 26.1.2+) and `01b9370b5` (GL state left to Iris while a shader pack is active; rendering with a
   boat on screen). Moving the fork to upstream 3.3.4 brings all three.
 
-**Resolution (2026-09-30, evening).** The fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
-`rebase-3.3.4` of `E:\distant-horizons`, SHA-256 of the Fabric 26.3 jar `BCF32F99...FEF10`), which contains upstream's
-blend fix instead of the backport I1, and keeps I2. With it: the diagnostic on the copy of the player's world measures
+**Resolution (2026-09-30, evening).** The fork is rebased onto official 3.3.4 and published as
+[`3.3.4-tellus-fork.7`](https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7), which
+contains upstream's blend fix instead of the backport I1, and keeps I2. With it: the diagnostic on the copy of the
+player's world measures
 121.7 / 121.6 / 121.8 / 121.8 (`E:\slipway-e2e\diag\run20-fork7-userlods`); `render-iris` passes with the cache in
 sync at every sampling point and the unchanged reference images (near 4.0e-5, far 4.4e-5); no run logged Iris's
 message. It is installed in the play instance and in the Tellus instances.
+These checks ran on a local build of the same sources (Fabric 26.3 jar SHA-256 `BCF32F99...FEF10`). The instances now
+hold the published jars (`EF401FD5...6CF6` for Fabric 26.3), which were not started again: every class in them is
+byte-identical to the local build, and they differ only in line endings of 66 text files and in the embedded commit
+id (`E:\slipway-e2e\runs\dh-fork7-release-check-20260930-2320\report.json`).
 
 **Regression check.** `GlStateCheck` (client GameTest `render-iris`, near and far views with Bliss) compares the
 per-buffer blend and colour-write-mask cache with GL at five of Fabric's level render events and between frames, over
@@ -677,7 +848,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 44 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 50 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
@@ -685,11 +856,16 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 framework closes with barrier blocks (walls, floor and ceiling). Vessels collide with barriers like with any block,
 so a vessel in a server GameTest flies inside its box (rising, sinking, turning) and cannot reach the test beside
 it. Blocks changed in one arena can still wake a loose vessel sleeping in the next (terrain sections are shared).
+One test needs room (a turn at full thrust is 30 blocks across): it moves its two ships 60 and 100 blocks above the
+arenas with `VesselManager.teleport` and force-loads the chunks under their flight, because a vessel is unloaded
+with the chunk its entity is in; the runner releases forced chunks at the end of the batch, and the test removes its
+ships.
 Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
 sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs sixteen
-scenarios (`SlipwayClientGameTests`; 0.1.2 added `loose-cargo`, `block-events`, `farm` and `disassembly`); each starts
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs seventeen
+scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and
+`disassembly`); each starts
 at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and
@@ -699,8 +875,9 @@ evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`
 `-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`,
 `-PslipwayTestDhConfig=<file>` (a Distant Horizons config to start from; otherwise its defaults).
 The run uses Sodium, Iris with Bliss (copied into the run directory; shaders are switched on through Iris's API where
-a scenario needs them) and the Distant Horizons build from `devmods/test` when there is one (now
-`3.3.4-tellus-fork.7`, the same jar as `devmods`; before it the patched `...-leakfix.9-irisfix.1`). Every run starts
+a scenario needs them) and the play stack's Distant Horizons from `devmods` (`3.3.4-tellus-fork.7`), unless
+`devmods/test` holds another build to try (`tools/setup-devmods.ps1 -TestDhJar`; this is how the patched
+`...-leakfix.9-irisfix.1` was tested before fork.7). Every run starts
 from fresh game options and DH defaults
 (`prepareClientGametestRun` deletes `options.txt` and `DistantHorizons.toml`).
 Checks read game state on the server and client threads (vessel records, client vessels, riders, block states,
@@ -758,6 +935,20 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   assert on the frame they save. With the view still, built and assembled pictures differ by 0.0001 (before:
   0.0001 to 0.0012), and the outline check counts the outline alone (about 960 changed pixels; before, about 4,940
   including drifting clouds and the hand's sway between the two frames).
+- A client under Fabric's client GameTest never makes up ticks: the harness limits it to one tick per frame, where a
+  normal client runs up to ten to catch up after a long frame. A second client that has just joined sets up its
+  renderer in long frames (Distant Horizons compiles its shaders then), so its game clock, and with it the pose
+  playback, is left behind the server's poses: measured 5 to 8 ticks behind when the vessel first shows and in step
+  again only 80 to 100 ticks later (playback runs at most 10% fast), or with a jump when it gets more than 10 ticks
+  behind. The multiplayer scenario used to start its smoothness trace as soon as the watcher had the vessel, in the
+  middle of that; it passed while the lag stayed under 10 ticks and failed the first 0.1.2 release build when it did
+  not (one jump of 11.5 ticks, 1.6 blocks, eight ticks into the trace). The watcher now reports ready once its
+  playback has been in step for 20 ticks (`ClientVessel.playbackLag`), and the scenario records how long that took.
+- A client has a vessel from the first packets about its entity; the vessel's body is made when its plot chunks have
+  loaded. With another game busy on the machine (a Prism instance using 13 of 20 cores) the chunks came later, and
+  the leak scenario, which asserted that physics runs as soon as the client had the three vessels, found no engine
+  and no body. It now waits for them (up to 400 ticks), as the collision, loose-cargo and save scenarios always did.
+  The lock that keeps the film renders apart from these runs does not cover other games on the machine.
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client

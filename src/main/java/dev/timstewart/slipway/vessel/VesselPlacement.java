@@ -1,7 +1,13 @@
 package dev.timstewart.slipway.vessel;
 
+import dev.timstewart.slipway.config.SlipwayConfig;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 
@@ -10,9 +16,35 @@ import org.joml.Vector3d;
  * the player, logs follow the look axis, signs turn to the player). For a block placed on a vessel these angles must
  * be the player's look direction in the vessel's frame, so the placement code runs with the player temporarily
  * rotated into that frame.
+ *
+ * <p>A block item cannot be placed where its vessel may not grow to (see {@link VesselRecord#canTakeIn}).
  */
 public final class VesselPlacement {
 	private VesselPlacement() {
+	}
+
+	/**
+	 * Whether a block item may be placed at the context's position: anywhere outside a vessel's plot, and in one only
+	 * where the vessel can take the block in. The server decides (the largest span is its setting): a player who is
+	 * refused is told why and sent the inventory again, because the client has placed the block and used up the item
+	 * on its own; vanilla corrects the block.
+	 */
+	public static boolean mayPlace(BlockPlaceContext context) {
+		BlockPos pos = context.getClickedPos();
+		if (!VesselRegion.isReserved(pos) || !(context.getLevel() instanceof ServerLevel level)) {
+			return true;
+		}
+		VesselManager manager = VesselManager.getIfPresent(level);
+		VesselRecord record = manager == null ? null : manager.recordAt(pos);
+		int span = SlipwayConfig.get().maxVesselSpan;
+		if (record == null || record.canTakeIn(pos, span)) {
+			return true;
+		}
+		if (context.getPlayer() instanceof ServerPlayer player) {
+			player.sendOverlayMessage(Component.translatable("slipway.place.too_far", span));
+			player.containerMenu.sendAllDataToRemote();
+		}
+		return false;
 	}
 
 	/** Runs {@code action} with the player's rotation expressed in the vessel's frame, then restores it. */

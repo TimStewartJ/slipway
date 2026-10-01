@@ -210,10 +210,14 @@ public final class VesselAssembly {
 		return worldAnchor.offset(xz[0], local.getY(), xz[1]);
 	}
 
-	/** Loads (generating empty if new) every plot chunk column covering the given plot bounds. */
+	/**
+	 * Loads (generating empty if new) every plot chunk column covering the given plot bounds and the ring of columns
+	 * around them, which viewers are sent as well (see {@link ActiveVessel#viewChunks}): loaded here, they go out with
+	 * the vessel's own columns the moment it is assembled.
+	 */
 	static void loadPlotChunks(ServerLevel level, BlockPos plotMin, BlockPos plotMax) {
-		for (int cx = plotMin.getX() >> 4; cx <= plotMax.getX() >> 4; cx++) {
-			for (int cz = plotMin.getZ() >> 4; cz <= plotMax.getZ() >> 4; cz++) {
+		for (int cx = (plotMin.getX() >> 4) - 1; cx <= (plotMax.getX() >> 4) + 1; cx++) {
+			for (int cz = (plotMin.getZ() >> 4) - 1; cz <= (plotMax.getZ() >> 4) + 1; cz++) {
 				level.getChunk(cx, cz);
 			}
 		}

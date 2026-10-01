@@ -12,6 +12,7 @@
   "slipway.disassemble.blocked": "Cannot disassemble: %2$s is in the way at %1$s",
   "slipway.disassemble.outside": "Cannot disassemble: %s is outside the world",
   "slipway.disassemble.unloaded": "Cannot disassemble: %s is not loaded",
+  "slipway.place.too_far": "The vessel cannot grow this far: a vessel is at most %s blocks across",
   "slipway.helm.taken": "At the helm: %s/%s thrust, %s/%s turn, %s/%s up/down, %s/%s pitch, %s/%s roll, %s/%s strafe, %s hover, %s level, %s loose; sneak (%s) to leave, sneak + use the helm to disassemble",
   "slipway.helm.hover_on": "Hover on: the vessel holds its position",
   "slipway.helm.hover_off": "Hover off: gravity applies",

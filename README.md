@@ -85,8 +85,14 @@ moving vessel".
   not part of the vessel, and mobs do not path-find onto moving decks. Water and lava blocks are not assembled;
   waterlogged blocks keep their water.
 - Without shaders, vessel blocks look sky-lit even under a roof or in a cave. With shaders, shadows darken them.
+- A vessel changes no light in the world where it flies (its blocks are stored elsewhere): the ground or water under
+  a hovering ship is not darkened as it is under the same blocks placed in the world. With shaders a darker patch
+  can appear under the hull at the moment the ship is disassembled.
 - Distant Horizons draws a far vessel as one coloured box per visible block.
-- The block cap is 4,096 per vessel (`config/slipway.json`).
+- The block cap is 4,096 per vessel, and a vessel is at most 512 blocks across (`maxVesselBlocks` and
+  `maxVesselSpan` in `config/slipway.json`). The size holds after assembly too: a block cannot be placed further
+  out, and a piston does not push one there. A block that gets there another way (a plant growing, water flowing, a
+  command) is not part of the vessel and is left behind in its storage area when the vessel is disassembled.
 - Right after assembly the vessel can be drawn incomplete for a tick or two.
 - Loose vessels: no buoyancy (a vessel falls through water); players and mobs do not push them; a deck passes on at
   most 0.6 g, so cargo slides when the carrier stops hard or turns sharply and tall thin pieces fall over; a piece

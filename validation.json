@@ -9692,6 +9692,30 @@
     "closed cleanly: True; exited: True; no file under saves was written"
    ],
    "note": "Title screen only: the player's sandbox world was not opened this time. In-world behaviour with the same five jars: packaged-jar-check-20260930-181653 and diag-plain-ship-fork7-20260930-181712."
+  },
+  {
+   "scenario": "dh-release-assets",
+   "result": "pass",
+   "runId": "dh-fork7-release-check-20260930-2320",
+   "harness": "static-comparison",
+   "date": "2026-09-30T23:20:00",
+   "commit": "82a92a8",
+   "report": "E:\\slipway-e2e\\runs\\dh-fork7-release-check-20260930-2320\\report.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\dh-fork7-release-check-20260930-2320\\report.json",
+    "E:\\slipway-e2e\\runs\\dh-fork7-release-check-20260930-2320\\SHA256SUMS.txt",
+    "E:\\slipway-e2e\\play-instance-expected-sha256.json"
+   ],
+   "checks": [
+    "the four published jars match SHA256SUMS.txt of release 3.3.4-tellus-fork.7",
+    "DistantHorizons-fabric-3.3.4-tellus-fork.7-26.2.jar: 5154 classes, 0 differ from the local build; 66 text files differ in line endings only; otherwise only build_info.json differs; published SHA256 8FE99956B913E1529B072A5104FB9C70C82EC6A813E608354B49EB4104607F1D (local build 3FDFEE9C...)",
+    "DistantHorizons-fabric-3.3.4-tellus-fork.7-26.3.jar: 5676 classes, 0 differ from the local build; 66 text files differ in line endings only; otherwise only build_info.json differs; published SHA256 EF401FD5C133D43359844487BDDE6CC4E31A0AAA5BE027367B998F8FA62C6CF6 (local build BCF32F99...)",
+    "DistantHorizons-neoforge-3.3.4-tellus-fork.7-26.2.jar: 1625 classes, 0 differ from the local build; 65 text files differ in line endings only; otherwise only build_info.json differs; published SHA256 4BBA192E9C5438E3170B179F9861BB0DB98E5E2067D14A83012F4D704EB12DA6 (local build 701644C2...)",
+    "DistantHorizons-neoforge-3.3.4-tellus-fork.7-26.3.jar: 1624 classes, 0 differ from the local build; 65 text files differ in line endings only; otherwise only build_info.json differs; published SHA256 BFF1D0778C56C81166467237F80A9856E3BDE24DD4B5B6A80D517A955B8DE3CD (local build 05B6CFFF...)",
+    "Slipway play instance: holds the published Fabric 26.3 jar; all five installed jars match E:\\slipway-e2e\\play-instance-expected-sha256.json",
+    "gradlew assemble checkPatches with the published jar in devmods: green, release jar unchanged"
+   ],
+   "note": "No game was started. Distant Horizons 3.3.4-tellus-fork.7 was published (https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7) and its release assets replaced the locally built jars in the play instance, the Tellus-Expeditions instances, Slipway-Test and devmods. The in-game checks of 2026-09-30 (clientgametest-20260930-182511, packaged-jar-check-20260930-181653, diag-plain-ship-fork7-20260930-181712, play-instance-title-check-20260930-181400) ran on the local build; this entry shows the published jars contain the same classes."
   }
  ],
  "note": "Since 2026-09-30 in-game validation runs as Fabric client GameTests (harness client-gametest) and a packaged-jar check (harness production-run). Prism-harness runs (harness prism) and earlier client GameTest series are superseded: originalResult keeps their outcome and supersededBy names the run that replaced them."

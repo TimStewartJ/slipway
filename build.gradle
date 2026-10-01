@@ -50,8 +50,9 @@ sourceSets {
 	}
 }
 
-// Distant Horizons for the client GameTests: the patched build from the leak fix (devmods/test, see DESIGN.md) when
-// present, else the play stack's jar. -PslipwayTestDhJar=<path> overrides both.
+// Distant Horizons for the client GameTests: another build in devmods/test when there is one (tools/setup-devmods.ps1
+// -TestDhJar, for trying a build before it goes into the play stack), else the play stack's jar.
+// -PslipwayTestDhJar=<path> overrides both.
 def testDhJar = providers.gradleProperty('slipwayTestDhJar').map { file(it) }.orNull ?: ({
 	def testDir = new File(devmods, 'test')
 	def found = testDir.isDirectory() ? testDir.listFiles().findAll { it.name.startsWith('DistantHorizons-fabric-') && it.name.endsWith('.jar') } : []

@@ -237,6 +237,13 @@ function Get-SlipwayE2ELogProblems {
 
 function Get-SlipwayE2EInstanceDir { param([string]$InstanceId = $script:InstanceA) Join-Path $script:PrismRoot "instances\$InstanceId" }
 
+function Get-DevmodsDistantHorizonsJar {
+	# The play stack's Distant Horizons jar in devmods (put there by tools/setup-devmods.ps1 or tools/fetch-devmods.py).
+	$jar = Get-ChildItem (Join-Path $script:Repo 'devmods') -Filter 'DistantHorizons-fabric-*.jar' | Sort-Object Name | Select-Object -Last 1
+	if (-not $jar) { throw 'devmods has no DistantHorizons-fabric-*.jar; run tools/setup-devmods.ps1 or tools/fetch-devmods.py first.' }
+	$jar.FullName
+}
+
 function New-SlipwayE2EInstance {
 	<# .SYNOPSIS Creates a Prism instance for Minecraft 26.3 with Fabric loader 0.19.5 (does nothing if it exists). #>
 	[CmdletBinding()]
@@ -282,7 +289,7 @@ function Set-SlipwayE2EInstanceMods {
 	if (-not $NoRenderMods) {
 		Copy-Item (Join-Path $devmods 'sodium-fabric-0.9.2+mc26.3.jar') $mods
 		Copy-Item (Join-Path $devmods 'iris-fabric-1.11.6+mc26.3.jar') $mods
-		Copy-Item (Join-Path $devmods 'DistantHorizons-fabric-3.3.1-tellus-fork.6-26.3.jar') $mods
+		Copy-Item (Get-DevmodsDistantHorizonsJar) $mods
 	}
 	Copy-Item $SlipwayJar $mods
 	if ($AgentJar) { Copy-Item $AgentJar $mods }
@@ -308,7 +315,7 @@ function Set-SlipwayE2EModSet {
 	if ($Mods -contains 'sodium') { Copy-Item (Join-Path $devmods 'sodium-fabric-0.9.2+mc26.3.jar') $target }
 	if ($Mods -contains 'iris') { Copy-Item (Join-Path $devmods 'iris-fabric-1.11.6+mc26.3.jar') $target }
 	if ($Mods -contains 'dh') {
-		$dh = if ($DhJar) { $DhJar } else { Join-Path $devmods 'DistantHorizons-fabric-3.3.1-tellus-fork.6-26.3.jar' }
+		$dh = if ($DhJar) { $DhJar } else { Get-DevmodsDistantHorizonsJar }
 		Copy-Item $dh $target
 	}
 	if ($Mods -contains 'slipway') {

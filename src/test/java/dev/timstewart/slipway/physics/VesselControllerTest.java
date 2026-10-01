@@ -14,6 +14,8 @@ class VesselControllerTest {
 	private static final double[] INERTIA = {4.0e5, 0, 0, 0, 6.0e5, 0, 0, 0, 3.0e5};
 	/** Forward is north (-Z). */
 	private static final Vector3d NORTH = new Vector3d(0, 0, -1);
+	/** How the point mass and the ball below are stepped: sixty times a second, velocity first. */
+	private static final VesselController.Step SIXTIETH = new VesselController.Step(1.0 / 60.0, 1);
 
 	private static VesselController.Command run(double fwd, double strafe, double vert, double pitch, double yaw, double roll, boolean hover, boolean level,
 		Quaterniond rotation, Vector3d v, Vector3d w) {
@@ -126,7 +128,7 @@ class VesselControllerTest {
 		Vector3d v = new Vector3d(velocity);
 		for (int step = 0; step < Math.round(seconds * 60); step++) {
 			VesselController.Command c = VesselController.compute(PARAMS, forward, 0, 0, 0, 0, 0, true, true, new Quaterniond(), p, v, new Vector3d(), MASS, INERTIA,
-				NORTH, hold);
+				NORTH, hold, SIXTIETH);
 			Vector3d a = new Vector3d(c.force()).div(MASS).add(0, -VesselController.GRAVITY * (1.0 + load), 0);
 			v.fma(dt, a);
 			p.fma(dt, v);
@@ -138,13 +140,17 @@ class VesselControllerTest {
 	void aReleasedHoveringVesselStopsWhereThePlainBrakeStopsIt() {
 		Vector3d start = new Vector3d(100, 80, -40);
 		Vector3d velocity = new Vector3d(6, -2, 9);
-		Vector3d[] held = hoverFor(6, start, velocity, new VesselController.Hold(), 0, 0);
 		Vector3d[] braked = hoverFor(6, start, velocity, null, 0, 0);
-		// The plain brake a = -w v ends at start + v / w (less one integration step of travel, |v| / 60 = 0.18).
-		Vector3d expected = new Vector3d(start).fma(1.0 / VesselController.BRAKE_GAIN, velocity);
-		assertEquals(0.0, braked[0].distance(expected), 0.2, "the plain brake's stopping point");
-		assertEquals(0.0, held[0].distance(braked[0]), 0.2, "holding changed where a released vessel stops");
-		assertEquals(0.0, held[1].length(), 0.01, "the held vessel still moves");
+		// The plain brake a = -w v ends at start + v / w, less one integration step of travel (|v| / 60 = 0.18).
+		Vector3d expected = new Vector3d(start).fma(SIXTIETH.stoppingTime(VesselController.BRAKE_GAIN), velocity);
+		assertEquals(0.0, braked[0].distance(expected), 0.002, "the plain brake's stopping point");
+		// Nothing pushes this vessel: with the hold it is where the plain brake has it, at every moment of the stop.
+		for (double seconds : new double[] {0.05, 0.5, 2, 6}) {
+			Vector3d[] held = hoverFor(seconds, start, velocity, new VesselController.Hold(), 0, 0);
+			Vector3d[] plain = hoverFor(seconds, start, velocity, null, 0, 0);
+			assertEquals(0.0, held[0].distance(plain[0]), 1.0e-9, "holding changed where a released vessel is after " + seconds + " s");
+			assertEquals(0.0, held[1].distance(plain[1]), 1.0e-9, "holding changed how fast a released vessel is after " + seconds + " s");
+		}
 	}
 
 	@Test
@@ -172,8 +178,8 @@ class VesselControllerTest {
 		Vector3d[] early = hoverFor(10, new Vector3d(0, 200, 0), new Vector3d(), hold, 0, load);
 		Vector3d[] late = hoverFor(5, early[0], early[1], hold, 0, load);
 		double w = VesselController.BRAKE_GAIN;
-		// At the limit the hold pulls with w^2 (HOLD_SLACK + rate / w) and the brake with 2 w rate.
-		double expectedRate = (load * VesselController.GRAVITY - w * w * VesselController.HOLD_SLACK) / (3 * w);
+		// At the limit the hold pulls with w^2 (HOLD_SLACK + 2 t rate), t the brake's stopping time, and the brake with w rate.
+		double expectedRate = (load * VesselController.GRAVITY - w * w * VesselController.HOLD_SLACK) / (w + 2 * w * w * SIXTIETH.stoppingTime(w));
 		assertEquals(-expectedRate, late[1].y, 0.02, "steady sink rate of an overloaded vessel");
 		assertEquals(early[1].y, late[1].y, 0.01, "the sink rate still changes");
 		// The hold point followed: when the load goes, the vessel settles within the slack and its braking distance.
@@ -189,8 +195,8 @@ class VesselControllerTest {
 		Vector3d[] flying = hoverFor(4, start, new Vector3d(), hold, 1.0, 0);
 		assertTrue(flying[0].z < -40, "four seconds of full thrust north only reached z " + flying[0].z);
 		Vector3d[] released = hoverFor(6, flying[0], flying[1], hold, 0, 0);
-		// After release the vessel coasts on by speed / BRAKE_GAIN and stays there: it is not pulled back to the start.
-		assertEquals(flying[0].z + flying[1].z / VesselController.BRAKE_GAIN, released[0].z, 0.5, "stopping point after releasing the thrust");
+		// After release the vessel coasts on as far as the brake takes to stop it and stays there: it is not pulled back to the start.
+		assertEquals(flying[0].z + flying[1].z * SIXTIETH.stoppingTime(VesselController.BRAKE_GAIN), released[0].z, 0.01, "stopping point after releasing the thrust");
 		assertEquals(0.0, released[1].length(), 0.01, "still moving six seconds after releasing the thrust");
 		assertEquals(100.0, released[0].y, 0.01, "height drifted while thrusting north");
 		assertEquals(0.0, released[0].x, 0.01, "drifted sideways while thrusting north");
@@ -201,7 +207,8 @@ class VesselControllerTest {
 		VesselController.Hold hold = new VesselController.Hold();
 		hoverFor(1, new Vector3d(0, 100, 0), new Vector3d(), hold, 0, 0);
 		assertTrue(hold.isValid());
-		VesselController.compute(PARAMS, 0, 0, 0, 0, 0, 0, false, true, new Quaterniond(), new Vector3d(0, 50, 0), new Vector3d(), new Vector3d(), MASS, INERTIA, NORTH, hold);
+		VesselController.compute(PARAMS, 0, 0, 0, 0, 0, 0, false, true, new Quaterniond(), new Vector3d(0, 50, 0), new Vector3d(), new Vector3d(), MASS, INERTIA, NORTH, hold,
+			SIXTIETH);
 		assertFalse(hold.isValid(), "hover off must drop the hold point, or the vessel would spring back to it when hover returns");
 	}
 
@@ -213,7 +220,8 @@ class VesselControllerTest {
 		// A ball of inertia, so the torque maps to the same acceleration at any attitude.
 		double[] inertia = {4.0e5, 0, 0, 0, 4.0e5, 0, 0, 0, 4.0e5};
 		for (int step = 0; step < Math.round(seconds * 60); step++) {
-			VesselController.Command c = VesselController.compute(PARAMS, 0, 0, 0, 0, 0, roll, true, level, q, new Vector3d(), new Vector3d(), w, MASS, inertia, NORTH, hold);
+			VesselController.Command c = VesselController.compute(PARAMS, 0, 0, 0, 0, 0, roll, true, level, q, new Vector3d(), new Vector3d(), w, MASS, inertia, NORTH, hold,
+				SIXTIETH);
 			Vector3d alpha = new Vector3d(c.torque()).div(4.0e5).add(0, 0, pushed);
 			w.fma(dt, alpha);
 			if (w.length() > 1.0e-12) {
@@ -252,8 +260,9 @@ class VesselControllerTest {
 		Object[] braked = turnFor(5, start, rate, null, false, 0, 0);
 		Object[] held = turnFor(5, start, rate, new VesselController.Hold(), false, 0, 0);
 		Quaterniond difference = new Quaterniond((Quaterniond)held[0]).mul(new Quaterniond((Quaterniond)braked[0]).conjugate());
-		// The vessel turns on by rate / 3 = 16 degrees; the two differ by one integration step of turning (0.8 degrees).
-		assertEquals(0.0, Math.toDegrees(2 * Math.acos(Math.min(1.0, Math.abs(difference.w)))), 1.0, "holding changed the attitude a released vessel stops in (degrees)");
+		// The vessel turns on by about rate / 3 = 16 degrees, to the same attitude with the hold as without.
+		assertEquals(0.0, Math.toDegrees(2 * Math.asin(Math.min(1.0, Math.sqrt(difference.x * difference.x + difference.y * difference.y + difference.z * difference.z)))),
+			1.0e-6, "holding changed the attitude a released vessel stops in (degrees)");
 		assertEquals(0.0, ((Vector3d)held[1]).length(), 1.0e-3);
 	}
 
@@ -358,12 +367,12 @@ class VesselControllerTest {
 		engine.state.qz = Math.sin(0.4);
 		engine.state.qw = Math.cos(0.4);
 		VesselController.Hold hold = new VesselController.Hold();
-		assertTrue(VesselController.drive(engine, PARAMS, drive(false, false, hold), new PhysicsEngine.BodyState()), "a controlled vessel is driven");
+		assertTrue(VesselController.drive(engine, PARAMS, PhysicsWorld.STEP, drive(false, false, hold), new PhysicsEngine.BodyState()), "a controlled vessel is driven");
 		assertEquals(1, engine.applied);
 		assertTrue(engine.force.length() > MASS && engine.torque.length() > 1000, "the controlled vessel got a force and a torque");
 		assertTrue(hold.isValid());
 
-		assertFalse(VesselController.drive(engine, PARAMS, drive(true, false, hold), new PhysicsEngine.BodyState()), "a loose vessel was driven");
+		assertFalse(VesselController.drive(engine, PARAMS, PhysicsWorld.STEP, drive(true, false, hold), new PhysicsEngine.BodyState()), "a loose vessel was driven");
 		assertEquals(1, engine.applied, "something was applied to a loose vessel");
 		assertFalse(hold.isValid(), "a loose vessel keeps no hold point: hover must take a new one when loose ends");
 	}
@@ -375,11 +384,11 @@ class VesselControllerTest {
 		VesselController.Drive idle = new VesselController.Drive(7L, VesselController.Axes.IDLE, true, true, false, false,
 			new BoxList.MassProperties(MASS, 0, 0, 0, INERTIA), NORTH, hold);
 		engine.state.y = 100;
-		VesselController.drive(engine, PARAMS, idle, new PhysicsEngine.BodyState());
+		VesselController.drive(engine, PARAMS, PhysicsWorld.STEP, idle, new PhysicsEngine.BodyState());
 		assertEquals(100.0, hold.target().y, 1.0e-9);
 		// Moved 50 blocks up at once: without a reset the hold would pull it back as far as its slack allows.
 		engine.state.y = 150;
-		VesselController.drive(engine, PARAMS, new VesselController.Drive(7L, VesselController.Axes.IDLE, true, true, false, true,
+		VesselController.drive(engine, PARAMS, PhysicsWorld.STEP, new VesselController.Drive(7L, VesselController.Axes.IDLE, true, true, false, true,
 			new BoxList.MassProperties(MASS, 0, 0, 0, INERTIA), NORTH, hold), new PhysicsEngine.BodyState());
 		assertEquals(150.0, hold.target().y, 1.0e-9, "the hold point after a teleport");
 		assertEquals(MASS * VesselController.GRAVITY, engine.force.y, 1.0e-6, "a teleported vessel at rest only needs its weight carried");

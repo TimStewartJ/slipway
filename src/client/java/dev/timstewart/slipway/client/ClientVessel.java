@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
  * partial tick, exactly as entities do.
  */
 public final class ClientVessel {
-	static final double DELAY_TICKS = 2.0;
+	public static final double DELAY_TICKS = 2.0;
 	/** Largest fraction by which the playback clock runs fast or slow to return to the target delay. */
 	static final double MAX_RATE_CHANGE = 0.1;
 	/** Playback further off the target delay than this jumps to it. */
@@ -55,7 +55,11 @@ public final class ClientVessel {
 	 * it went at, and its block entities as they were, kept because its plot chunks are dropped.
 	 */
 	long goneAtTick = -1;
+	/** The last client tick at which the terrain renderer still had work waiting (from {@link #goneAtTick} on). */
+	long terrainBusyAtTick;
 	public java.util.List<net.minecraft.world.level.block.entity.BlockEntity> keptBlockEntities = java.util.List.of();
+	/** The light each of {@link #keptBlockEntities} was drawn with when the vessel went: the plot's light goes with its chunks. */
+	public int[] keptBlockEntityLight = new int[0];
 
 	private final ArrayDeque<Snapshot> snapshots = new ArrayDeque<>();
 	private double playbackTick = Double.NaN;
@@ -183,6 +187,15 @@ public final class ClientVessel {
 		return this.playbackTick;
 	}
 
+	/**
+	 * How far {@link #tickPose()} is behind the newest pose received, in server ticks: {@value #DELAY_TICKS} when in
+	 * step, more while playback catches up after this client stalled; NaN before the first pose.
+	 */
+	public double playbackLag() {
+		Snapshot newest = this.snapshots.peekLast();
+		return newest == null ? Double.NaN : newest.tick - this.playbackTick;
+	}
+
 	@Nullable
 	public VesselPose previousTickPose() {
 		return this.previousTickPose;
@@ -266,12 +279,15 @@ public final class ClientVessel {
 			}
 		}
 		this.keptBlockEntities = kept;
+		this.keptBlockEntityLight = kept.stream().mapToInt(dev.timstewart.slipway.client.render.VesselRenderer::lightOf).toArray();
 		this.goneAtTick = clientTick;
+		this.terrainBusyAtTick = clientTick;
 	}
 
 	void close() {
 		this.mesh.clear();
 		this.keptBlockEntities = java.util.List.of();
+		this.keptBlockEntityLight = new int[0];
 	}
 
 	private final dev.timstewart.slipway.vessel.VesselLookup.View view = new dev.timstewart.slipway.vessel.VesselLookup.View() {

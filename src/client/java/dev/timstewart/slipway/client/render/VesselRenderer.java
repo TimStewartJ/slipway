@@ -110,9 +110,11 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		BlockEntityRenderDispatcher dispatcher = mc.getBlockEntityRenderDispatcher();
 		Vec3 cameraPlot = vessel.worldToPlot(pose, mc.gameRenderer.mainCamera().position());
 		if (vessel.gone()) {
-			// The picture of a vessel that is gone: its block entities as they were, and nothing to point at.
-			for (BlockEntity blockEntity : vessel.keptBlockEntities) {
-				extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot, vessel, state);
+			// The picture of a vessel that is gone: its block entities as they were, and nothing to point at. Their
+			// plot chunks have been dropped and the light there with them, so each is drawn with the light it had
+			// (a chest on the deck was black for those ticks otherwise).
+			for (int i = 0; i < vessel.keptBlockEntities.size(); i++) {
+				extractBlockEntity(dispatcher, vessel.keptBlockEntities.get(i), partialTicks, cameraPlot, vessel, state, vessel.keptBlockEntityLight[i]);
 			}
 			return;
 		}
@@ -125,7 +127,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 					continue;
 				}
 				for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
-					extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot, vessel, state);
+					extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot, vessel, state, LIGHT_FROM_THE_PLOT);
 				}
 			}
 		}
@@ -152,15 +154,27 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		}
 	}
 
+	/** Instead of a kept light: the block entity is lit by its plot as its renderer reads it. */
+	private static final int LIGHT_FROM_THE_PLOT = -1;
+
 	private static void extractBlockEntity(BlockEntityRenderDispatcher dispatcher, BlockEntity blockEntity, float partialTicks, Vec3 cameraPlot, ClientVessel vessel,
-		State state) {
+		State state, int keptLight) {
 		BlockEntityRenderState beState = extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot);
 		if (beState != null) {
+			if (keptLight != LIGHT_FROM_THE_PLOT) {
+				beState.lightCoords = keptLight;
+			}
 			BlockPos local = blockEntity.getBlockPos().subtract(vessel.anchor);
 			state.blockEntities.add(beState);
 			state.blockEntityLocal.add(local);
-			SlipwayDebug.blockEntityDrawn(vessel.id, blockEntity, local);
+			SlipwayDebug.blockEntityDrawn(vessel.id, blockEntity, local, beState.lightCoords, keptLight != LIGHT_FROM_THE_PLOT);
 		}
+	}
+
+	/** The light a block entity is drawn with now, as its own renderer works it out (a double chest takes the brighter half's). */
+	public static int lightOf(BlockEntity blockEntity) {
+		BlockEntityRenderState state = extractBlockEntity(Minecraft.getInstance().getBlockEntityRenderDispatcher(), blockEntity, 0f, Vec3.atCenterOf(blockEntity.getBlockPos()));
+		return state == null ? 0 : state.lightCoords;
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})

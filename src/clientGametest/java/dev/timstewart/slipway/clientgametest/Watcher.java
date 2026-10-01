@@ -84,6 +84,28 @@ final class Watcher {
 					case "wait-vessel" -> {
 						long id = Long.parseLong(cmd.getProperty("arg0"));
 						Game.waitClientReady(ctx, id, 1200);
+						// A client that has just joined still sets up its renderer in long frames, and under the test
+						// harness a client never makes up ticks (one per frame at most), so its playback is left behind
+						// the server's poses: it then runs 10% fast for up to 100 ticks, or jumps once it is more than
+						// 10 ticks behind. What the watcher sees is measured from when its playback is in step.
+						// The catch-up has a bound: playback jumps when it is more than 10 ticks behind and otherwise makes
+						// up a tenth of a tick per tick, so 100 ticks after the long frames end it is in step. The caller
+						// names the bound (measured: 67 to 103 ticks from the vessel's first showing); past it this fails
+						// by name instead of waiting on.
+						int bound = Integer.parseInt(cmd.getProperty("arg1", "1200"));
+						reply.setProperty("lagWhenReady", String.format(Locale.ROOT, "%.2f", playbackLag(ctx, id)));
+						int waited = 0;
+						double furthest = 0;
+						for (int inStep = 0; inStep < 20; waited++) {
+							Check.that(waited < bound + 20, "the watcher's playback of vessel %s was not in step within %d ticks: it is %.2f ticks behind the newest pose",
+								id, bound, playbackLag(ctx, id));
+							ctx.waitTick();
+							double lag = playbackLag(ctx, id);
+							furthest = Math.max(furthest, lag);
+							inStep = lag <= ClientVessel.DELAY_TICKS + 1.05 ? inStep + 1 : 0;
+						}
+						reply.setProperty("ticksUntilInStep", String.valueOf(waited - 20));
+						reply.setProperty("furthestBehind", String.format(Locale.ROOT, "%.2f", furthest));
 					}
 					case "trace-start" -> {
 						long id = Long.parseLong(cmd.getProperty("arg0"));
@@ -141,6 +163,14 @@ final class Watcher {
 			WatcherProcess.write(dir.resolve("reply-" + n + ".properties"), reply);
 			n++;
 		}
+	}
+
+	/** Ticks the vessel's shown pose is behind the newest pose this client has; NaN if it has none. */
+	private static double playbackLag(ClientGameTestContext ctx, long id) {
+		return ctx.computeOnClient(mc -> {
+			ClientVessel v = ClientVessels.get(id);
+			return v == null ? Double.NaN : v.playbackLag();
+		});
 	}
 
 	private static void writeSamples(Path file, List<Sample> samples) {

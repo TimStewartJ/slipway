@@ -208,6 +208,26 @@ final class Game {
 		}, timeout);
 	}
 
+	/**
+	 * The lowest sky light (0 to 15) baked into the faces of a vessel's mesh that look sideways or up, or -1 while it
+	 * has no such face. For a vessel under the open sky of its plot that is 15, unless the client lacks the plot
+	 * columns next to the vessel's own (a face is lit by the block next to it).
+	 */
+	static int darkestOuterSkyLight(ClientGameTestContext ctx, long id) {
+		return ctx.computeOnClient(mc -> {
+			ClientVessel v = ClientVessels.get(id);
+			if (v == null || !v.ready()) {
+				return -1;
+			}
+			int darkest = 15;
+			for (net.minecraft.core.Direction side : new net.minecraft.core.Direction[] {net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.EAST,
+				net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.UP}) {
+				darkest = Math.min(darkest, v.mesh.minSkyLight(side));
+			}
+			return darkest;
+		});
+	}
+
 	/** Waits until the vessel's mesh has been built (it must be in view). */
 	static void waitClientMesh(ClientGameTestContext ctx, long id, int timeout) {
 		ctx.waitFor(mc -> {

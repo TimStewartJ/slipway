@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
  * move it.
  *
  * <p>This is our own design using textbook rigid-body relations (F = m a, tau = I alpha, R I R^T for the world
- * inertia), a proportional rate controller and a critically damped position hold.
+ * inertia), a proportional rate controller and a spring and damper for the hold, stepped as the engine steps.
  */
 public final class VesselController {
 	/** Per-second rate of hover braking on idle axes: a released vessel loses speed as exp(-BRAKE_GAIN t). */
@@ -67,25 +67,61 @@ public final class VesselController {
 	}
 
 	/**
-	 * Where a hovering vessel holds its position: the point the brake would bring it to rest at. Along an axis with
-	 * input the point moves with the vessel (it stays where the brake would stop the vessel if the input ended now);
-	 * along an idle axis the vessel is pulled to it by a critically damped spring,
-	 * {@code a = -2 w v - w^2 e} with {@code w = BRAKE_GAIN} and {@code e} the distance from the point. Started from
-	 * {@code e = -v / w} that is exactly the plain brake {@code a = -w v}, so an unloaded vessel stops as it always
-	 * did; a pushed or loaded one comes back instead of drifting or sinking for as long as the push lasts. The
-	 * distance is limited to {@link #HOLD_SLACK} (plus the braking distance at the current speed): pushed further,
-	 * the point gives way.
+	 * How the engine advances a body from one call of the controller to the next: in {@code substeps} equal parts of
+	 * {@code seconds}, each adding the acceleration to the velocity first and the new velocity to the position after
+	 * (and the same for turning), under the force and torque of that call throughout. The hold needs it to know where
+	 * the plain brake alone takes the vessel in the step.
+	 */
+	public record Step(double seconds, int substeps) {
+		public Step {
+			if (!(seconds > 0) || substeps < 1) {
+				throw new IllegalArgumentException("a step takes time and has at least one part");
+			}
+		}
+
+		/** A constant acceleration {@code a} moves a body with velocity {@code v} by {@code v seconds + travel() a seconds^2}. */
+		double travel() {
+			return (this.substeps + 1) / (2.0 * this.substeps);
+		}
+
+		/**
+		 * How far a body braked by {@code a = -gain v} still goes, per unit of its speed: {@code 1 / gain} in theory,
+		 * less {@code travel() seconds} for the stepping.
+		 */
+		double stoppingTime(double gain) {
+			return Math.max(0.0, 1.0 / gain - this.travel() * this.seconds);
+		}
+	}
+
+	/**
+	 * Where a hovering vessel holds its position: the point the brake would bring its centre of mass to rest at. (The
+	 * centre of mass is the point the velocity belongs to and the one a turn leaves in place: held by any other
+	 * point, a ship whose helm is not at its centre is pulled round that point when it turns.) Along an idle axis the
+	 * point stays, and the vessel is pulled to it by a spring on top of the brake,
+	 * {@code a = -w v - w^2 (e + t v)}, with {@code w = BRAKE_GAIN}, {@code e} the distance from the point and
+	 * {@code t} the brake's stopping time ({@link Step#stoppingTime}). A vessel that nothing pushes has
+	 * {@code e = -t v}, where that is the plain brake {@code a = -w v}; a pushed or loaded one comes back instead of
+	 * drifting or sinking for as long as the push lasts. Along an axis with input nothing is held: the point is put
+	 * where the brake would stop the vessel now. At the end of every call the point is moved by what the plain
+	 * controller's own acceleration changes about where the vessel will stop ({@code seconds (v + a / w)}: nothing
+	 * along an idle axis, the vessel's travel along one with input, also while the axes turn). So with nothing pushing
+	 * it, a vessel flies, turns and stops step for step as under the plain brake, and the hold only ever answers a
+	 * push. The distance is limited to {@link #HOLD_SLACK} (plus the braking distance at the current speed): pushed
+	 * further, the point gives way.
 	 *
 	 * <p>With level off a hovering vessel holds its attitude the same way: the attitude the turn-rate brake would
-	 * leave it in, followed about an axis with input and held about an idle one by {@code alpha = -2 k w - k^2 e}
-	 * with {@code k = RATE_GAIN}, which from {@code e = -w / k} is exactly the plain rate brake {@code alpha = -k w}.
-	 * With level on, levelling holds pitch and roll, and nothing is held here.
+	 * leave it in, held about an idle axis by {@code alpha = -k w - k^2 (e + t w)} with {@code k = RATE_GAIN}, let go
+	 * about an axis with input, and turned along at the end of every call as the plain rate controller's torque turns
+	 * the attitude the vessel will come to rest in. With level on, levelling holds pitch and roll, and nothing is held
+	 * here.
 	 *
 	 * <p>One instance belongs to one vessel and is only touched by the thread that steps the physics.
 	 */
 	public static final class Hold {
 		final Vector3d target = new Vector3d();
 		boolean valid;
+		/** The centre of mass in the vessel's frame when the hold was last used: it shifts when blocks change. */
+		final Vector3d centreLocal = new Vector3d();
 		final Quaterniond attitude = new Quaterniond();
 		boolean attitudeValid;
 
@@ -99,14 +135,21 @@ public final class VesselController {
 			return this.valid;
 		}
 
+		boolean isFinite() {
+			return this.target.isFinite() && this.attitude.isFinite();
+		}
+
 		public Vector3d target() {
 			return new Vector3d(this.target);
 		}
 	}
 
-	/** Everything needed to control one vessel for one step: built on the game thread, used by the physics thread. */
+	/**
+	 * Everything needed to control one vessel for one step: built on the game thread, used by the physics thread.
+	 * Without a hold ({@code null}) a hovering vessel is only braked, as before 0.1.2.
+	 */
 	public record Drive(long vesselId, Axes axes, boolean hover, boolean level, boolean loose, boolean resetHold, BoxList.MassProperties mass,
-		Vector3d forwardLocal, Hold hold) {
+		Vector3d forwardLocal, @Nullable Hold hold) {
 	}
 
 	/**
@@ -115,20 +158,34 @@ public final class VesselController {
 	 *
 	 * @return true when a force and torque were applied
 	 */
-	public static boolean drive(PhysicsEngine engine, Params params, Drive drive, PhysicsEngine.BodyState scratch) {
-		if (drive.resetHold() || drive.loose()) {
-			drive.hold().reset();
+	public static boolean drive(PhysicsEngine engine, Params params, Step step, Drive drive, PhysicsEngine.BodyState scratch) {
+		Hold hold = drive.hold();
+		if (hold != null && (drive.resetHold() || drive.loose())) {
+			hold.reset();
 		}
 		if (drive.loose() || !engine.readVessel(drive.vesselId(), scratch) || !scratch.isFinite()) {
 			return false;
 		}
 		Axes in = drive.axes();
+		Quaterniond rotation = new Quaterniond(scratch.qx, scratch.qy, scratch.qz, scratch.qw);
+		Vector3d centreLocal = new Vector3d(drive.mass().comX(), drive.mass().comY(), drive.mass().comZ());
+		if (hold != null) {
+			if (hold.valid && !centreLocal.equals(hold.centreLocal)) {
+				// Blocks changed and the centre of mass with them. The vessel has not moved, so what is held moves along
+				// with the centre. (Taking the hold anew instead would let go of a load: the vessel's present place
+				// would become the point, and a loaded vessel would sink by its sag at every block change.)
+				hold.target.add(rotation.transform(new Vector3d(centreLocal).sub(hold.centreLocal)));
+			}
+			hold.centreLocal.set(centreLocal);
+		}
+		Vector3d centre = rotation.transform(centreLocal).add(scratch.x, scratch.y, scratch.z);
 		Command command = compute(params, in.forward(), in.strafe(), in.vertical(), in.pitch(), in.yaw(), in.roll(), drive.hover(), drive.level(),
-			new Quaterniond(scratch.qx, scratch.qy, scratch.qz, scratch.qw), new Vector3d(scratch.x, scratch.y, scratch.z),
-			new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
-			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), drive.hold());
+			rotation, centre, new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
+			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), hold, step);
+		if (hold != null && !(command.isFinite() && hold.isFinite())) {
+			hold.reset();
+		}
 		if (!command.isFinite()) {
-			drive.hold().reset();
 			return false;
 		}
 		engine.applyForceAndTorque(drive.vesselId(), command.force(), command.torque());
@@ -140,18 +197,22 @@ public final class VesselController {
 		boolean hover, boolean level, Quaterniond rotation, Vector3d velocity, Vector3d angularVelocity,
 		double mass, double[] inertiaLocal, Vector3d forwardLocal) {
 		return compute(p, forward, strafe, vertical, pitch, yaw, roll, hover, level, rotation, new Vector3d(), velocity, angularVelocity, mass, inertiaLocal,
-			forwardLocal, null);
+			forwardLocal, null, null);
 	}
 
 	/**
-	 * @param position world position of the vessel (any fixed point of it), only used for the hold
+	 * @param position world position of the vessel's centre of mass (the point {@code velocity} is the velocity of), only used for the hold
 	 * @param forwardLocal unit vector of the vessel's forward direction in local coordinates (horizontal)
 	 * @param inertiaLocal row-major inertia tensor about the centre of mass in local axes
 	 * @param hold the vessel's hold point, updated by this call; null for braking without holding
+	 * @param step how the engine will advance the vessel under the returned force and torque; only used for the hold
 	 */
 	public static Command compute(Params p, double forward, double strafe, double vertical, double pitch, double yaw, double roll,
 		boolean hover, boolean level, Quaterniond rotation, Vector3d position, Vector3d velocity, Vector3d angularVelocity,
-		double mass, double[] inertiaLocal, Vector3d forwardLocal, @Nullable Hold hold) {
+		double mass, double[] inertiaLocal, Vector3d forwardLocal, @Nullable Hold hold, @Nullable Step step) {
+		if (hold != null && step == null) {
+			throw new IllegalArgumentException("holding needs the step");
+		}
 		Vector3d upLocal = new Vector3d(0, 1, 0);
 		Vector3d rightLocal = new Vector3d(forwardLocal).cross(upLocal).normalize();
 		Vector3d f = rotation.transform(new Vector3d(forwardLocal));
@@ -163,13 +224,17 @@ public final class VesselController {
 		double[] inputs = {forward, strafe, vertical};
 		Vector3d[] axes = {f, r, u};
 		Vector3d accel = new Vector3d();
+		// What the plain controller asks for: the same, unless something has pushed the vessel off its way.
+		Vector3d plain = new Vector3d();
 		Vector3d error = null;
+		double stopping = 0;
 		if (hold != null) {
 			if (!hover) {
 				hold.valid = false;
 			} else {
+				stopping = step.stoppingTime(BRAKE_GAIN);
 				if (!hold.valid) {
-					hold.target.set(position).fma(1.0 / BRAKE_GAIN, velocity);
+					hold.target.set(position).fma(stopping, velocity);
 					hold.valid = true;
 				}
 				error = new Vector3d(position).sub(hold.target);
@@ -178,32 +243,44 @@ public final class VesselController {
 		for (int i = 0; i < 3; i++) {
 			double along = velocity.dot(axes[i]);
 			double a;
+			double b;
 			if (inputs[i] != 0) {
-				a = p.thrustAcceleration() * inputs[i] - drag * along;
+				b = p.thrustAcceleration() * inputs[i] - drag * along;
+				a = b;
 				if (error != null) {
-					hold.target.fma(error.dot(axes[i]) + along / BRAKE_GAIN, axes[i]);
+					hold.target.fma(error.dot(axes[i]) + stopping * along, axes[i]);
 				}
 			} else if (error != null) {
 				double e = error.dot(axes[i]);
-				double limit = HOLD_SLACK + Math.abs(along) / BRAKE_GAIN;
+				double limit = HOLD_SLACK + stopping * Math.abs(along);
 				double held = Math.max(-limit, Math.min(limit, e));
 				if (held != e) {
 					hold.target.fma(e - held, axes[i]);
 				}
-				a = -2.0 * BRAKE_GAIN * along - BRAKE_GAIN * BRAKE_GAIN * held;
-			} else if (hover) {
-				a = -BRAKE_GAIN * along;
+				b = -BRAKE_GAIN * along;
+				a = b - BRAKE_GAIN * BRAKE_GAIN * (held + stopping * along);
 			} else {
-				a = -drag * along;
+				b = -(hover ? BRAKE_GAIN : drag) * along;
+				a = b;
 			}
 			accel.fma(a, axes[i]);
+			plain.fma(b, axes[i]);
 		}
+		double maxAccel = 3.0 * p.thrustAcceleration() + GRAVITY;
 		if (hover) {
 			accel.y += GRAVITY;
 		}
-		double maxAccel = 3.0 * p.thrustAcceleration() + GRAVITY;
 		if (accel.length() > maxAccel) {
 			accel.normalize(maxAccel);
+		}
+		if (error != null) {
+			// Under the plain controller alone the place where the vessel will stop changes by this much: the point goes along.
+			plain.y += GRAVITY;
+			if (plain.length() > maxAccel) {
+				plain.normalize(maxAccel);
+			}
+			plain.y -= GRAVITY;
+			hold.target.fma(step.seconds(), velocity).fma(step.seconds() / BRAKE_GAIN, plain);
 		}
 		Vector3d force = accel.mul(mass);
 
@@ -222,11 +299,13 @@ public final class VesselController {
 			target.fma(p.levelStrength(), correction);
 		}
 		Vector3d alpha = new Vector3d(target).sub(angularVelocity).mul(RATE_GAIN);
+		Vector3d plainAlpha = null;
 		if (hold != null) {
 			if (!hover || level) {
 				hold.attitudeValid = false;
 			} else {
-				holdAttitude(hold, rotation, angularVelocity, new Vector3d[] {r, u, f}, new double[] {pitch, yaw, roll}, alpha);
+				plainAlpha = new Vector3d(alpha);
+				holdAttitude(hold, rotation, angularVelocity, new Vector3d[] {r, u, f}, new double[] {pitch, yaw, roll}, alpha, step.stoppingTime(RATE_GAIN));
 			}
 		}
 		double maxAlpha = 2.0 * p.angularAcceleration() + p.levelStrength();
@@ -241,20 +320,25 @@ public final class VesselController {
 		);
 		Matrix3d worldInertia = new Matrix3d(rot).mul(inertia).mul(new Matrix3d(rot).transpose());
 		Vector3d torque = worldInertia.transform(alpha);
+		if (plainAlpha != null) {
+			if (plainAlpha.length() > maxAlpha) {
+				plainAlpha.normalize(maxAlpha);
+			}
+			turnHeldAttitude(hold, rotation, angularVelocity, worldInertia.transform(plainAlpha), inertia, step);
+		}
 		return new Command(force, torque);
 	}
 
 	/**
-	 * The attitude hold of a hovering vessel with level off (see {@link Hold}): about every idle axis, replaces the
-	 * rate brake's part of {@code alpha} by the hold's, and lets the held attitude follow about every axis with input.
+	 * The attitude hold of a hovering vessel with level off (see {@link Hold}): about every idle axis, adds the hold's
+	 * part to the rate brake's {@code alpha}, and lets go of the held attitude about every axis with input.
+	 *
+	 * @param stopping the rate brake's stopping time
 	 */
-	private static void holdAttitude(Hold hold, Quaterniond rotation, Vector3d angularVelocity, Vector3d[] axes, double[] inputs, Vector3d alpha) {
+	private static void holdAttitude(Hold hold, Quaterniond rotation, Vector3d angularVelocity, Vector3d[] axes, double[] inputs, Vector3d alpha,
+		double stopping) {
 		if (!hold.attitudeValid) {
-			double rate = angularVelocity.length();
-			hold.attitude.set(rotation);
-			if (rate > 1.0e-9) {
-				hold.attitude.premul(new Quaterniond().rotationAxis(rate / RATE_GAIN, angularVelocity.x / rate, angularVelocity.y / rate, angularVelocity.z / rate));
-			}
+			hold.attitude.set(restAttitude(rotation, angularVelocity, stopping));
 			hold.attitudeValid = true;
 		}
 		// The rotation from the held attitude to the current one, as a world-space rotation vector (axis times angle).
@@ -272,17 +356,54 @@ public final class VesselController {
 			double e = error.dot(axes[i]);
 			double held;
 			if (inputs[i] != 0) {
-				held = -rate / RATE_GAIN;
+				held = -stopping * rate;
 			} else {
-				double limit = ATTITUDE_SLACK + Math.abs(rate) / RATE_GAIN;
+				double limit = ATTITUDE_SLACK + stopping * Math.abs(rate);
 				held = Math.max(-limit, Math.min(limit, e));
-				// in place of the rate brake -k w about this axis
-				alpha.fma(-RATE_GAIN * rate - RATE_GAIN * RATE_GAIN * held, axes[i]);
+				alpha.fma(-RATE_GAIN * RATE_GAIN * (held + stopping * rate), axes[i]);
 			}
 			if (held != e) {
 				hold.attitude.premul(new Quaterniond().rotationAxis(e - held, axes[i].x, axes[i].y, axes[i].z));
 			}
 		}
 		hold.attitude.normalize();
+	}
+
+	/** The attitude the rate brake leaves a vessel in that has this attitude and turn rate now. */
+	private static Quaterniond restAttitude(Quaterniond rotation, Vector3d angularVelocity, double stopping) {
+		Quaterniond rest = new Quaterniond(rotation);
+		double rate = angularVelocity.length();
+		if (rate > 1.0e-12) {
+			rest.premul(new Quaterniond().rotationAxis(rate * stopping, angularVelocity.x / rate, angularVelocity.y / rate, angularVelocity.z / rate));
+		}
+		return rest;
+	}
+
+	/**
+	 * Turns the held attitude as the plain rate controller's torque turns the attitude the vessel will come to rest
+	 * in during this step, so that the hold takes none of that turning for a push. Steps as the engine does: the
+	 * torque stays as it is in the world while the vessel, and its inertia with it, turns through the parts of the
+	 * step.
+	 */
+	private static void turnHeldAttitude(Hold hold, Quaterniond rotation, Vector3d angularVelocity, Vector3d plainTorque, Matrix3d inertiaLocal, Step step) {
+		if (!(inertiaLocal.determinant() > 0)) {
+			return;
+		}
+		double stopping = step.stoppingTime(RATE_GAIN);
+		Quaterniond before = restAttitude(rotation, angularVelocity, stopping);
+		Matrix3d inverse = new Matrix3d(inertiaLocal).invert();
+		Quaterniond q = new Quaterniond(rotation);
+		Vector3d w = new Vector3d(angularVelocity);
+		Vector3d a = new Vector3d();
+		double part = step.seconds() / step.substeps();
+		for (int s = 0; s < step.substeps(); s++) {
+			q.transform(inverse.transform(q.transformInverse(plainTorque, a)));
+			w.fma(part, a);
+			double rate = w.length();
+			if (rate * part > 1.0e-12) {
+				q.premul(new Quaterniond().rotationAxis(rate * part, w.x / rate, w.y / rate, w.z / rate)).normalize();
+			}
+		}
+		hold.attitude.premul(restAttitude(q, w, stopping).mul(before.conjugate())).normalize();
 	}
 }

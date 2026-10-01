@@ -26,12 +26,16 @@ public final class ClientVessels {
 	 * Vessels that are gone on the server (disassembled or removed) and still drawn. The blocks of a disassembled
 	 * vessel arrive as world blocks in the same tick, but the terrain renderer shows them a little later (it rebuilds
 	 * the sections off the render thread); without this the ship blinked out for about two ticks. The vessel's picture
-	 * is kept until the terrain renderer has nothing left to build, at least {@link #GONE_MIN_TICKS} and at most
+	 * is kept until the terrain renderer has had nothing waiting for {@link #GONE_QUIET_TICKS} ticks, at most
 	 * {@link #GONE_MAX_TICKS} ticks; the server keeps the vessel's entity, which the picture is drawn with, that long.
 	 */
 	private static final Long2ObjectMap<ClientVessel> GONE = new Long2ObjectLinkedOpenHashMap<>();
-	/** Ticks a gone vessel is drawn at least: the terrain renderer only starts on the new blocks in the next frames. */
-	static final int GONE_MIN_TICKS = 2;
+	/**
+	 * Ticks without anything waiting in the terrain renderer before a gone vessel's picture goes. What the renderer
+	 * reports is its queue: it starts on the new blocks only in the next frame, and sections being built or waiting
+	 * to be uploaded are not in it, so one empty answer does not mean the blocks are on the screen.
+	 */
+	static final int GONE_QUIET_TICKS = 2;
 	static final int GONE_MAX_TICKS = dev.timstewart.slipway.vessel.VesselManager.RETIRED_ENTITY_TICKS;
 	/** Turned off by a test to measure the blink this prevents. */
 	public static boolean keepGoneVessels = true;
@@ -70,8 +74,13 @@ public final class ClientVessels {
 
 	/** Whether the terrain has taken over from a gone vessel's picture (asked every frame, so both are never drawn for long). */
 	private static boolean goneLongEnough(ClientVessel vessel) {
-		long age = clientTicks - vessel.goneAtTick;
-		return age >= GONE_MAX_TICKS || age >= GONE_MIN_TICKS && TerrainProgress.complete(Minecraft.getInstance());
+		if (clientTicks - vessel.goneAtTick >= GONE_MAX_TICKS) {
+			return true;
+		}
+		if (!TerrainProgress.complete(Minecraft.getInstance())) {
+			vessel.terrainBusyAtTick = clientTicks;
+		}
+		return clientTicks - vessel.terrainBusyAtTick >= GONE_QUIET_TICKS;
 	}
 
 	@Nullable

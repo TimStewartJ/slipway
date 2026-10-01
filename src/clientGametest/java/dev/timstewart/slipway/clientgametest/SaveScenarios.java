@@ -14,7 +14,9 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * save-reload: a moving, turned vessel full of blocks and block entities is saved by quitting the world and loaded
  * by reopening it. What loads is exactly what was saved (pose, velocities, modes, block count), the physics body
- * resumes with the saved velocity, and every block and block-entity value is still on the vessel.
+ * resumes with the saved velocity, and every block and block-entity value is still on the vessel. A second, small
+ * vessel that begins at its helm is drawn lit on every side after loading (its west and north faces lie on the edge
+ * of its plot columns and are lit by the columns around, which load after the vessel's own).
  */
 final class SaveScenarios {
 	private SaveScenarios() {
@@ -24,8 +26,18 @@ final class SaveScenarios {
 		Lifecycle.install();
 		BlockPos helm = new BlockPos(0, Game.GROUND_Y + 25, 40);
 		Map<BlockPos, BlockState> spec = Ships.mixedShip();
+		// Behind the ship and to the side: the ship flies off towards +z.
+		BlockPos crateHelm = helm.offset(-20, 0, -16);
+		Map<BlockPos, BlockState> crateSpec = new java.util.LinkedHashMap<>();
+		for (int x = 0; x <= 1; x++) {
+			for (int z = 0; z <= 1; z++) {
+				crateSpec.put(new BlockPos(x, -1, z), net.minecraft.world.level.block.Blocks.OAK_PLANKS.defaultBlockState());
+			}
+		}
+		crateSpec.put(BlockPos.ZERO, Ships.helm(net.minecraft.core.Direction.NORTH));
 		TestWorldSave save;
 		long id;
+		long crate;
 		Map<BlockPos, CompoundTag> data;
 		VesselRecord record;
 		try (TestSingleplayerContext sp = Game.creativeWorld(ctx)) {
@@ -37,9 +49,18 @@ final class SaveScenarios {
 			});
 			record = server.computeOnServer(s -> Ships.assemble(s.overworld(), helm));
 			id = record.id;
+			crate = server.computeOnServer(s -> {
+				Ships.build(s.overworld(), crateHelm, crateSpec);
+				return Ships.assemble(s.overworld(), crateHelm).id;
+			});
 			data = server.computeOnServer(s -> Ships.plotBlockEntityData(s.overworld(), record, spec.keySet()));
 			Check.equal("block entities on the vessel", data.size(), 3);
-			Game.teleport(ctx, sp, 14.5, helm.getY() + 3, 27.5, 45f, 10f);
+			// The player stands by the crate and looks at it, and is there again when the world is reopened: a vessel
+			// is meshed only while it is in view, and this one is to be meshed from the first frame after loading.
+			LooseScenarios.watch(ctx, sp, new net.minecraft.world.phys.Vec3(crateHelm.getX() + 5.5, crateHelm.getY() + 2, crateHelm.getZ() + 5.5),
+				net.minecraft.world.phys.Vec3.atCenterOf(crateHelm));
+			Game.waitClientComplete(ctx, crate, 400);
+			Check.atLeast("sky light of the crate's darkest side or top face before quitting", Game.darkestOuterSkyLight(ctx, crate), 14);
 			// Hover and level off: after loading, only gravity acts on the vessel, so its horizontal and angular
 			// velocity must carry on from exactly what was saved.
 			server.runCommand("slipway mode " + id + " level false");
@@ -96,7 +117,17 @@ final class SaveScenarios {
 			List<String> blocks = server.computeOnServer(s -> Ships.plotMismatches(s.overworld(), record, spec));
 			Check.that(blocks.isEmpty(), "blocks changed across save and reload: %s", blocks);
 			Check.equal("block entities after reload", server.computeOnServer(s -> Ships.plotBlockEntityData(s.overworld(), record, spec.keySet())), data);
+			// The crate hovers where it was. Loaded from the save, its own plot column is there before the columns
+			// around it; once those are, none of its sides may be dark.
+			Game.waitClientReady(ctx, crate, 400);
+			int waited = 0;
+			while (Game.darkestOuterSkyLight(ctx, crate) < 14) {
+				Check.that(waited++ < 400, "the crate loaded from the save still has side or top faces with sky light %d (-1: no mesh)", Game.darkestOuterSkyLight(ctx, crate));
+				ctx.waitTick();
+			}
+			r.metric("crate.ticksUntilEverySideIsLit", waited);
 			ctx.waitTicks(10);
+			Check.atLeast("sky light of the crate's darkest side or top face ten ticks later", Game.darkestOuterSkyLight(ctx, crate), 14);
 			Shots.take(ctx, r, "02-after-reload");
 		}
 	}

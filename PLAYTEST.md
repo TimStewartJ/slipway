@@ -11,7 +11,8 @@ on other vessels.
 - Prism instance **Slipway - Minecraft 26.3 (Fabric)** (`Slipway-MC-26.3-Fabric`): Minecraft 26.3, Fabric loader
   0.19.5, Fabric API, Sodium, Iris (Bliss shaders on), Distant Horizons, Slipway. Your Tellus 26.3 options and key
   layout were copied over. Distant Horizons here is `3.3.4-tellus-fork.7`: official Distant Horizons 3.3.4 plus the
-  Tellus patches and the fixes from the leak investigation (local branch `rebase-3.3.4` in `E:\distant-horizons`).
+  Tellus patches and the fixes from the leak investigation, published at
+  https://github.com/TimStewartJ/distant-horizons/releases/tag/3.3.4-tellus-fork.7.
   Your Tellus instances (26.3 and 26.2) have the same build; the 26.2 one needed its Fabric loader raised from 0.19.3
   to 0.19.5 for it.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
@@ -26,13 +27,16 @@ on other vessels.
   the ground or on another vessel's deck, rides along and slides off when that vessel rolls. Hover and level keep
   their settings for when you turn loose off again. The HUD shows "Loose ON".
 - **Hover holds.** A hovering ship now stays where it stopped, also with cargo on it or with something leaning on
-  it, and with level off it keeps its attitude under an off-centre load. Flying an empty ship should feel as before;
-  say so if it does not.
+  it, and with level off it keeps its attitude under an off-centre load. A ship that nothing pushes flies, turns and
+  stops exactly as in 0.1.1, wherever its helm stands (tests fly it beside a reference without the hold); say so if
+  yours feels different.
 - **Chests open their lids**, and stay open while you look inside.
 - **Pistons move visibly** (also sticky pistons and slime blocks), while flying too.
 - **Effects are at the ship**: bone meal's sparkle on crops, a dispenser's smoke, note block notes, lever dust, the
   chips and the sound of mining a block of the ship.
 - **No blink when disassembling**: the ship stays on screen until its blocks are there.
+- **No black sides**: small builds that begin at their helm (the helm on a corner or an edge) had black west and
+  north sides; they are lit now.
 
 Fixes from 0.1.1 are below.
 
@@ -141,7 +145,8 @@ you remove, not touching the ground.
 - Vessel blocks are lit by their own storage area, which is open sky: without shaders, a ship inside a cave or under a
   roof still looks sky-lit (day and night still apply). With shaders, the shader's shadows darken it as expected.
 - The Distant Horizons view of a far vessel is one coloured box per visible block, not the real models.
-- Very large ships: the cap is 4,096 blocks (configurable in `config/slipway.json`); larger ships cost more.
+- Very large ships: the cap is 4,096 blocks and 512 blocks across (configurable in `config/slipway.json`); larger
+  ships cost more. A ship cannot be built or pushed by pistons beyond 512 blocks across after assembly either.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
 - Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
 - Loose vessels do not float (they fall through water) and are not pushed by players or mobs. A deck holds cargo by
