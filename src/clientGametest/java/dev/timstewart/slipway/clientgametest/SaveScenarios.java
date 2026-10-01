@@ -1,5 +1,7 @@
 package dev.timstewart.slipway.clientgametest;
 
+import dev.timstewart.slipway.client.ClientVessel;
+import dev.timstewart.slipway.client.ClientVessels;
 import dev.timstewart.slipway.vessel.VesselRecord;
 import java.util.List;
 import java.util.Map;
@@ -117,17 +119,65 @@ final class SaveScenarios {
 			List<String> blocks = server.computeOnServer(s -> Ships.plotMismatches(s.overworld(), record, spec));
 			Check.that(blocks.isEmpty(), "blocks changed across save and reload: %s", blocks);
 			Check.equal("block entities after reload", server.computeOnServer(s -> Ships.plotBlockEntityData(s.overworld(), record, spec.keySet())), data);
-			// The crate hovers where it was. Loaded from the save, its own plot column is there before the columns
-			// around it; once those are, none of its sides may be dark.
+			// The crate hovers where it was. Loaded from the save, its own plot column can reach the client before the
+			// columns around it: the server sends a column once the columns next to it are loaded too, and the join has
+			// just sent some hundred chunks, after which vanilla's chunk sender waits before its next batch. Until the
+			// columns around are there, the crate's west and north sides are lit by nothing: bright at first, while the
+			// client has applied no light data for the plot at all (it applies what it was sent a few chunks a frame),
+			// then black, then lit for good. A side that is lit therefore says nothing by itself. What must hold: within
+			// twenty seconds the client has every column and has applied all light it was sent, no side is dark then,
+			// and it stays so.
 			Game.waitClientReady(ctx, crate, 400);
-			int waited = 0;
-			while (Game.darkestOuterSkyLight(ctx, crate) < 14) {
-				Check.that(waited++ < 400, "the crate loaded from the save still has side or top faces with sky light %d (-1: no mesh)", Game.darkestOuterSkyLight(ctx, crate));
+			List<Long> columns = server.computeOnServer(s -> dev.timstewart.slipway.vessel.VesselManager.plotChunks(Game.manager(s).registry().get(crate), 1));
+			Check.equal("plot columns the crate's viewers get", columns.size(), 9);
+			int ticks = 0;
+			int dark = 0;
+			int settled = 0;
+			while (settled < 20) {
+				int light = Game.darkestOuterSkyLight(ctx, crate);
+				boolean arrived = ctx.computeOnClient(mc -> columns.stream().allMatch(c -> mc.level.getChunkSource().getChunk(net.minecraft.world.level.ChunkPos.getX(c),
+					net.minecraft.world.level.ChunkPos.getZ(c), net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) != null)) && Game.lightUpdatesQueued(ctx) == 0;
+				if (arrived) {
+					Check.that(settled == 0 || light >= 14, "the crate has side or top faces with sky light %d, %d ticks after every column and all light had arrived", light, settled);
+					settled = light >= 14 ? settled + 1 : 0;
+				} else {
+					settled = 0;
+				}
+				if (light >= 0 && light < 14) {
+					dark++;
+				}
+				if (ticks++ >= 400) {
+					// What the light is where the dark face looks, on both sides, and whether meshing again helps.
+					BlockPos anchor = server.computeOnServer(s -> Game.manager(s).registry().get(crate).anchor);
+					BlockPos west = anchor.offset(-1, -1, 0);
+					BlockPos north = anchor.offset(0, -1, -1);
+					String client = ctx.computeOnClient(mc -> {
+						ClientVessel v = ClientVessels.get(crate);
+						StringBuilder out = new StringBuilder("mesh west/east/north/south/up ");
+						for (net.minecraft.core.Direction side : new net.minecraft.core.Direction[] {net.minecraft.core.Direction.WEST, net.minecraft.core.Direction.EAST,
+							net.minecraft.core.Direction.NORTH, net.minecraft.core.Direction.SOUTH, net.minecraft.core.Direction.UP}) {
+							out.append(v.mesh.minSkyLight(side)).append(' ');
+						}
+						out.append("pending ").append(v.mesh.hasPendingWork());
+						for (BlockPos pos : new BlockPos[] {west, north}) {
+							net.minecraft.world.level.chunk.DataLayer layer = mc.level.getLightEngine().getLayerListener(net.minecraft.world.level.LightLayer.SKY)
+								.getDataLayerData(net.minecraft.core.SectionPos.of(pos));
+							out.append("; client sky light at ").append(pos.toShortString()).append(' ').append(mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos))
+								.append(" (layer ").append(layer == null ? "none" : layer.isEmpty() ? "empty" : "data").append(')');
+						}
+						v.mesh.markAllDirty();
+						return out.toString();
+					});
+					String onServer = server.computeOnServer(s -> "server sky light west " + s.overworld().getBrightness(net.minecraft.world.level.LightLayer.SKY, west)
+						+ ", north " + s.overworld().getBrightness(net.minecraft.world.level.LightLayer.SKY, north));
+					ctx.waitTicks(5);
+					throw new AssertionError(String.format(java.util.Locale.ROOT, "400 ticks after loading, the crate's darkest side or top face has sky light %d (-1: no mesh); "
+						+ "every column and all light arrived: %s; %s; %s; meshed again: %d", light, arrived, client, onServer, Game.darkestOuterSkyLight(ctx, crate)));
+				}
 				ctx.waitTick();
 			}
-			r.metric("crate.ticksUntilEverySideIsLit", waited);
-			ctx.waitTicks(10);
-			Check.atLeast("sky light of the crate's darkest side or top face ten ticks later", Game.darkestOuterSkyLight(ctx, crate), 14);
+			r.metric("crate.ticksUntilEverySideStaysLit", ticks - settled);
+			r.metric("crate.darkTicksAfterLoading", dark);
 			Shots.take(ctx, r, "02-after-reload");
 		}
 	}

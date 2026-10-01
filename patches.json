@@ -12,6 +12,16 @@
 			"tests": ["dev.timstewart.slipway.gametest.AssemblyGameTests#reservedChunksGenerateEmptyVoid"]
 		},
 		{
+			"mixin": "dev.timstewart.slipway.mixin.SkyLightEngineMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.level.lighting.SkyLightEngine",
+			"methods": ["setLightEnabled"],
+			"feature": "reserved-region storage",
+			"reason": "The sides of a vessel that lie on a chunk border of its plot are lit by the plot column next to them, which holds no block. When a chunk column's sky light is switched on, vanilla fills the all-zero light data already there for it with full sky light, down to the lowest section that is open to the sky; for a column without any block it computes that section from Integer.MIN_VALUE - 1, which overflows, and fills nothing. Such data is there when the vessel's own column came from the save first. The zeros stay on the server and are sent to every client: black sides until the vessel is loaded again. For plot columns the value is taken one higher, so every section is filled.",
+			"tests": ["dev.timstewart.slipway.gametest.AssemblyGameTests#anEmptyPlotColumnGetsItsSkyLightWhenItsLightComesOnLast", "clientGametest:save-reload"]
+		},
+		{
 			"mixin": "dev.timstewart.slipway.mixin.ChunkMapMixin",
 			"side": "server",
 			"targetMod": "minecraft",

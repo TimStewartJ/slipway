@@ -94,7 +94,9 @@ moving vessel".
   out, and a piston does not push one there. A block that gets there another way (a bucket of water, a tree growing,
   a command) is not part of the vessel: it is not put into the world when the vessel is disassembled, and it is
   deleted with the vessel.
-- Right after assembly the vessel can be drawn incomplete for a tick or two.
+- Right after assembly the vessel can be drawn incomplete for a tick or two. Right after joining a world, a side of a
+  vessel that lies on a chunk border of its storage area (often the west or north side of a small build) can be dark
+  for a moment, until the chunk columns around it have arrived; this was not seen in forty world loads in testing.
 - Loose vessels: no buoyancy (a vessel falls through water); players and mobs do not push them; a deck passes on at
   most 0.6 g, so cargo slides when the carrier stops hard or turns sharply and tall thin pieces fall over; a piece
   sliding fast across a deck can catch on a seam of the deck's collision boxes and tumble.

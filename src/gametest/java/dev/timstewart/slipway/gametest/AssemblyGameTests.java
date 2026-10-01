@@ -14,17 +14,22 @@ import dev.timstewart.slipway.vessel.VesselRegion;
 import dev.timstewart.slipway.vessel.VesselRegistry;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ThreadedLevelLightEngine;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -377,6 +382,69 @@ public class AssemblyGameTests {
 		check(helper, biome.is(Biomes.THE_VOID), "reserved biome is " + biome.getRegisteredName());
 		check(helper, level.registryAccess().lookupOrThrow(Registries.BIOME).get(Biomes.THE_VOID).isPresent(), "the void biome exists");
 		helper.succeed();
+	}
+
+	/**
+	 * The plot columns around a vessel hold no block, and the sides of a vessel that lie on a chunk border are lit by
+	 * them. When such a column's light comes on after the vessel's own column has made room for light data beside
+	 * its blocks (the order in which chunks come from a save is not fixed), the game fills that room with sky light.
+	 * For a column without any block vanilla's own code did not (SkyLightEngineMixin): the sides stayed black.
+	 */
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void anEmptyPlotColumnGetsItsSkyLightWhenItsLightComesOnLast(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		// A plot that no test vessel gets.
+		BlockPos edge = VesselRegion.anchor(VesselRegion.MAX_PLOTS - 11, 64);
+		BlockPos beside = edge.west();
+		ChunkPos own = new ChunkPos(edge.getX() >> 4, edge.getZ() >> 4);
+		ChunkPos west = new ChunkPos(beside.getX() >> 4, beside.getZ() >> 4);
+		check(helper, west.x() == own.x() - 1, "the plot's anchor is not on the west edge of its chunk column");
+		// Both columns stay loaded for the test (the runner releases forced chunks when the batch ends): light data
+		// that is dropped with an unloaded chunk reads as full sky light too.
+		level.setChunkForced(own.x(), own.z(), true);
+		level.setChunkForced(west.x(), west.z(), true);
+		level.getChunk(own.x(), own.z());
+		level.getChunk(west.x(), west.z());
+		ThreadedLevelLightEngine light = level.getChunkSource().getLightEngine();
+		SectionPos section = SectionPos.of(edge);
+		// A block on the edge of its column, with both columns lit as they are when a vessel is assembled.
+		level.setBlock(edge, Blocks.STONE.defaultBlockState(), 2);
+		CompletableFuture<?>[] done = {light.waitForPendingTasks(own.x(), own.z())};
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, done[0].isDone(), "the light engine is still at work"))
+			.thenExecute(() -> {
+				check(helper, level.getBrightness(LightLayer.SKY, beside) == 15, "beside the block the sky light is " + level.getBrightness(LightLayer.SKY, beside) + " before anything is unloaded");
+				// Both columns as they are once they have been unloaded: the column to the west without light, and no
+				// room for light data round the block's section.
+				light.setLightEnabled(west, false);
+				light.updateSectionStatus(section, true);
+				done[0] = light.waitForPendingTasks(own.x(), own.z());
+			})
+			.thenWaitUntil(() -> check(helper, done[0].isDone(), "the light engine is still at work"))
+			.thenExecute(() -> {
+				// The block's column comes back first, as a chunk from a save does: its section is announced, nothing else.
+				light.updateSectionStatus(section, false);
+				done[0] = light.waitForPendingTasks(own.x(), own.z());
+			})
+			.thenWaitUntil(() -> check(helper, done[0].isDone(), "the light engine is still at work"))
+			.thenExecute(() -> {
+				int sky = level.getBrightness(LightLayer.SKY, beside);
+				check(helper, sky == 0 && light.getLayerListener(LightLayer.SKY).getDataLayerData(SectionPos.of(beside)) != null,
+					"the test did not get the place beside the block into the dark: sky light " + sky);
+				// Then the column to the west.
+				light.setLightEnabled(west, true);
+				done[0] = light.waitForPendingTasks(west.x(), west.z());
+			})
+			.thenWaitUntil(() -> check(helper, done[0].isDone(), "the light engine is still at work"))
+			.thenIdle(2)
+			.thenExecute(() -> {
+				int sky = level.getBrightness(LightLayer.SKY, beside);
+				boolean stored = light.getLayerListener(LightLayer.SKY).getDataLayerData(SectionPos.of(beside)) != null;
+				level.setBlock(edge, Blocks.AIR.defaultBlockState(), 2);
+				check(helper, stored, "the light data beside the block is gone: the columns did not stay loaded");
+				check(helper, sky == 15, "beside the block, in the column without blocks, the sky light is " + sky + " after that column's light came on");
+			})
+			.thenSucceed();
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 20)

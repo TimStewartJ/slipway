@@ -228,6 +228,22 @@ final class Game {
 		});
 	}
 
+	/**
+	 * How many chunks' light the client has received and not yet applied (it applies a share of them every frame;
+	 * until a plot column's turn comes, the faces beside it are lit by whatever was there before).
+	 */
+	static int lightUpdatesQueued(ClientGameTestContext ctx) {
+		return ctx.computeOnClient(mc -> {
+			try {
+				java.lang.reflect.Field queue = net.minecraft.client.multiplayer.ClientLevel.class.getDeclaredField("lightUpdateQueue");
+				queue.setAccessible(true);
+				return ((java.util.Collection<?>)queue.get(mc.level)).size();
+			} catch (ReflectiveOperationException e) {
+				throw new AssertionError("ClientLevel.lightUpdateQueue cannot be read", e);
+			}
+		});
+	}
+
 	/** Waits until the vessel's mesh has been built (it must be in view). */
 	static void waitClientMesh(ClientGameTestContext ctx, long id, int timeout) {
 		ctx.waitFor(mc -> {

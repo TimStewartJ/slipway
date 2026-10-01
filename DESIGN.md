@@ -344,12 +344,56 @@ affected), a build at the corner with glowstone and a chest, and a row with a pi
 
 And by `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten pieces,
 which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by `save-reload` (a
-crate that begins at its helm and is in view when the world is reopened: 15 before quitting and after loading; 0
-without the ring), by a picture in `assemble-mixed` (the wool crate seen from the north-west, where the two sides
+crate that begins at its helm and is in view when the world is reopened: 15 before quitting, and after loading 15
+for good once the client has the columns round it and their light, see below; 0 without the ring), by a picture in
+`assemble-mixed` (the wool crate seen from the north-west, where the two sides
 fill the view: assembled, it differs from the blocks it was built from by less than 0.00001 mean squared
 difference, limit 0.001; with the sides black it was 0.0069) and by the server GameTests
 `viewersHaveTheColumnsAroundAVesselToo` and `columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`. Not
 measured: the moving blocks of a piston's stroke at a chunk border (they take their light as the mesh does).
+
+**The ring's sky light after loading (0.1.2).** A release build failed in `save-reload`: the crate was lit when it
+first showed after loading and had a black west side ten ticks later. Two things were behind it.
+
+*A fault that stayed.* With the check rewritten to wait (below), two of six runs ended with the west side black for
+good: every column on the client, all light applied, and sky light 0 beside the crate on the client and on the
+server. The server had it wrong. Light data for a section exists wherever a section with blocks is next to it, in
+the column next door too. When a chunk with blocks comes from a save before the column beside it, that data is made
+for the neighbour while the neighbour's light is still off, as zeros. Vanilla mends this in two ways: with the light
+saved in the neighbour's chunk, and when the neighbour's light is switched on (`SkyLightEngine.setLightEnabled`
+fills its all-zero data with 15, from the top down to the lowest section that is wholly open to the sky). Neither
+holds here. The saved light is not always there: a chunk is saved when it is unloaded, and if the vessel's column
+went first, the light data round its blocks, the neighbour columns' share included, was already dropped. And the
+fill does nothing for a column without any block, which is what every column round a vessel is: the lowest open
+block of such a column is `Integer.MIN_VALUE`, vanilla subtracts one, the number overflows to the largest there is,
+and the section to stop at comes out far above the world. So with the saved light missing and the vessel's column
+first, the zeros stayed, went to every client as that column's light, and the vessel's sides towards it were black
+until the vessel was loaded again in another order. `SkyLightEngineMixin` takes the value one higher for plot
+columns, so the subtraction gives minus infinity and every section is filled, as vanilla's code does for a column
+that has a block; columns outside the plots are untouched. Server GameTest
+`anEmptyPlotColumnGetsItsSkyLightWhenItsLightComesOnLast` goes through the sequence with the light engine's own
+calls (a block on the edge of a plot column; the column beside it without light; the block's section announced; the
+column's light switched on) and reads the sky light beside the block: 0 without the mixin (two runs of two), 15 with
+it. `save-reload` then passed in ten runs of ten.
+
+*A moment that passes.* The client applies the light it was sent a share at a time (`ClientLevel.pollLightUpdates`:
+a tenth of what waits, at least ten chunks, each frame), and after a join some hundred chunks wait. A vessel's mesh
+is built as soon as its blocks are there. If its own column reaches the client before the columns round it, its
+sides on the chunk border are lit by nothing: bright at first (with no light data for the plot at all, the client
+reads open sky), black once the own column's light has been applied, and lit for good when the columns round it
+come. With those columns held back 60 ticks on the server (a hook put in for the measurement, not in the code),
+three reloads gave: bright at tick 0, black from tick 5 or 14 on, lit one or two ticks after the columns came.
+Without holding them back the nine columns came together in every reload looked at: no dark tick in forty, and in
+the ten runs after the fix every side was lit for good 9 to 26 ticks after the crate showed. It can still happen:
+the server sends a column once the columns next to it are loaded too, so a vessel's own column can be ready before
+its ring, and after a join vanilla's chunk sender waits before its next batch. Holding a vessel back until its ring
+can go with it would close that; it is not done, because it would make every vessel appear later after a load.
+
+The old check in `save-reload` waited for the first lit reading and looked again ten ticks later, which takes the
+bright-by-nothing state for the lit one. It now waits until the client has all nine columns and has applied all the
+light it was sent (`Game.lightUpdatesQueued`), requires every side to be lit from then on for twenty ticks, all
+within 400 ticks of loading, and on failure reports the light per side of the mesh, the light data beside the crate
+on the client and on the server, and whether meshing again changes it.
 
 ### Client
 
@@ -891,7 +935,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 53 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 54 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

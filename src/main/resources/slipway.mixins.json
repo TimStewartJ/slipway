@@ -15,6 +15,7 @@
 		"PlayerMixin",
 		"ServerGamePacketListenerImplMixin",
 		"ServerLevelMixin",
+		"SkyLightEngineMixin",
 		"UseOnContextMixin"
 	],
 	"injectors": {

@@ -32,7 +32,8 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   a moment before).
 - **No black sides.** Sides of a vessel that lie on a chunk border of its storage area were drawn black, in any
   light: most often the west and north sides of a small build that begins at its helm (a crate, a keg, a raft with
-  the helm on its edge). In 0.1.0 and 0.1.1.
+  the helm on its edge). In 0.1.0 and 0.1.1. Right after joining a world such a side can still be dark for a moment,
+  until the chunk columns around the vessel's storage area have arrived.
 - Placing a block outside a vessel's bounds no longer sends the whole vessel to its viewers again.
 - **A vessel stays within the largest size after assembly too** (`maxVesselSpan`, 512 blocks across unless changed).
   A piston does not push a block further out (it does not move, as against obsidian), and a block cannot be placed
