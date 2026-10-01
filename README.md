@@ -122,6 +122,8 @@ gradlew generatePatches         # regenerates PATCHES.md from patches.json after
 ```
 
 The integration mods are pinned in `tools/devmods.json`. `-PslipwayDevmods=<dir>` reads them from another folder.
+Building the same commit again gives the same jar, byte for byte (with the same JDK and the same line endings in the
+checkout).
 
 ## Testing
 

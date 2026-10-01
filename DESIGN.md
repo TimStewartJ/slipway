@@ -31,6 +31,19 @@ x86_64 and aarch64, Linux x86_64 and aarch64, and macOS x86_64 and aarch64 (also
 bundled). The build copies the six ReleaseDp libraries into the mod jar under `slipway-natives/<os>-<arch>/` with a
 SHA-256 manifest (`natives.properties`); the JVM library is nested with Loom `include`. The mod jar is 9.5 MB.
 
+**The jar is the same every time it is built (0.1.2).** Two things made two builds of one commit differ.
+`natives.properties` was written with `Properties.store`, which adds the time of the build; the build now writes the
+file itself (keys in order, `\n` line ends, no date; the loader reads it as before). And Loom nests the jolt-jni jar
+through Java's zip file system, which stamps the two entries it adds (`META-INF/jars/` and the jar in it) with the
+time of the build, as a DOS time and in an NTFS time field. Loom rewrites a remapped jar with fixed times afterwards
+but not the jar of a game that is not remapped, so `build.gradle` calls that rewrite at the end of the `jar` task
+(`ZipReprocessorUtil.reprocessZip`; not public Loom API, so a Loom update may need that one block changed or
+removed). Checked: `gradlew clean assemble` twice, and once more with the build's JVM in another time zone, gives the
+same jar and the same sources jar byte for byte; the 187 entries have the contents they had before the rewrite; the
+packaged-jar check runs on that file. The jar still depends on the JDK that compiles it and on the line endings of
+the checkout (`* text=auto`: the JSON resources are CRLF in a Windows checkout with `core.autocrlf=true`, as the
+release build's is, and LF elsewhere). A build on another system has not been compared.
+
 At start-up `JoltRuntime` extracts the library for the running platform into
 `<gameDir>/.slipway/natives/<platform>-<hash>/`, verifies its hash, and loads it through jolt-jni's own
 `NativeLibraryLoader.loadLibrary(path)`. Calling `System.load` from jolt-jni's class binds the library to the class

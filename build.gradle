@@ -200,7 +200,9 @@ dependencies {
 }
 
 // Copies each platform's native library to <folder>/<os>-<arch>/ and writes a SHA-256 manifest the runtime
-// loader verifies after extraction.
+// loader verifies after extraction. The manifest is a properties file written here line by line: keys in order,
+// \n line ends, no date. (Properties.store adds the time of the build and the build machine's line ends, which made
+// two builds of one commit differ in this one jar entry.)
 def registerNativeExtraction = { String taskName, Configuration natives, String folder, String flavor ->
 	def outputDir = layout.buildDirectory.dir("generated/${taskName}")
 	return tasks.register(taskName) {
@@ -211,7 +213,7 @@ def registerNativeExtraction = { String taskName, Configuration natives, String 
 			project.delete(root)
 			def target = new File(root, folder)
 			target.mkdirs()
-			def manifest = new Properties()
+			def manifest = new TreeMap<String, String>()
 			natives.resolvedConfiguration.resolvedArtifacts.each { artifact ->
 				def platform = joltNativePlatforms[artifact.moduleVersion.id.name.substring('jolt-jni-'.length())]
 				if (platform == null) {
@@ -227,11 +229,17 @@ def registerNativeExtraction = { String taskName, Configuration natives, String 
 				def copy = new File(dir, library.name)
 				copy.bytes = library.bytes
 				def digest = MessageDigest.getInstance('SHA-256').digest(copy.bytes).encodeHex().toString()
-				manifest.setProperty(platform, "${library.name} ${digest}".toString())
+				manifest[platform] = "${library.name} ${digest}".toString()
 			}
-			manifest.setProperty('version', project.jolt_jni_version)
-			manifest.setProperty('flavor', flavor)
-			new File(target, 'natives.properties').withWriter('UTF-8') { manifest.store(it, 'jolt-jni native libraries bundled by Slipway') }
+			manifest['version'] = project.jolt_jni_version.toString()
+			manifest['flavor'] = flavor
+			manifest.each { key, value ->
+				// nothing a properties file would need escaped: plain names, and values of printable ASCII without a backslash
+				if (!(key ==~ /[A-Za-z0-9_.-]+/) || !(value ==~ /[!-\[\]-~][ -\[\]-~]*/)) {
+					throw new GradleException("natives.properties: '${key}=${value}' would need escaping")
+				}
+			}
+			new File(target, 'natives.properties').setText('#jolt-jni native libraries bundled by Slipway\n' + manifest.collect { key, value -> "${key}=${value}\n" }.join(''), 'UTF-8')
 		}
 	}
 }
@@ -285,6 +293,19 @@ jar {
 	inputs.property 'archivesName', project.base.archivesName
 	from('LICENSE') { rename { "${it}_${inputs.properties.archivesName}" } }
 	from('NOTICE') { rename { "${it}_${inputs.properties.archivesName}" } }
+}
+
+// Two builds of one commit give the same jar. Gradle writes its entries with a fixed time; Loom then nests the
+// jolt-jni jar through Java's zip file system, which stamps the two entries it adds (META-INF/jars/ and the jar in
+// it) with the time of the build. Loom rewrites a remapped jar with fixed times afterwards, but not the jar of a game
+// that is not remapped, so that rewrite is called here. It is not public Loom API: should a Loom update break this
+// line, the block can go, and the jar is the same but for those times. (afterEvaluate: after the actions Loom adds.)
+afterEvaluate {
+	tasks.named('jar') {
+		doLast {
+			net.fabricmc.loom.util.ZipReprocessorUtil.reprocessZip(archiveFile.get().asFile.toPath(), true, false)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------------------------------------

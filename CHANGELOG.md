@@ -56,6 +56,11 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 0.1.0 and 0.1.1 worlds load. Vessels saved by 0.1.2 carry one more optional field (`loose`).
 
+### Build
+
+The jar is reproducible: building the same commit again gives the same file (with the same JDK and the same line
+endings in the checkout).
+
 ## 0.1.1 (2026-09-30)
 
 First public release. Gameplay as 0.1.0.
