@@ -110,6 +110,29 @@ class VesselRecordTest {
 	}
 
 	@Test
+	void aVesselGrowsUpToTheLargestSpanAndNoFurther() {
+		// Bounds x -3..4, y -1..5, z -7..2: 8, 7 and 10 blocks.
+		VesselRecord record = sample(1, 7);
+		assertTrue(record.fitsSpan(new BlockPos(8, 0, 0), 12), "twelve blocks from x -3 end at x 8");
+		assertFalse(record.fitsSpan(new BlockPos(9, 0, 0), 12), "x 9 would be the thirteenth block");
+		assertTrue(record.fitsSpan(new BlockPos(0, 0, -7), 10));
+		assertFalse(record.fitsSpan(new BlockPos(0, 0, -8), 10), "z already spans ten blocks");
+		assertFalse(record.fitsSpan(new BlockPos(0, 11, 0), 12), "the height counts too");
+		// A vessel larger than the limit (assembled under a larger one, or grown before 0.1.2): everything inside it
+		// stays usable, an axis under the limit may still grow up to it, and none grows past it.
+		assertTrue(record.fitsSpan(new BlockPos(4, 5, -7), 4));
+		assertTrue(record.fitsSpan(new BlockPos(0, 0, 0), 1));
+		assertFalse(record.fitsSpan(new BlockPos(5, 0, 0), 4));
+		assertTrue(record.fitsSpan(new BlockPos(0, 6, 0), 8), "y spans seven of eight blocks, and z, which is too long, does not grow");
+		assertFalse(record.fitsSpan(new BlockPos(0, 7, 0), 8));
+		// In the plot: the same, and never in the margin that keeps plots apart.
+		assertTrue(record.canTakeIn(record.anchor.offset(5, 0, 0), 512));
+		assertFalse(record.canTakeIn(record.anchor.offset(5, 0, 0), 8));
+		assertFalse(record.canTakeIn(record.anchor.offset(VesselRegion.PLOT_SIZE / 2 - VesselRegion.PLOT_MARGIN, 0, 0), VesselRegion.PLOT_SIZE), "the plot's margin");
+		assertTrue(record.canTakeIn(record.anchor.offset(VesselRegion.PLOT_SIZE / 2 - VesselRegion.PLOT_MARGIN - 1, 0, 0), VesselRegion.PLOT_SIZE));
+	}
+
+	@Test
 	void nonFiniteVelocitiesAreDiscarded() {
 		VesselRecord record = new VesselRecord(1, 0, VesselRegion.anchor(0, 64), BlockPos.ZERO, BlockPos.ZERO, BlockPos.ZERO, Direction.UP,
 			VesselPose.at(0, 64, 0), new Vec3(Double.NaN, 0, 0), new Vec3(0, Double.POSITIVE_INFINITY, 0), true, true, 1);

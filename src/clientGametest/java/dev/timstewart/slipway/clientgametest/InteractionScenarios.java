@@ -1,5 +1,6 @@
 package dev.timstewart.slipway.clientgametest;
 
+import dev.timstewart.slipway.config.SlipwayConfig;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.vessel.VesselRecord;
 import dev.timstewart.slipway.vessel.VesselRegion;
@@ -30,8 +31,9 @@ import net.minecraft.world.phys.Vec3;
 /**
  * interaction: on a vessel turned 15 degrees in yaw and 30 in pitch and roll, the player places blocks on the faces
  * it aims at (checked in vessel-local space, logs with the matching axis), places and mines in survival (item used,
- * drop in the world, none in the vessel's plot), opens the chest (its items shown), pulls the lever (lamp lit), opens
- * the door, and flips the lever twice while the vessel flies (lamp follows).
+ * drop in the world, none in the vessel's plot; a block where the vessel may not grow to is refused by the server
+ * and the client ends without the block and with its item back), opens the chest (its items shown), pulls the lever
+ * (lamp lit), opens the door, and flips the lever twice while the vessel flies (lamp follows).
  */
 final class InteractionScenarios {
 	private InteractionScenarios() {
@@ -135,6 +137,7 @@ final class InteractionScenarios {
 			Check.equal("item entities in the vessel's plot", inPlot, 0L);
 			Check.that(!dropsNear.isEmpty() || dropAfterMining == dropBeforeMining + 1,
 				"mining the vessel's stone neither dropped cobblestone where the block is in the world nor gave it to the player");
+			refusedBlock(ctx, server, record, id);
 			server.runCommand("gamemode creative @a");
 			ctx.waitFor(mc -> mc.player.getAbilities().instabuild, 20);
 
@@ -170,6 +173,42 @@ final class InteractionScenarios {
 			Check.equal("the player is still carried by the flying vessel", aboard.carrier(), id);
 			Shots.take(ctx, r, "04-flying-tilted");
 		}
+	}
+
+	/**
+	 * In survival: a block where the vessel may not grow to. The server refuses it; the client has placed it by itself
+	 * and taken the item from the stack, and must end with no block there and the item back.
+	 */
+	private static void refusedBlock(ClientGameTestContext ctx, TestServerContext server, VesselRecord record, long id) {
+		// The vessel is three blocks high (the deck, what stands on it, the upright log on a stone). With a largest
+		// span of three it cannot grow upwards. The player stands on the other stone and looks at the log's top.
+		BlockPos top = new BlockPos(1, 1, 0);
+		BlockPos refused = top.above();
+		Check.that(record.localMin.getY() == -1 && record.localMax.getY() == 1, "the vessel is not three blocks high: %s to %s", record.localMin, record.localMax);
+		DeckScenarios.placeRider(ctx, server, id, new Vec3(2.5, 1.3, 0.9));
+		select(ctx, 0);
+		SlipwayConfig configured = server.computeOnServer(s -> SlipwayConfig.get());
+		server.runOnServer(s -> {
+			SlipwayConfig small = configured.sanitized();
+			small.maxVesselSpan = 3;
+			SlipwayConfig.set(small);
+		});
+		try {
+			int before = server.computeOnServer(s -> Game.player(s).getInventory().countItem(Items.STONE));
+			Check.equal("stone the client shows before the refused block", ctx.computeOnClient(mc -> mc.player.getInventory().countItem(Items.STONE)), before);
+			useOn(ctx, id, top, Direction.UP);
+			ctx.waitTicks(10);
+			Check.that(server.computeOnServer(s -> s.overworld().getBlockState(record.toPlot(refused)).isAir()), "the server placed a block past the largest span");
+			Check.equal("stone left on the server after the refused block", server.computeOnServer(s -> Game.player(s).getInventory().countItem(Items.STONE)), before);
+			BlockState shown = ctx.computeOnClient(mc -> mc.level.getBlockState(record.toPlot(refused)));
+			Check.that(shown.isAir(), "the client still shows the refused block: %s", shown);
+			Check.equal("stone the client shows after the refused block", ctx.computeOnClient(mc -> mc.player.getInventory().countItem(Items.STONE)), before);
+			Check.equal("the vessel's height after the refused block", server.computeOnServer(s -> Game.active(s, id).record.localMax.getY()), 1);
+		} finally {
+			server.runOnServer(s -> SlipwayConfig.set(configured));
+		}
+		// back to where the rest of the scenario looks from
+		DeckScenarios.placeRider(ctx, server, id, new Vec3(0.5, 0.3, 2.0));
 	}
 
 	static boolean lit(ServerLevel level, VesselRecord record) {

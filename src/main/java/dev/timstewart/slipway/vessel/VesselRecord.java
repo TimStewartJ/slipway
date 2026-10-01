@@ -136,13 +136,27 @@ public final class VesselRecord {
 	}
 
 	/**
-	 * Whether the bounds, grown to take in a local position, still span at most {@code maxSpan} blocks on every axis:
-	 * the rule assembly applies to a structure ({@code StructureScan}), applied to a vessel that grows afterwards.
+	 * Whether the bounds may grow to take in a local position: along every axis they would grow on, they still span
+	 * at most {@code maxSpan} blocks, the rule assembly applies to a structure ({@code StructureScan}). A position
+	 * inside the bounds always fits, also in a vessel that is larger than the limit (assembled under a larger one, or
+	 * grown by a machine before 0.1.2): such a vessel keeps working and cannot grow.
 	 */
 	public boolean fitsSpan(BlockPos local, int maxSpan) {
-		return Math.max(this.localMax.getX(), local.getX()) - Math.min(this.localMin.getX(), local.getX()) < maxSpan
-			&& Math.max(this.localMax.getY(), local.getY()) - Math.min(this.localMin.getY(), local.getY()) < maxSpan
-			&& Math.max(this.localMax.getZ(), local.getZ()) - Math.min(this.localMin.getZ(), local.getZ()) < maxSpan;
+		return fitsSpan(this.localMin.getX(), this.localMax.getX(), local.getX(), maxSpan)
+			&& fitsSpan(this.localMin.getY(), this.localMax.getY(), local.getY(), maxSpan)
+			&& fitsSpan(this.localMin.getZ(), this.localMax.getZ(), local.getZ(), maxSpan);
+	}
+
+	private static boolean fitsSpan(int min, int max, int value, int maxSpan) {
+		return value >= min && value <= max || Math.max(max, value) - Math.min(min, value) < maxSpan;
+	}
+
+	/**
+	 * Whether a block at a plot position can become part of this vessel: it lies in the usable part of the plot and
+	 * within the largest span.
+	 */
+	public boolean canTakeIn(BlockPos plotPos, int maxSpan) {
+		return VesselRegion.isUsable(plotPos) && this.fitsSpan(this.toLocal(plotPos), maxSpan);
 	}
 
 	/** Local centre of the block bounds, used as the vessel entity's position. */

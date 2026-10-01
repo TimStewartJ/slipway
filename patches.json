@@ -109,7 +109,17 @@
 			"methods": ["resolve"],
 			"feature": "pistons on vessels",
 			"reason": "Pistons are the one thing that moves blocks by itself; a move that would put the head or a block into the margin between plots, or so far out that the vessel would span more than the configured largest size (server side), is refused (as vanilla refuses to push past the build height), so a flying machine can never carry blocks into another vessel's plot or grow a vessel's bounds, tickets and mesh without limit.",
-			"tests": ["dev.timstewart.slipway.gametest.BlockEventGameTests#pistonsRefuseToPushOutOfThePlot", "dev.timstewart.slipway.gametest.BlockEventGameTests#aVesselDoesNotGrowPastTheLargestSpan"]
+			"tests": ["dev.timstewart.slipway.gametest.BlockEventGameTests#pistonsRefuseToPushOutOfThePlot", "dev.timstewart.slipway.gametest.BlockEventGameTests#aPistonAtTheEdgeOfAVesselThatSpansTheLimitDoesNotExtend", "dev.timstewart.slipway.gametest.BlockEventGameTests#aVesselDoesNotGrowPastTheLargestSpan"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.mixin.BlockItemMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.item.BlockItem",
+			"methods": ["place"],
+			"feature": "largest vessel size",
+			"reason": "A vessel's bounds must not grow past the configured largest size after assembly either (every column of the bounds is loaded, ticked, saved and sent to viewers). A block item placed by a player or a dispenser where its vessel may not grow to fails (decided on the server, at the position the item settles on, as vanilla fails above the build height), so the block and the item are not lost outside the vessel.",
+			"tests": ["dev.timstewart.slipway.gametest.BlockEventGameTests#blockItemsAreNotPlacedWhereAVesselMayNotGrow", "clientGametest:interaction"]
 		},
 		{
 			"mixin": "dev.timstewart.slipway.mixin.ServerGamePacketListenerImplMixin",

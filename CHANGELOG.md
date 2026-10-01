@@ -34,9 +34,12 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   light: most often the west and north sides of a small build that begins at its helm (a crate, a keg, a raft with
   the helm on its edge). In 0.1.0 and 0.1.1.
 - Placing a block outside a vessel's bounds no longer sends the whole vessel to its viewers again.
-- A piston refuses a push that would carry blocks out of the vessel's storage area or make the vessel larger than
-  the configured largest size (`maxVesselSpan`, 512 blocks unless changed); disassembling while a piston moves lets
-  the stroke finish first.
+- **A vessel stays within the largest size after assembly too** (`maxVesselSpan`, 512 blocks across unless changed).
+  A piston does not push a block further out (it does not move, as against obsidian), and a block cannot be placed
+  there (the reason is shown, the item is kept). In 0.1.1 the size was only checked at assembly: a slime-block
+  flying machine on a vessel could stretch it to the edge of its storage area, 2,016 blocks out, with every chunk
+  column in between loaded, ticked, saved and sent to everyone who saw the vessel.
+- Disassembling while a piston moves lets the stroke finish first.
 
 ### Known limits of the new features
 

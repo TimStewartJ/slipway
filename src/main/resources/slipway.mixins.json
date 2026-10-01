@@ -4,6 +4,7 @@
 	"package": "dev.timstewart.slipway.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"BlockItemMixin",
 		"BlockPlaceContextMixin",
 		"ChunkMapMixin",
 		"ChunkStatusTasksMixin",

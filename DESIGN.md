@@ -334,12 +334,34 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
 - The collision shape, mass, block count and bounds follow each stroke (`LevelChunkMixin` marks the shape dirty; it
   is rebuilt at the next exchange). In mid-stroke the plot holds `minecraft:moving_piston` blocks whose collision
   shape is the moved block's, shifted by its progress; `SectionShapes` weighs such a block as the block it moves (an
-  iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink. They do not grow past
-  the configured largest size (`maxVesselSpan`, the rule assembly applies; 0.1.2, found in review): a block set
-  further out by a command is not taken in, like a block in the plot's margin, and a piston refuses a push that
-  would carry a block or its head there (server side; the client follows the strokes it is sent). Before, bounds
-  grew to the plot's edge, 2,016 blocks out, and tickets, shared columns and mesh with them
-  (server GameTest `aVesselDoesNotGrowPastTheLargestSpan`).
+  iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink.
+- Bounds do not grow past the configured largest size (`maxVesselSpan`, the rule assembly applies; 0.1.2, found in
+  review). Before, the size was only checked at assembly and bounds grew to the plot's edge, 2,016 blocks out: two
+  slime-block flying machines at right angles made a vessel of 15,876 chunk columns, each ticketed, ticked, saved,
+  sent to every viewer and walked at every shape rebuild, frame and disassembly. The rule is
+  `VesselRecord.fitsSpan`: along each axis the bounds may grow only while they span at most `maxVesselSpan` blocks;
+  a position inside the bounds always fits, so a vessel that is larger than the limit (assembled under a larger
+  setting, or stretched under 0.1.1) keeps working and only cannot grow. It is applied in three places:
+  - A piston does not make a push that would carry a block or its head past it (`PistonStructureResolverMixin`,
+    server side; the client follows the strokes it is sent). It does not move, as against an immovable block, and
+    nothing is lost. Server GameTest `aPistonAtTheEdgeOfAVesselThatSpansTheLimitDoesNotExtend`: powered by a
+    redstone block, the piston moves neither on the neighbour update nor when its stroke event is carried out, and
+    with a block of room it pushes; `aVesselDoesNotGrowPastTheLargestSpan` for the edge cases of the rule.
+  - A block item is not placed past it (`BlockItemMixin` on `BlockItem.place`, behind `updatePlacementContext`, so
+    for the position the item settles on, for players and dispensers): the placement fails as vanilla's does above
+    the build height, and the item is kept. The server decides, because the size is its setting and the client does
+    not know it; so the client has placed the block and taken the item by itself. Vanilla takes the block back (the
+    server does not confirm the prediction); Slipway tells the player why (overlay message) and sends the inventory
+    again. Server GameTest `blockItemsAreNotPlacedWhereAVesselMayNotGrow`; client GameTest `interaction` (without
+    the resent inventory the client showed 14 of its 15 stones).
+  - Whatever else sets a block further out (a plant growing, water flowing, the far half of a bed, a command) is not
+    taken into the bounds, like a block in the plot's margin (`VesselManager.onPlotBlockChanged`). Such a block is
+    in the plot but not part of the vessel: it is left there when the vessel is disassembled. Refusing every such
+    change in `Level.setBlock` would be the complete rule; it was left out because it changes what every block
+    change in a plot may do, for a case that needs a vessel 512 blocks across.
+
+  With the rule the plot's margin cannot be reached any more: the bounds always hold the helm's place at the plot's
+  centre, and the largest setting (2,000) is less than the 2,016 blocks to the margin. The margin checks stay.
 - Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
   sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
   blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and
@@ -775,7 +797,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 47 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 50 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

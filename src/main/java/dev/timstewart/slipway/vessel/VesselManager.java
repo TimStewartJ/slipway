@@ -616,11 +616,12 @@ public final class VesselManager {
 		vessel.proxyDirty = true;
 		vessel.revision++;
 		// A block in the margin between plots, or so far out that the vessel would span more than the configured
-		// largest size, is not taken in (only a command can put one there; pistons refuse): the bounds, and with them
-		// the tickets, the columns shared with viewers and the mesh, do not grow without limit.
-		BlockPos local = vessel.record.toLocal(pos);
-		if (!state.isAir() && VesselRegion.isUsable(pos) && vessel.record.fitsSpan(local, SlipwayConfig.get().maxVesselSpan)) {
-			this.includeLocal(vessel, local);
+		// largest size, is not taken in: the bounds, and with them the tickets, the columns shared with viewers and
+		// the mesh, do not grow without limit. (Pistons and placed block items are refused there, see
+		// PistonStructureResolverMixin and BlockItemMixin; this is for what else sets a block: a command, a plant
+		// growing, water flowing.)
+		if (!state.isAir() && vessel.record.canTakeIn(pos, SlipwayConfig.get().maxVesselSpan)) {
+			this.includeLocal(vessel, vessel.record.toLocal(pos));
 		}
 	}
 

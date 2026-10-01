@@ -143,7 +143,8 @@ you remove, not touching the ground.
 - Vessel blocks are lit by their own storage area, which is open sky: without shaders, a ship inside a cave or under a
   roof still looks sky-lit (day and night still apply). With shaders, the shader's shadows darken it as expected.
 - The Distant Horizons view of a far vessel is one coloured box per visible block, not the real models.
-- Very large ships: the cap is 4,096 blocks (configurable in `config/slipway.json`); larger ships cost more.
+- Very large ships: the cap is 4,096 blocks and 512 blocks across (configurable in `config/slipway.json`); larger
+  ships cost more. A ship cannot be built or pushed by pistons beyond 512 blocks across after assembly either.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
 - Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
 - Loose vessels do not float (they fall through water) and are not pushed by players or mobs. A deck holds cargo by
