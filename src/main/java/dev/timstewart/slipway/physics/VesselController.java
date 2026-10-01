@@ -67,7 +67,9 @@ public final class VesselController {
 	}
 
 	/**
-	 * Where a hovering vessel holds its position: the point the brake would bring it to rest at. Along an axis with
+	 * Where a hovering vessel holds its position: the point the brake would bring its centre of mass to rest at. (The
+	 * centre of mass is the point the velocity belongs to and the one a turn leaves in place: held by any other
+	 * point, a ship whose helm is not at its centre was pulled round that point when it turned.) Along an axis with
 	 * input the point moves with the vessel (it stays where the brake would stop the vessel if the input ended now);
 	 * along an idle axis the vessel is pulled to it by a critically damped spring,
 	 * {@code a = -2 w v - w^2 e} with {@code w = BRAKE_GAIN} and {@code e} the distance from the point. Started from
@@ -86,6 +88,8 @@ public final class VesselController {
 	public static final class Hold {
 		final Vector3d target = new Vector3d();
 		boolean valid;
+		/** The centre of mass in the vessel's frame when the hold was last used: it shifts when blocks change. */
+		final Vector3d centreLocal = new Vector3d();
 		final Quaterniond attitude = new Quaterniond();
 		boolean attitudeValid;
 
@@ -123,10 +127,18 @@ public final class VesselController {
 			return false;
 		}
 		Axes in = drive.axes();
+		Quaterniond rotation = new Quaterniond(scratch.qx, scratch.qy, scratch.qz, scratch.qw);
+		Hold hold = drive.hold();
+		Vector3d centreLocal = new Vector3d(drive.mass().comX(), drive.mass().comY(), drive.mass().comZ());
+		if (hold.valid && !centreLocal.equals(hold.centreLocal)) {
+			// Blocks changed and the centre of mass with them. The vessel has not moved: what is held moves along.
+			hold.target.add(rotation.transform(new Vector3d(centreLocal).sub(hold.centreLocal)));
+		}
+		hold.centreLocal.set(centreLocal);
+		Vector3d centre = rotation.transform(centreLocal).add(scratch.x, scratch.y, scratch.z);
 		Command command = compute(params, in.forward(), in.strafe(), in.vertical(), in.pitch(), in.yaw(), in.roll(), drive.hover(), drive.level(),
-			new Quaterniond(scratch.qx, scratch.qy, scratch.qz, scratch.qw), new Vector3d(scratch.x, scratch.y, scratch.z),
-			new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
-			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), drive.hold());
+			rotation, centre, new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
+			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), hold);
 		if (!command.isFinite()) {
 			drive.hold().reset();
 			return false;
@@ -144,7 +156,7 @@ public final class VesselController {
 	}
 
 	/**
-	 * @param position world position of the vessel (any fixed point of it), only used for the hold
+	 * @param position world position of the vessel's centre of mass (the point {@code velocity} is the velocity of), only used for the hold
 	 * @param forwardLocal unit vector of the vessel's forward direction in local coordinates (horizontal)
 	 * @param inertiaLocal row-major inertia tensor about the centre of mass in local axes
 	 * @param hold the vessel's hold point, updated by this call; null for braking without holding

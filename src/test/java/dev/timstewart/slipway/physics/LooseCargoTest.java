@@ -34,8 +34,8 @@ class LooseCargoTest {
 	/** One vessel in a test world: its body, modes and helm, and its state after the last step. */
 	private static final class Vessel {
 		final long id;
-		final BoxList boxes;
-		final BoxList.MassProperties mass;
+		BoxList boxes;
+		BoxList.MassProperties mass;
 		final VesselController.Hold hold = new VesselController.Hold();
 		final PhysicsEngine.BodyState state = new PhysicsEngine.BodyState();
 		boolean hover = true;
@@ -59,6 +59,11 @@ class LooseCargoTest {
 
 		double spin() {
 			return Math.sqrt(this.state.wx * this.state.wx + this.state.wy * this.state.wy + this.state.wz * this.state.wz);
+		}
+
+		/** Where this vessel's centre of mass is in the world. */
+		Vector3d centre() {
+			return this.pose().localToWorld(this.mass.comX(), this.mass.comY(), this.mass.comZ(), new Vector3d());
 		}
 
 		/** This vessel's origin in another vessel's frame. */
@@ -90,6 +95,13 @@ class LooseCargoTest {
 		void remove(Vessel v) {
 			this.engine.removeVessel(v.id);
 			this.vessels.remove(v);
+		}
+
+		/** Gives a vessel other blocks where it is, as the game does when a block of it changes. */
+		void reshape(Vessel v, BoxList boxes) {
+			v.boxes = boxes;
+			v.mass = boxes.massProperties();
+			this.engine.setVesselShape(v.id, boxes, v.pose(), new Vector3d(v.state.vx, v.state.vy, v.state.vz), new Vector3d(v.state.wx, v.state.wy, v.state.wz));
 		}
 
 		void step(int ticks) {
@@ -165,6 +177,65 @@ class LooseCargoTest {
 			assertEquals(300 - 9.81 / 2, loose.state.y, 0.3, "the loose vessel's height after one second");
 			assertTrue(controlled.spin() < 0.2, "the controlled vessel still spins at " + controlled.spin());
 			assertTrue(controlled.state.vy > -9.5, "the controlled vessel fell without drag: " + controlled.state.vy);
+		}
+	}
+
+	/** A hull 4 wide, 1 deep and 12 long whose origin (where its helm would be) is at one end: its centre of mass is 6 blocks from it. */
+	private static BoxList longHull() {
+		BoxList hull = new BoxList();
+		hull.add(-2, -1, -12, 2, 0, 0, 700f);
+		return hull;
+	}
+
+	@Test
+	void aHoveringVesselTurnsAboutItsCentreOfMass() {
+		for (boolean level : new boolean[] {true, false}) {
+			try (World world = new World()) {
+				Vessel ship = world.add(longHull(), VesselPose.at(X, 80, Z), false);
+				ship.level = level;
+				world.step(20);
+				Vector3d centre = ship.centre();
+				Vector3d origin = new Vector3d(ship.state.x, ship.state.y, ship.state.z);
+				assertEquals(Math.sqrt(36.25), centre.distance(origin), 1.0e-3, "the hull's centre of mass is not where the test expects it");
+				ship.axes = new VesselController.Axes(0, 0, 0, 0, 1, 0);
+				double furthest = 0;
+				for (int tick = 0; tick < 100; tick++) {
+					world.step(1);
+					furthest = Math.max(furthest, ship.centre().distance(centre));
+				}
+				ship.axes = VesselController.Axes.IDLE;
+				for (int tick = 0; tick < 60; tick++) {
+					world.step(1);
+					furthest = Math.max(furthest, ship.centre().distance(centre));
+				}
+				double turned = Math.toDegrees(new org.joml.Quaterniond(ship.state.qx, ship.state.qy, ship.state.qz, ship.state.qw).angle());
+				assertTrue(turned > 90, "level " + level + ": the ship only turned " + turned + " degrees");
+				// The turn takes the origin round the centre; the hold must not pull the centre after it.
+				assertTrue(new Vector3d(ship.state.x, ship.state.y, ship.state.z).distance(origin) > 6.0, "level " + level + ": the origin did not go round the centre");
+				assertTrue(furthest < 0.02, "level " + level + ": turning moved the centre of mass by " + furthest + " blocks");
+				assertTrue(ship.speed() < 0.01, "level " + level + ": the ship drifts at " + ship.speed() + " after the turn");
+			}
+		}
+	}
+
+	@Test
+	void aHoveringVesselStaysWhereItIsWhenItsCentreOfMassShifts() {
+		try (World world = new World()) {
+			Vessel ship = world.add(longHull(), VesselPose.fromYawPitchRoll(X, 80, Z, 30, 0, 0), false);
+			world.step(20);
+			Vector3d origin = new Vector3d(ship.state.x, ship.state.y, ship.state.z);
+			// Iron on the far end: the centre of mass moves several blocks along the hull, the hull itself is where it was.
+			BoxList heavier = longHull();
+			heavier.add(-2, 0, -12, 2, 1, -10, 7800f);
+			Vector3d before = ship.centre();
+			world.reshape(ship, heavier);
+			assertTrue(ship.centre().distance(before) > 2.0, "the test's extra blocks do not shift the centre of mass");
+			double furthest = 0;
+			for (int tick = 0; tick < 60; tick++) {
+				world.step(1);
+				furthest = Math.max(furthest, new Vector3d(ship.state.x, ship.state.y, ship.state.z).distance(origin));
+			}
+			assertTrue(furthest < 0.02, "the hovering ship moved " + furthest + " blocks when blocks were added to it");
 		}
 	}
 

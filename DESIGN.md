@@ -166,7 +166,14 @@ a 2,000-block carrier sank it by a quarter of a block per second), and cargo lyi
 level off until the cargo slid away. So hover now holds (`VesselController.Hold`, one per vessel, used only on the
 physics thread):
 
-- Position: the point the brake would stop the vessel at. Along a local axis with input the point follows the
+- Position: the point the brake would stop the vessel's centre of mass at. It is the centre of mass that is held
+  because that is the point the velocity belongs to and the one a turn leaves in place. The first version held the
+  vessel's origin (the helm's corner) with the same force through the centre of mass: a ship whose helm is not at
+  its centre was then pulled round its helm when it turned, where in 0.1.1 it turned about its centre (found in
+  review; unit test `aHoveringVesselTurnsAboutItsCentreOfMass`: a hull with its origin 6 blocks from its centre
+  turns more than 90 degrees and the centre moves less than 0.02 blocks). When blocks change, the centre of mass
+  shifts in the vessel's frame and the held point shifts with it, so the vessel stays where it is
+  (`aHoveringVesselStaysWhereItIsWhenItsCentreOfMassShifts`). Along a local axis with input the point follows the
   vessel; along an idle axis the vessel is pulled to it by a critically damped spring `a = -2wv - w²e` with
   `w = BRAKE_GAIN` (1.5/s). Started from `e = -v/w` this is exactly the old brake `a = -wv`, so an unloaded vessel
   flies and stops as before (unit test `aReleasedHoveringVesselStopsWhereThePlainBrakeStopsIt`). Under a load of a
