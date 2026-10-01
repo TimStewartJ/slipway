@@ -44,12 +44,22 @@ final class DisassemblyScenarios {
 	private record Outcome(int missing, double worst, int drawnTicks) {
 	}
 
+	/** The small ship's chest in the open, lit by the sky and the glowstone beside it. */
+	static final BlockPos CHEST = new BlockPos(2, 0, 2);
+	/** The small ship's chest in the dark. */
+	static final BlockPos DARK_CHEST = new BlockPos(-2, 0, 2);
+
 	static Map<BlockPos, BlockState> ship() {
 		Map<BlockPos, BlockState> blocks = Ships.deck(3, Blocks.GOLD_BLOCK.defaultBlockState());
 		blocks.put(BlockPos.ZERO, Ships.helm(Direction.NORTH));
-		blocks.put(new BlockPos(2, 0, 2), Blocks.CHEST.defaultBlockState());
+		blocks.put(CHEST, Blocks.CHEST.defaultBlockState());
 		// Next to the chest: its light (14 at the chest) is in the plot only, and goes with the plot's chunks.
-		blocks.put(new BlockPos(1, 0, 2), Blocks.GLOWSTONE.defaultBlockState());
+		blocks.put(CHEST.west(), Blocks.GLOWSTONE.defaultBlockState());
+		// A second chest walled in and roofed over: no light reaches it, from the sky or from the glowstone.
+		blocks.put(DARK_CHEST, Blocks.CHEST.defaultBlockState());
+		for (Direction side : new Direction[] {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST, Direction.UP}) {
+			blocks.put(DARK_CHEST.relative(side), Blocks.GOLD_BLOCK.defaultBlockState());
+		}
 		for (int x = -3; x <= 3; x += 6) {
 			for (int z = -3; z <= 3; z += 6) {
 				blocks.put(new BlockPos(x, 0, z), Blocks.REDSTONE_BLOCK.defaultBlockState());
@@ -126,23 +136,28 @@ final class DisassemblyScenarios {
 		int[] drawnTicks = new int[1];
 		List<Path> frames = framesOfTheNextTicks(ctx, r, label, id, drawnTicks);
 		r.metric(label + ".ticksTheGoneVesselWasDrawn", drawnTicks[0]);
-		// The chest of the kept picture: its plot chunk is gone by then, and it must still be lit as it was (open sky,
-		// and the glowstone beside it).
-		int[] keptLight = ctx.computeOnClient(mc -> {
-			int[] light = dev.timstewart.slipway.client.SlipwayDebug.keptBlockEntityLight();
+		// The chests of the kept picture: their plot chunk is gone by then, where a light lookup answers full sky light
+		// and no block light. Each must be drawn with the light it had while the vessel was there: the one on deck by
+		// the sky and the glowstone beside it, the walled-in one dark (it lit up like daylight otherwise).
+		Map<BlockPos, dev.timstewart.slipway.client.SlipwayDebug.KeptLight> keptLight = ctx.computeOnClient(mc -> {
+			var light = dev.timstewart.slipway.client.SlipwayDebug.keptBlockEntityLight();
 			dev.timstewart.slipway.client.SlipwayDebug.blockEntitiesStop();
 			return light;
 		});
 		if (ship.blockEntities()) {
-			r.metric(label + ".keptBlockEntityDraws", keptLight[0]);
-			r.metric(label + ".keptBlockEntityDarkestSkyLight", keptLight[1]);
-			r.metric(label + ".keptBlockEntityDarkestBlockLight", keptLight[2]);
+			r.metric(label + ".keptBlockEntityDraws", keptLight.values().stream().mapToInt(light -> light.draws()).sum());
 			if (keep) {
-				Check.atLeast(label + ": times a block entity of the kept picture was drawn", keptLight[0], 1);
-				Check.atLeast(label + ": lowest sky light a block entity of the kept picture was drawn with", keptLight[1], 14);
-				Check.atLeast(label + ": lowest block light a block entity of the kept picture was drawn with (glowstone beside the chest)", keptLight[2], 10);
+				var open = Check.notNull(keptLight.get(CHEST), "%s: the chest on deck was not drawn in the kept picture (drawn: %s)", label, keptLight.keySet());
+				var dark = Check.notNull(keptLight.get(DARK_CHEST), "%s: the walled-in chest was not drawn in the kept picture (drawn: %s)", label, keptLight.keySet());
+				r.note("%s: kept picture's chest on deck %s, walled-in chest %s", label, open, dark);
+				Check.equal(label + ": draws of the kept chest on deck with another light than it had", open.changed(), 0);
+				Check.equal(label + ": draws of the kept walled-in chest with another light than it had", dark.changed(), 0);
+				Check.atLeast(label + ": lowest sky light the kept chest on deck was drawn with", open.darkestSky(), 14);
+				Check.atLeast(label + ": lowest block light the kept chest on deck was drawn with (glowstone beside it)", open.darkestBlock(), 10);
+				Check.equal(label + ": brightest sky light the kept walled-in chest was drawn with", dark.brightestSky(), 0);
+				Check.equal(label + ": brightest block light the kept walled-in chest was drawn with", dark.brightestBlock(), 0);
 			} else {
-				Check.equal(label + ": block entities of a kept picture drawn with the picture turned off", keptLight[0], 0);
+				Check.that(keptLight.isEmpty(), "%s: block entities of a kept picture were drawn with the picture turned off: %s", label, keptLight);
 			}
 		}
 		Check.that(server.computeOnServer(s -> Game.manager(s).registry().get(id) == null), "the vessel was not disassembled");

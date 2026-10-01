@@ -194,9 +194,9 @@ public final class SlipwayDebug {
 	private static final List<double[]> TRACE = new ArrayList<>();
 	private static long blockEntitiesId = -1;
 	private static final java.util.Set<String> DRAWN_BLOCK_ENTITIES = new java.util.LinkedHashSet<>();
-	private static int keptBlockEntityDraws;
-	private static int keptBlockEntityDarkestSky = 15;
-	private static int keptBlockEntityDarkestBlock = 15;
+	/** Vessel-local position of a watched block entity to the light it was last drawn with while its vessel was there. */
+	private static final java.util.Map<BlockPos, Integer> LIVE_BLOCK_ENTITY_LIGHT = new java.util.HashMap<>();
+	private static final java.util.Map<BlockPos, KeptLight> KEPT_BLOCK_ENTITY_LIGHT = new java.util.LinkedHashMap<>();
 	private static final int RIDER_TRACE_LIMIT = 4_000;
 	private static long riderTraceId = -1;
 	private static final List<String> RIDER_TRACE = new ArrayList<>();
@@ -254,12 +254,25 @@ public final class SlipwayDebug {
 		return out.toString();
 	}
 
-	/** Starts collecting which block entities of a vessel the renderer draws. */
+	/**
+	 * How a block entity was lit in the kept picture of a vessel that is gone: how often it was drawn, the range of sky
+	 * and block light (0 to 15) it was drawn with, and how often that was not the light of its last draw while the
+	 * vessel was there (every time, when it was never drawn then).
+	 */
+	public record KeptLight(int draws, int darkestSky, int brightestSky, int darkestBlock, int brightestBlock, int changed) {
+		KeptLight drawn(int lightCoords, @org.jspecify.annotations.Nullable Integer before) {
+			int sky = net.minecraft.util.LightCoordsUtil.sky(lightCoords);
+			int block = net.minecraft.util.LightCoordsUtil.block(lightCoords);
+			return new KeptLight(this.draws + 1, Math.min(this.darkestSky, sky), Math.max(this.brightestSky, sky), Math.min(this.darkestBlock, block),
+				Math.max(this.brightestBlock, block), this.changed + (before != null && before == lightCoords ? 0 : 1));
+		}
+	}
+
+	/** Starts collecting which block entities of a vessel the renderer draws, and with what light. */
 	public static String blockEntitiesStart(long id) {
 		DRAWN_BLOCK_ENTITIES.clear();
-		keptBlockEntityDraws = 0;
-		keptBlockEntityDarkestSky = 15;
-		keptBlockEntityDarkestBlock = 15;
+		LIVE_BLOCK_ENTITY_LIGHT.clear();
+		KEPT_BLOCK_ENTITY_LIGHT.clear();
 		blockEntitiesId = id;
 		return "watching block entities of " + id;
 	}
@@ -273,18 +286,15 @@ public final class SlipwayDebug {
 			DRAWN_BLOCK_ENTITIES.add(net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType()) + "@" + local.toShortString());
 		}
 		if (kept) {
-			keptBlockEntityDraws++;
-			keptBlockEntityDarkestSky = Math.min(keptBlockEntityDarkestSky, net.minecraft.util.LightCoordsUtil.sky(lightCoords));
-			keptBlockEntityDarkestBlock = Math.min(keptBlockEntityDarkestBlock, net.minecraft.util.LightCoordsUtil.block(lightCoords));
+			KEPT_BLOCK_ENTITY_LIGHT.put(local, KEPT_BLOCK_ENTITY_LIGHT.getOrDefault(local, new KeptLight(0, 15, 0, 15, 0, 0)).drawn(lightCoords, LIVE_BLOCK_ENTITY_LIGHT.get(local)));
+		} else {
+			LIVE_BLOCK_ENTITY_LIGHT.put(local, lightCoords);
 		}
 	}
 
-	/**
-	 * Since the start: how often a block entity of the watched vessel was drawn as part of the kept picture of a vessel
-	 * that is gone, and the lowest sky light and block light (0 to 15) it was drawn with.
-	 */
-	public static int[] keptBlockEntityLight() {
-		return new int[] {keptBlockEntityDraws, keptBlockEntityDarkestSky, keptBlockEntityDarkestBlock};
+	/** Since the start: how each block entity of the watched vessel was lit in the kept picture, by vessel-local position. */
+	public static java.util.Map<BlockPos, KeptLight> keptBlockEntityLight() {
+		return new java.util.LinkedHashMap<>(KEPT_BLOCK_ENTITY_LIGHT);
 	}
 
 	/** Stops collecting: every block entity drawn since the start, as "type@x, y, z" (vessel-local), one per line. */

@@ -401,7 +401,10 @@ Now the vessel's picture is kept that long:
   (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`), each with the
   light its renderer drew it with at that moment: a block entity's light is read from the level when it is drawn, and
   the plot's light goes with its chunks (a chest beside a lamp was drawn with block light 0 for those ticks, and one
-  under a roof with full sky light; found in review). `VesselRenderer`
+  under a roof with full sky light; found in review). The `disassembly` test's small ship has both, a chest on deck
+  beside glowstone and a chest walled in and roofed over: in the kept picture each is drawn with the light of its last
+  draw before (sky 15 and block 14, and 0 and 0, in six draws each; without the kept light two of three draws had
+  block light 0 on deck and sky light 15 in the dark). `VesselRenderer`
   draws that picture at the vessel's last poses. It stops when the terrain renderer has had nothing waiting for 2
   ticks, asked every frame (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's
   `isTerrainRenderComplete` by guarded reflection, hook `sodium-terrain-complete`), and after 6 ticks at the
