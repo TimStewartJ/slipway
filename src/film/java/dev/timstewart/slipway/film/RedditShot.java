@@ -463,7 +463,7 @@ final class RedditShot {
 		this.rec.cut("farm");
 		this.event("farm");
 		b4[0] = FilmCamera.ticks();
-		int clockAt = (int)FilmRig.optDouble("farmClockAt", 4);
+		int clockAt = (int)FilmRig.optDouble("farmClockAt", 10);
 		for (int i = 0; i < farmTicks; i++) {
 			int j = i;
 			this.server.runOnServer(s -> {

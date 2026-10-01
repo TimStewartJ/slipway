@@ -35,6 +35,7 @@ def main() -> int:
     p.add_argument("--thumb", default="spill+40")
     p.add_argument("--back-seconds", default="2.4")
     p.add_argument("--crf", default="17")
+    p.add_argument("--roll-caption", default=None)
     a = p.parse_args()
     d = pathlib.Path(a.dir)
     out = pathlib.Path(a.out)
@@ -45,7 +46,10 @@ def main() -> int:
         print("frame checks failed; nothing delivered")
         return 1
     video = out / f"{a.name}.mp4"
-    if run(sys.executable, HERE / "assemble.py", d, "--out", video, "--back-seconds", a.back_seconds, "--crf", a.crf) != 0:
+    assemble = [sys.executable, HERE / "assemble.py", d, "--out", video, "--back-seconds", a.back_seconds, "--crf", a.crf]
+    if a.roll_caption:
+        assemble += ["--roll-caption", a.roll_caption]
+    if run(*assemble) != 0:
         return 1
     shutil.move(str(out / f"{a.name}-contact.jpg"), str(out / f"contact-video-{suffix}.jpg"))
     shutil.copyfile(d / "contact.jpg", out / f"contact-frames-{suffix}.jpg")

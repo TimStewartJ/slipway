@@ -28,7 +28,7 @@ def ass_time(seconds):
     return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
 
-def captions(ev, fps, w, h, total_seconds, shots, back_seconds):
+def captions(ev, fps, w, h, total_seconds, shots, back_seconds, roll_caption):
     """The caption script: list of (start s, end s, style, text), from event times in output seconds. Works for a
     rehearsal with only some of the shots too."""
     t = {k: v / fps for k, v in ev.items()}
@@ -47,7 +47,7 @@ def captions(ev, fps, w, h, total_seconds, shots, back_seconds):
         # the second caption starts when the machine is seen working: the first piston stroke (else the door, else mid-shot)
         switch = t.get("pistons", t.get("door", (t["roll"] + after("roll")) / 2))
         lines.append((t["roll"] + 0.15, switch - 0.1, "Cap", "Full 3-axis physics"))
-        lines.append((switch + 0.05, after("roll") - 0.2, "Cap", "Pistons. Chests. Redstone."))
+        lines.append((switch + 0.05, after("roll") - 0.2, "Cap", roll_caption))
     if "farm" in t:
         lines.append((t["farm"] + 0.3, after("farm") - 0.25, "Cap", "Crops grow in flight"))
     if "return" in t:
@@ -93,6 +93,7 @@ def main():
     p.add_argument("--xfade", type=int, default=6)
     p.add_argument("--crf", type=int, default=17)
     p.add_argument("--back-seconds", type=float, default=2.4, help="how long 'Back to plain blocks' stays before the end card")
+    p.add_argument("--roll-caption", default="Pistons. Chests. Redstone.", help="the roll shot's second caption (it may only name what the shot shows)")
     a = p.parse_args()
     d = pathlib.Path(a.dir)
     seg = json.loads((d / "segments.json").read_text(encoding="utf-8"))
@@ -110,7 +111,7 @@ def main():
 
     ev = {k: out_index(v) for k, v in src.items()}
     total = out_index(starts[-1] - 1) + 1
-    script, lines = captions(ev, fps, w, h, total / fps, shots, a.back_seconds)
+    script, lines = captions(ev, fps, w, h, total / fps, shots, a.back_seconds, a.roll_caption)
     out = pathlib.Path(a.out).resolve()
     ass = out.with_suffix(".ass")
     ass.write_text(script, encoding="utf-8")
