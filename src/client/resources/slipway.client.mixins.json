@@ -4,10 +4,14 @@
 	"package": "dev.timstewart.slipway.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"AbstractSoundInstanceAccessor",
 		"ClientChunkCacheMixin",
 		"ClientLevelMixin",
 		"GameRendererAccessor",
-		"LocalPlayerMixin"
+		"LocalPlayerMixin",
+		"ParticleAccessor",
+		"ParticleEngineMixin",
+		"SoundManagerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

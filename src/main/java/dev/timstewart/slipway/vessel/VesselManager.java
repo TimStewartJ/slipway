@@ -275,6 +275,7 @@ public final class VesselManager {
 		if (vessel != null) {
 			this.physics.syncRecord(vessel);
 		}
+		VesselAssembly.finishPistonMoves(this.level, record);
 		VesselAssembly.Placement placement = VesselAssembly.plan(this.level, record, SlipwayConfig.get());
 		if (placement.refusal() != null) {
 			Slipway.LOGGER.info("Vessel {} stays assembled: {}", id, placement.refusal().getString());
@@ -561,6 +562,19 @@ public final class VesselManager {
 			record.helm, record.helmFacing, record.blockCount, vessel.mass == null ? 0F : (float)vessel.mass.mass(), assembled);
 	}
 
+	/**
+	 * Sends a packet about a point of a vessel's plot to the players who view the vessel (they have its plot chunks)
+	 * and are within {@code range} blocks of where that point is in the world.
+	 */
+	public void sendToViewersNear(ActiveVessel vessel, Vec3 plotPoint, double range, @Nullable Entity except, net.minecraft.network.protocol.Packet<?> packet) {
+		Vec3 world = plotToWorld(vessel.record, plotPoint);
+		for (ServerPlayer viewer : vessel.viewers) {
+			if (viewer != except && viewer.level() == this.level && viewer.distanceToSqr(world) < range * range && viewer.connection.isAcceptingMessages()) {
+				viewer.connection.send(packet);
+			}
+		}
+	}
+
 	/** A block in a plot changed: rebuild that vessel's collision shape and grow its bounds if needed. */
 	void onPlotBlockChanged(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
 		ActiveVessel vessel = this.activeAt(pos);
@@ -570,7 +584,9 @@ public final class VesselManager {
 		vessel.shapeDirty = true;
 		vessel.proxyDirty = true;
 		vessel.revision++;
-		if (!state.isAir()) {
+		// A block in the margin between plots (only a command can put one there; pistons refuse) is not taken in: the
+		// bounds would otherwise reach across the margin.
+		if (!state.isAir() && VesselRegion.isUsable(pos)) {
 			this.includeLocal(vessel, vessel.record.toLocal(pos));
 		}
 	}
@@ -579,12 +595,16 @@ public final class VesselManager {
 	// Plot chunks: tickets and viewers
 	// ---------------------------------------------------------------------------------------------------------
 
-	private void addTickets(ActiveVessel vessel) {
+	/** Tickets every plot chunk column of the vessel's bounds that has no ticket yet and returns those. */
+	private List<Long> addTickets(ActiveVessel vessel) {
+		List<Long> added = new ArrayList<>();
 		for (long chunk : plotChunks(vessel.record)) {
 			if (vessel.ticketChunks.add(chunk)) {
 				this.level.getChunkSource().addTicketWithRadius(SlipwayRegistry.VESSEL_TICKET, ChunkPos.unpack(chunk), 2);
+				added.add(chunk);
 			}
 		}
+		return added;
 	}
 
 	private void removeTickets(ActiveVessel vessel) {
@@ -616,15 +636,19 @@ public final class VesselManager {
 		return true;
 	}
 
-	/** Grows a vessel's bounds to include a local position and loads and shares any new plot chunk column. */
+	/**
+	 * Grows a vessel's bounds to include a local position and loads and shares any new plot chunk column. Only new
+	 * columns are sent: sending a chunk again replaces it on the client, which costs a full remesh and deletes what
+	 * the client keeps there by itself (the moving blocks of a piston's stroke).
+	 */
 	public void includeLocal(ActiveVessel vessel, BlockPos local) {
 		BlockPos oldMin = vessel.record.localMin;
 		BlockPos oldMax = vessel.record.localMax;
 		vessel.record.include(local);
 		if (!oldMin.equals(vessel.record.localMin) || !oldMax.equals(vessel.record.localMax)) {
-			this.addTickets(vessel);
+			List<Long> added = this.addTickets(vessel);
 			for (ServerPlayer viewer : vessel.viewers) {
-				this.sendChunks(vessel, viewer);
+				this.sendChunks(viewer, added);
 			}
 			this.registry.setDirty();
 		}
@@ -659,7 +683,11 @@ public final class VesselManager {
 	}
 
 	private void sendChunks(ActiveVessel vessel, ServerPlayer player) {
-		for (long chunk : vessel.ticketChunks) {
+		this.sendChunks(player, vessel.ticketChunks);
+	}
+
+	private void sendChunks(ServerPlayer player, Iterable<Long> chunks) {
+		for (long chunk : chunks) {
 			var levelChunk = this.level.getChunkSource().getChunkNow(ChunkPos.getX(chunk), ChunkPos.getZ(chunk));
 			if (levelChunk != null) {
 				player.connection.chunkSender.markChunkPendingToSend(levelChunk);

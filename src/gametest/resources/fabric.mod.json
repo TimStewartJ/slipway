@@ -10,7 +10,9 @@
 			"dev.timstewart.slipway.gametest.PhysicsGameTests",
 			"dev.timstewart.slipway.gametest.PacketGameTests",
 			"dev.timstewart.slipway.gametest.InteractionGameTests",
-			"dev.timstewart.slipway.gametest.LooseGameTests"
+			"dev.timstewart.slipway.gametest.LooseGameTests",
+			"dev.timstewart.slipway.gametest.BlockEventGameTests",
+			"dev.timstewart.slipway.gametest.MachineGameTests"
 		]
 	},
 	"depends": {

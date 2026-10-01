@@ -84,6 +84,19 @@ public final class VesselRegion {
 		return localX >= -half && localX < half && localZ >= -half && localZ < half;
 	}
 
+	/**
+	 * Whether a block column lies in the usable part of a plot: inside the margin that keeps vessels of neighbouring
+	 * plots apart. Blocks of a vessel must never leave it.
+	 */
+	public static boolean isUsable(int blockX, int blockZ) {
+		int plot = plotAt(blockX, blockZ);
+		return plot >= 0 && fitsInPlot(blockX - plotMinX(plot) - PLOT_SIZE / 2, blockZ - plotMinZ(plot) - PLOT_SIZE / 2);
+	}
+
+	public static boolean isUsable(BlockPos pos) {
+		return isUsable(pos.getX(), pos.getZ());
+	}
+
 	private static void checkPlot(int plot) {
 		if (plot < 0 || plot >= MAX_PLOTS) {
 			throw new IllegalArgumentException("plot " + plot + " outside 0.." + (MAX_PLOTS - 1));

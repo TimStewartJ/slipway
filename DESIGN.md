@@ -187,7 +187,7 @@ GameTests in `LooseGameTests`; client GameTest `loose-cargo`):
 | Friction | 0.6 on vessels, 0.8 on terrain, combined by geometric mean | Kept. Cargo holds on a deck up to atan(0.6) = 31 degrees and slides beyond (it starts between 28 and 36 in the unit test). It also means the deck can pass on at most 0.6 g = 5.9 m/s²: the stop of a released helm brakes at 1.5 times the speed per second, so from more than 4 m/s cargo slides forward, and tall thin pieces topple. Fly gently or build a rail. |
 | Restitution | 0.05 (Jolt takes the larger of two) | Kept: nothing bounces. |
 | Motion quality | LinearCast for every vessel | Kept: a crate at terminal speed does not pass through a one-block deck. |
-| Sleeping | off for controlled vessels, on for loose ones | A controlled vessel gets forces every step and can never sleep. A loose vessel at rest on terrain or on other sleeping vessels is put to sleep after 0.5 s and then costs nothing (0.004 ms per step for 30 of them, against 0.5 ms awake, Debug natives). What rests on a hovering carrier is in the carrier's island and stays awake, as it must to ride along. Jolt wakes a sleeper that is touched, but not one whose support goes away: `JoltEngine` wakes loose vessels around a terrain section that changes and all of them when a vessel is removed, reshaped or teleported. |
+| Sleeping | off for controlled vessels, on for loose ones | A controlled vessel gets forces every step and can never sleep. A loose vessel at rest on terrain or on other sleeping vessels is put to sleep after 0.5 s and then costs nothing (0.004 ms per step for 30 of them, against 0.5 ms awake, Debug natives). What rests on a hovering carrier is in the carrier's island and stays awake, as it must to ride along. Jolt wakes a sleeper that is touched, but not one whose support goes away: `JoltEngine` wakes the loose vessels around a terrain section that changes and around a vessel that is removed, reshaped or teleported (within 8 blocks of its bounds; a piston working on one ship does not wake a pile elsewhere). |
 | Enhanced internal edge removal | on for every vessel | A deck or the ground is many boxes side by side; a body sliding fast over the buried edges between them caught on them (a cube at 8 m/s over single-block boxes tumbled within four blocks). With the option, vessels slide over terrain seams as over one slab (`vesselsSlideOverTerrainSeamsAsOverOneSlab`). It only removes the edges of the second body of a pair. Terrain is always second; of two vessels the one with the higher Jolt body id is, which jolt-jni 6.1.1 gives no way to choose (no `CreateBodyWithID`). So a crate sliding fast over a seam of a deck that is older than the crate still tumbles there. Slow sliding and resting are not affected. Left as is. |
 
 Cost, client GameTest `loose-cargo` (Release natives; 10 loose vessels of 2 to 30 blocks, 110 blocks together, on a
@@ -221,10 +221,98 @@ per section on change; `VesselRenderer` submits them every frame with the interp
 coordinates, which is what vanilla's interaction packets carry, so every block's own `use`/`attack` logic runs
 unchanged. While a client tick is in progress (vanilla picks there, before entities move) it uses the previous tick's
 pose so the ray and the not-yet-carried player agree. `UseOnContextMixin`/`BlockPlaceContextMixin` rotate the
-player's facing into the vessel frame so placed blocks orient relative to the vessel. `ServerLevelMixin` moves drops,
-sounds and level events from plot positions to where they are in the world. `VesselCollisions` (via `EntityMixin`)
+player's facing into the vessel frame so placed blocks orient relative to the vessel. `ServerLevelMixin` moves drops
+and sounds from plot positions to where they are in the world and sends block and level events to the vessel's
+viewers (next section). `VesselCollisions` (via `EntityMixin`)
 collides entities with vessel blocks in the vessel's frame, carries them with the vessel, lets them walk on decks
 tilted up to 50 degrees and slide off steeper ones.
+
+### Block events, effects and pistons (0.1.2)
+
+**What was wrong.** Vanilla tells clients about three kinds of things at a block by distance to the block's position:
+block events (`ServerLevel.runBlockEvents`: a chest's lid, a piston's stroke, a note block, a bell), level events
+(`levelEvent`: bone meal, dispenser smoke and click, block breaking, doors) and sounds, each to the players within 64
+blocks (sounds: their own range). For a vessel block that position is in the plot, so nobody was told. 0.1.1 moved
+sounds and level events to the block's world position on the server. That was enough for sounds, but block events
+were never sent (a chest's lid stayed shut and a piston's stroke was not animated: the client makes the moving
+blocks itself from the event, the server sets them with flags that are not sent), and a level event at the world
+position cannot work when the client must read the block (bone meal's sparkle takes the crop's shape: at the world
+position there is air, so nothing was shown).
+
+**Server.** `ServerLevelMixin` sends block events and level events of a plot position to the vessel's viewers (the
+players who have its plot chunks) within 64 blocks of where the block is in the world, with the plot position
+unchanged (`VesselManager.sendToViewersNear`). Sounds still go out at the world position (the client needs no block
+for them), and entities spawned in a plot still appear in the world.
+
+**Client.** The plot chunk is loaded on the client (`ClientChunkCacheMixin`), so `ClientLevel.blockEvent` finds the
+block and runs its `triggerEvent`; block entities in plot chunks tick on the client (the chest's lid, the moving
+piston); `VesselRenderer` draws every block entity of the plot, also the moving-piston ones, and `LevelChunkMixin`
+marks the mesh dirty when the client's own replay of the stroke changes blocks. What the client then makes at plot
+coordinates is put where the vessel is (`VesselEffects`):
+
+- particles made through the level (`ClientLevelMixin` on `doAddParticle`, before the check that drops particles
+  more than 32 blocks from the camera): a note, bone meal's sparkle, dispenser smoke, redstone dust at a lever;
+- particles added to the engine directly (`ParticleEngineMixin` on `add`): the chips of mining and breaking;
+- sounds played through the level (`ClientLevelMixin` on `playSound`, as before) and directly through the sound
+  manager (`SoundManagerMixin`): the thud of mining, a jukebox's music.
+
+A particle's position goes through the vessel's pose; its velocity is turned with the vessel and gets what the
+vessel moved at that point in the last tick, so it starts at rest relative to the deck. After that it lives in the
+world: it does not follow the vessel and does not collide with it.
+
+**Chests.** `ContainerOpenersCounter` looks for the players who have a container open every five ticks in a box
+around the block; on a vessel that box was in the plot, found nobody, and shut the lid a quarter of a second after it
+opened. `ContainerOpenersCounterMixin` puts the box where the block is in the world.
+
+**Pistons.** They work in the plot as in the world. What Slipway adds:
+
+- The collision shape, mass, block count and bounds follow each stroke (`LevelChunkMixin` marks the shape dirty; it
+  is rebuilt at the next exchange). In mid-stroke the plot holds `minecraft:moving_piston` blocks whose collision
+  shape is the moved block's, shifted by its progress; `SectionShapes` weighs such a block as the block it moves (an
+  iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink.
+- Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
+  sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
+  blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and
+  costs a remesh of the whole vessel for every block placed beyond the bounds.
+- A push that would put the head or a block into the 32-block margin of the plot is refused
+  (`PistonStructureResolverMixin`, like vanilla's refusal at the build height): pistons are the one thing that moves
+  blocks by itself, and a slime-block flying machine must not walk into the neighbouring plot. A block that gets
+  into the margin another way (a command) is ignored by the vessel.
+- Disassembly lets every stroke finish first (`VesselAssembly.finishPistonMoves`): a block in mid-move is a block
+  entity that knows which way it goes in the plot's frame and cannot be turned with the vessel.
+
+**Left as it is.** Pistons do not push entities on a vessel (the piston looks for them at its plot position; an
+entity standing on a pushed block is moved by Slipway's own collision, which pushes it out of the block, not by the
+piston). Particles do not follow the vessel after they were made, and do not land on its deck. A jukebox's music
+plays where the vessel was when the disc started and stays there. Blocks' ambient effects (`animateTick`: torch
+flames, furnace smoke, dripping) are not shown: the client picks random positions around the player for them, never
+in a plot. Particles the server sends as particle packets (`ServerLevel.sendParticles`) from a plot position reach
+nobody. A push into a chunk column the vessel did not reach before sends that new chunk in mid-stroke, and the
+block in it is invisible for the two ticks of that stroke.
+
+### What is proven to work on a moving vessel (0.1.2)
+
+"Everything keeps working" is the claim; this is what tests hold it to. Server GameTests run the vessel rising,
+sinking and turning inside its arena; client GameTests fly it.
+
+| What | Test |
+| --- | --- |
+| Lever, redstone lamp, door, chest contents, placing and mining in vessel space | client `interaction` (since 0.1.0) |
+| Chest lid opens for the player, stays open, closes | client `block-events`; server `BlockEventGameTests.aChestOnAVesselStaysOpenWhileItsUserIsAtTheVessel` |
+| Piston pushes a block (bounds grow), sticky piston pulls it back, shown as a moving block on the client | client `block-events`; server `aPistonOnAVesselMovesItsBlockAndTheBooksFollow` |
+| Sticky piston with a slime block moving three blocks, vessel rolled 25 degrees and under way | server `aStickyPistonWithSlimeWorksWhileTheVesselFliesRolled` |
+| Piston at the plot's edge refuses; disassembly in mid-stroke | server `pistonsRefuseToPushOutOfThePlot`, `disassemblingInMidStrokeFinishesTheStroke` |
+| Repeater clock (two 4-tick repeaters) driving three lamps through repeaters, exact timing over 120 ticks | server `MachineGameTests.aRepeaterClockLightsARowOfLampsInTurnWhileTheVesselFlies` |
+| Dispenser with bone meal on wheat: growth, sparkle, smoke and sounds at the vessel | client `farm`; server `aFarmOnAFlyingVesselTakesBoneMealAndGrowsByItself` |
+| Random ticks in the plot: wheat grows by itself, farmland is wetted by a waterlogged slab and stays farmland, the water stays in its block | server `aFarmOnAFlyingVesselTakesBoneMealAndGrowsByItself` (1,000 ticks at the normal random tick speed) |
+| Hopper into chest, observer into lamp, dropper (its item appears at the vessel), note block (sound and note at the vessel) | server `machinesOnAFlyingVesselWorkAndTheirOutputAppearsAtTheVessel`; client `block-events` (note block) |
+| Mining: chips and thud at the block | client `block-events` |
+
+Not proven or known not to work: fluids outside waterlogged blocks (water and lava source blocks are not
+assembled; a waterlogged block whose water can flow out sideways will pour it into the plot, which was not tested);
+pistons pushing entities; ambient block effects; anything that looks for entities or players near a block's plot
+position and is not listed above (beacons, conduits, spawners, bells ringing mobs, sculk sensors); a world border
+smaller than 24 million blocks would stop blocks in the plots from working (read from the code, not tested).
 
 ### Distant Horizons
 

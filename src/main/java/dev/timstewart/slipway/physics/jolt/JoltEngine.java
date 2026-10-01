@@ -3,6 +3,7 @@ package dev.timstewart.slipway.physics.jolt;
 import com.github.stephengold.joltjni.AaBox;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.BodyLockRead;
 import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
@@ -26,6 +27,7 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.physics.BoxList;
 import dev.timstewart.slipway.physics.PhysicsEngine;
@@ -68,8 +70,9 @@ public final class JoltEngine implements PhysicsEngine {
 	private static final float MAX_CONVEX_RADIUS = 0.05F;
 	private static final float MIN_HALF_EXTENT = 0.001F;
 	/**
-	 * Blocks added around a changed terrain section when waking loose vessels: what rests on it reaches a little out
-	 * of it, and Jolt's broad phase keeps bounds as floats, which are coarse far from the origin (2 blocks at 24 million).
+	 * Blocks added around a changed terrain section or vessel when waking loose vessels: what rests on it reaches a
+	 * little out of it, and Jolt's broad phase keeps bounds as floats, which are coarse far from the origin (2 blocks
+	 * at 24 million).
 	 */
 	private static final double WAKE_MARGIN = 8.0;
 	/** Process-wide counts of live engines and bodies, for the in-game leak checks. */
@@ -138,8 +141,8 @@ public final class JoltEngine implements PhysicsEngine {
 		try {
 			int existing = this.vesselBodies.get(vesselId);
 			if (existing != Jolt.cInvalidBodyId) {
+				this.wakeLooseVesselsAround(existing);
 				this.bodies.setShape(existing, shape, true, EActivation.Activate);
-				this.wakeLooseVessels();
 				return;
 			}
 			BodyCreationSettings settings = new BodyCreationSettings(shape, new RVec3(pose.x(), pose.y(), pose.z()),
@@ -174,10 +177,10 @@ public final class JoltEngine implements PhysicsEngine {
 		int bodyId = this.vesselBodies.remove(vesselId);
 		if (bodyId != Jolt.cInvalidBodyId) {
 			this.looseVessels.remove(vesselId);
+			this.wakeLooseVesselsAround(bodyId);
 			this.bodies.removeBody(bodyId);
 			this.bodies.destroyBody(bodyId);
 			LIVE_BODIES.decrementAndGet();
-			this.wakeLooseVessels();
 		}
 	}
 
@@ -192,10 +195,10 @@ public final class JoltEngine implements PhysicsEngine {
 		if (bodyId == Jolt.cInvalidBodyId) {
 			return;
 		}
+		this.wakeLooseVesselsAround(bodyId);
 		this.bodies.setPositionAndRotation(bodyId, pose.x(), pose.y(), pose.z(), (float)pose.qx(), (float)pose.qy(), (float)pose.qz(), (float)pose.qw(),
 			EActivation.Activate);
 		this.bodies.setLinearAndAngularVelocity(bodyId, 0f, 0f, 0f, 0f, 0f, 0f);
-		this.wakeLooseVessels();
 	}
 
 	@Override
@@ -216,20 +219,41 @@ public final class JoltEngine implements PhysicsEngine {
 		this.bodies.activateBody(bodyId);
 	}
 
-	/** Wakes every loose vessel; each falls asleep again once it has rested for half a second. */
-	private void wakeLooseVessels() {
-		for (long id : this.looseVessels) {
-			this.bodies.activateBody(this.vesselBodies.get(id));
+	/**
+	 * Wakes the loose vessels in and around a vessel's bounds, before it is reshaped, moved away or removed (they may
+	 * rest on it). Each falls asleep again once it has rested for half a second.
+	 */
+	private void wakeLooseVesselsAround(int bodyId) {
+		if (this.looseVessels.isEmpty()) {
+			return;
 		}
+		Vec3 min;
+		Vec3 max;
+		BodyLockRead lock = new BodyLockRead(this.system.getBodyLockInterface(), bodyId);
+		try {
+			if (!lock.succeededAndIsInBroadPhase()) {
+				return;
+			}
+			ConstAaBox bounds = lock.getBody().getWorldSpaceBounds();
+			min = bounds.getMin();
+			max = bounds.getMax();
+		} finally {
+			lock.releaseLock();
+			lock.close();
+		}
+		this.wakeLooseVesselsIn(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ());
 	}
 
 	/** Wakes the loose vessels in and around a terrain section that changed (they may have rested on it). */
 	private void wakeLooseVesselsNear(double originX, double originY, double originZ) {
-		if (this.looseVessels.isEmpty()) {
-			return;
+		if (!this.looseVessels.isEmpty()) {
+			this.wakeLooseVesselsIn(originX, originY, originZ, originX + 16, originY + 16, originZ + 16);
 		}
-		AaBox box = new AaBox(new RVec3(originX - WAKE_MARGIN, originY - WAKE_MARGIN, originZ - WAKE_MARGIN),
-			new RVec3(originX + 16 + WAKE_MARGIN, originY + 16 + WAKE_MARGIN, originZ + 16 + WAKE_MARGIN));
+	}
+
+	private void wakeLooseVesselsIn(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+		AaBox box = new AaBox(new RVec3(minX - WAKE_MARGIN, minY - WAKE_MARGIN, minZ - WAKE_MARGIN),
+			new RVec3(maxX + WAKE_MARGIN, maxY + WAKE_MARGIN, maxZ + WAKE_MARGIN));
 		try {
 			this.bodies.activateBodiesInAaBox(box, this.anyBroadPhaseLayer, this.anyObjectLayer);
 		} finally {

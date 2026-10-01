@@ -289,13 +289,21 @@ public class LooseGameTests {
 		VesselRecord crate = TestShips.assemble(helper, crate(helper, new BlockPos(7, 6, 7), Blocks.OAK_PLANKS, new BlockPos(1, 0, 0)));
 		ActiveVessel vessel = TestShips.active(helper, crate);
 		double floorTop = helper.absolutePos(new BlockPos(0, 2, 0)).getY();
+		Vec3[] asleepAt = new Vec3[1];
 		crate.loose = true;
 		helper.startSequence()
 			.thenWaitUntil(() -> {
 				check(helper, vessel.hasBody && Math.abs(crate.pose.y() - 1.0 - floorTop) < 0.06, "the crate's bottom is at " + (crate.pose.y() - 1.0) + ", the floor's top at " + floorTop);
-				check(helper, !vessel.bodyAwake, "the crate at rest on the ground is still simulated");
+				check(helper, !vessel.bodyAwake && crate.linearVelocity.length() == 0.0, "the crate at rest on the ground is still simulated");
 			})
-			.thenExecuteFor(20, () -> check(helper, !vessel.bodyAwake && crate.linearVelocity.length() == 0.0, "the sleeping crate moved or woke by itself"))
+			.thenExecute(() -> asleepAt[0] = crate.pose.position())
+			.thenIdle(20)
+			// It lies where it fell asleep and sleeps. (The tests beside this one change blocks and vessels within a few
+			// blocks, which wakes it for half a second, so that it sleeps without a break is left to LooseCargoTest.)
+			.thenWaitUntil(() -> {
+				check(helper, crate.pose.position().distanceTo(asleepAt[0]) < 0.01, "the crate moved " + crate.pose.position().distanceTo(asleepAt[0]) + " blocks after it fell asleep");
+				check(helper, !vessel.bodyAwake && crate.linearVelocity.length() == 0.0, "the crate at rest on the ground is simulated again");
+			})
 			// Break the ground under it: it must wake and fall, not hang in the air.
 			.thenExecute(() -> {
 				for (int x = 6; x <= 9; x++) {
