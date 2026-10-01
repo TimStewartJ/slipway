@@ -118,6 +118,33 @@ final class AssemblyScenarios {
 			r.metric("feetAboveDeck", feet - landing.helm().getY());
 			Check.near("player's feet on the restored deck", feet, landing.helm().getY(), 0.01);
 			Shots.take(ctx, r, "04-disassembled");
+
+			// A small build that begins at its helm: a two by two by two crate of wool under the helm, towards +x and
+			// +z. Its west and north sides lie on the edge of its plot's chunk columns, and were drawn black as long as
+			// viewers had only those columns. Seen from the north-west, where those two sides fill the view, the
+			// assembled crate must look like the blocks it was built from.
+			BlockPos crateHelm = helm.offset(-24, 2, -8);
+			Map<BlockPos, BlockState> crate = new java.util.LinkedHashMap<>();
+			for (BlockPos p : BlockPos.betweenClosed(0, -2, 0, 1, -1, 1)) {
+				crate.put(p.immutable(), net.minecraft.world.level.block.Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.WHITE).defaultBlockState());
+			}
+			crate.put(BlockPos.ZERO, Ships.helm(Direction.NORTH));
+			server.runOnServer(s -> Ships.build(s.overworld(), crateHelm, crate));
+			Game.hud(ctx, false);
+			LooseScenarios.watch(ctx, sp, new net.minecraft.world.phys.Vec3(crateHelm.getX() - 3.5, crateHelm.getY() + 0.5, crateHelm.getZ() - 3.5),
+				new net.minecraft.world.phys.Vec3(crateHelm.getX() + 1.0, crateHelm.getY() - 1.0, crateHelm.getZ() + 1.0));
+			Shots.waitStill(ctx, r, "crate-built", 1200);
+			Path crateBuilt = Shots.take(ctx, r, "05-crate-built");
+			long crateId = server.computeOnServer(s -> Ships.assemble(s.overworld(), crateHelm).id);
+			Game.waitClientComplete(ctx, crateId, 200);
+			Shots.waitStill(ctx, r, "crate-assembled", 1200);
+			// With the two sides black the pictures differed by 0.0069; lit, by less than 0.00001.
+			double crateDrawn = Shots.matchShot(ctx, r, "06-crate-assembled", crateBuilt, 0.001);
+			r.note("assembled crate vs the blocks it was built from, seen from the north-west: mean squared difference %.5f", crateDrawn);
+			int crateSky = Game.darkestOuterSkyLight(ctx, crateId);
+			r.metric("crate.darkestSkyLightOfSideAndTopFaces", crateSky);
+			Check.atLeast("sky light baked into the crate's darkest side or top face", crateSky, 14);
+			Game.hud(ctx, true);
 		}
 	}
 }

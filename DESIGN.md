@@ -231,7 +231,10 @@ arrives. Cost: 8 more empty chunk packets for a vessel in one column, 14 for one
 client GameTest `loose-cargo` (the lowest sky light baked into the side and top faces of the carrier and of the ten
 pieces, which begin at their helms, is 15; it was 0 for the first piece's west faces before the fix), by
 `save-reload` (a crate that begins at its helm and is in view when the world is reopened: 15 before quitting and
-after loading; 0 without the ring) and by the server GameTest `viewersHaveTheColumnsAroundAVesselToo`.
+after loading; 0 without the ring), by a picture in `assemble-mixed` (a wool crate under its helm seen from the
+north-west, where the two sides fill the view: the assembled crate differs from the blocks it was built from by less
+than 0.00001 mean squared difference, limit 0.001; with the sides black it was 0.0069) and by the server GameTest
+`viewersHaveTheColumnsAroundAVesselToo`.
 
 ### Client
 
@@ -737,7 +740,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 46 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 47 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
