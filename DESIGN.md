@@ -156,7 +156,9 @@ pose packet's flags) makes a vessel a plain rigid body: `VesselController.drive`
 whatever the helm, hover and level say, so only gravity, contacts and friction move it. Hover and level keep their
 values and apply again when loose ends. It is switched by `/slipway mode <id> loose true|false` and by the pilot's
 "Toggle loose" key. The key's default is U: G, the neighbour of H, is vanilla 26.3's quick-actions key, and Iris
-takes K, O and R.
+takes K, O and R. There is no buoyancy: vessels collide with blocks that have a collision shape, water has none, so
+a loose vessel sinks through water to the bottom, wooden or not (`aLooseWoodenVesselSinksThroughWater`). Entities do
+not push vessels.
 
 **Holding.** Until 0.1.1 a hovering vessel only had its weight cancelled and its speed braked, and with level off only
 its turn rate braked. That is no hold: anything resting on it pushed it down for as long as it lay there (10 crates on
@@ -289,6 +291,40 @@ flames, furnace smoke, dripping) are not shown: the client picks random position
 in a plot. Particles the server sends as particle packets (`ServerLevel.sendParticles`) from a plot position reach
 nobody. A push into a chunk column the vessel did not reach before sends that new chunk in mid-stroke, and the
 block in it is invisible for the two ticks of that stroke.
+
+### The picture kept at disassembly (0.1.2)
+
+Disassembly puts the blocks into the world and removes the vessel in one step on the server. On the client the
+vessel's entity (which the vessel is drawn with) was removed and the world blocks arrived in the same tick, but the
+terrain renderer shows new blocks only when it has rebuilt their sections, which it does off the render thread
+(Sodium; vanilla's renderer too): for a tick or two neither was drawn, and the ship blinked.
+
+Now the vessel's picture is kept that long:
+
+- Server: the vessel's entity is not discarded with the vessel but retired (`VesselEntity.retire`: it no longer asks
+  for its vessel and takes no passengers) and discarded by the manager `RETIRED_ENTITY_TICKS` = 6 ticks later. Its
+  plot is freed as before.
+- Client: on `VesselGone` without `keepProxy`, `ClientVessels` keeps the vessel as "gone" instead of forgetting it.
+  The packet arrives before the packets that drop its plot chunks, so the mesh is complete and is frozen
+  (`VesselMesh.freeze`), and its block entities are kept as they were (`ClientVessel.keepPicture`). `VesselRenderer`
+  draws that picture at the vessel's last poses. It stops, asked every frame, when the terrain renderer has nothing
+  left to build (`TerrainProgress`: vanilla's `hasRenderedAllSections`, or Sodium's `isTerrainRenderComplete` by
+  guarded reflection, hook `sodium-terrain-complete`), not before 2 ticks (the renderer only starts on the new
+  blocks in the next frames) and not after 6. A gone vessel is no vessel for anything else: no collision, no
+  picking, no plot.
+- Both are drawn together for at most the frame in which the terrain appears. When the terrain renderer is busy
+  for another reason (new terrain streaming in while flying), the picture stays for the full 6 ticks over the
+  blocks that are already there; the two differ by the snap to the block grid at most.
+
+Measured by the client GameTest `disassembly` (pictures after each of the ten ticks following a disassembly,
+compared with the picture before): with the picture kept the ship is in all ten; with it turned off
+(`ClientVessels.keepGoneVessels`, for this test) the ship is missing from the first. In free-running play the
+film agent measured about two ticks without the ship.
+
+The mirror problem at assembly (the vessel can be drawn incomplete for a tick or two while its plot chunks arrive)
+has a different cause and is not changed: the world blocks are removed by block updates in one tick, and the
+vessel's mesh needs the plot chunks, which come as chunk packets within the following ticks. Keeping the world
+blocks drawn until the mesh is complete would mean holding back block updates of the terrain renderer.
 
 ### What is proven to work on a moving vessel (0.1.2)
 
@@ -640,13 +676,21 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
-| Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller, records, engine lifecycle with Debug natives) | `src/test` | seconds |
-| Server GameTests | assembly, physics, interaction and packets inside a headless server | `src/gametest`, `runGametest` | ~10 s |
-| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~10 min (2-minute soak, as in `check`); ~28 min with the 20-minute soak |
-| Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
+| Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 44 tests (the farm test runs 1,000 ticks) |
+| Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
+| Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs twelve
-scenarios (`SlipwayClientGameTests`); each starts at the title screen with default options, a failure is recorded
+**Server GameTests** run all at once, each in its own arena: `slipway:arena`, 16 blocks each way, which the
+framework closes with barrier blocks (walls, floor and ceiling). Vessels collide with barriers like with any block,
+so a vessel in a server GameTest flies inside its box (rising, sinking, turning) and cannot reach the test beside
+it. Blocks changed in one arena can still wake a loose vessel sleeping in the next (terrain sections are shared).
+Mock players (`makeMockServerPlayerInLevel`, and `BlockEventGameTests.spy`, which keeps the channel to read what was
+sent) get packets written during a tick only at the end of that tick, after the test code of that tick has run.
+
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs sixteen
+scenarios (`SlipwayClientGameTests`; 0.1.2 added `loose-cargo`, `block-events`, `farm` and `disassembly`); each starts
+at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and
 evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`. Options:

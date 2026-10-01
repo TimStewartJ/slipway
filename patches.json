@@ -204,6 +204,16 @@
 	],
 	"hooks": [
 		{
+			"id": "sodium-terrain-complete",
+			"source": "src/client/java/dev/timstewart/slipway/client/TerrainProgress.java",
+			"targetMod": "sodium",
+			"target": "net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer#instanceNullable and #isTerrainRenderComplete",
+			"access": "reflection, guarded: when the methods are absent or fail, nothing waits for the terrain",
+			"feature": "no blink at disassembly",
+			"reason": "A disassembled vessel's picture is drawn until the terrain renderer has built the sections that got its blocks. With Sodium, vanilla's own question (LevelRenderer.hasRenderedAllSections) is never answered with yes, so Sodium is asked.",
+			"tests": ["clientGametest:disassembly"]
+		},
+		{
 			"id": "iris-overrides-cache",
 			"source": "src/client/java/dev/timstewart/slipway/client/ClosedWorldCleanup.java",
 			"targetMod": "iris",

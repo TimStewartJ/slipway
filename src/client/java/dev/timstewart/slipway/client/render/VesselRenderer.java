@@ -73,7 +73,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 
 	@Override
 	protected AABB getBoundingBoxForCulling(VesselEntity entity, float partialTicks) {
-		ClientVessel vessel = ClientVessels.get(entity.vesselId());
+		ClientVessel vessel = ClientVessels.drawn(entity.vesselId());
 		if (vessel == null || !vessel.ready()) {
 			return super.getBoundingBoxForCulling(entity, partialTicks);
 		}
@@ -91,7 +91,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		state.breakingProgress.clear();
 		state.outlineLocal = null;
 		state.outlineShape = null;
-		ClientVessel vessel = ClientVessels.get(entity.vesselId());
+		ClientVessel vessel = ClientVessels.drawn(entity.vesselId());
 		state.vessel = vessel;
 		if (vessel == null || !vessel.ready()) {
 			state.pose = null;
@@ -109,6 +109,13 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		// Block entities, extracted directly (the dispatcher's own distance test would compare plot positions with the camera).
 		BlockEntityRenderDispatcher dispatcher = mc.getBlockEntityRenderDispatcher();
 		Vec3 cameraPlot = vessel.worldToPlot(pose, mc.gameRenderer.mainCamera().position());
+		if (vessel.gone()) {
+			// The picture of a vessel that is gone: its block entities as they were, and nothing to point at.
+			for (BlockEntity blockEntity : vessel.keptBlockEntities) {
+				extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot, vessel, state);
+			}
+			return;
+		}
 		BlockPos min = vessel.anchor.offset(vessel.localMin);
 		BlockPos max = vessel.anchor.offset(vessel.localMax);
 		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
@@ -118,13 +125,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 					continue;
 				}
 				for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
-					BlockEntityRenderState beState = extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot);
-					if (beState != null) {
-						BlockPos local = blockEntity.getBlockPos().subtract(vessel.anchor);
-						state.blockEntities.add(beState);
-						state.blockEntityLocal.add(local);
-						SlipwayDebug.blockEntityDrawn(vessel.id, blockEntity, local);
-					}
+					extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot, vessel, state);
 				}
 			}
 		}
@@ -148,6 +149,17 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 				state.breakingStates.add(mc.level.getBlockState(pos));
 				state.breakingProgress.add(progress.last().getProgress());
 			}
+		}
+	}
+
+	private static void extractBlockEntity(BlockEntityRenderDispatcher dispatcher, BlockEntity blockEntity, float partialTicks, Vec3 cameraPlot, ClientVessel vessel,
+		State state) {
+		BlockEntityRenderState beState = extractBlockEntity(dispatcher, blockEntity, partialTicks, cameraPlot);
+		if (beState != null) {
+			BlockPos local = blockEntity.getBlockPos().subtract(vessel.anchor);
+			state.blockEntities.add(beState);
+			state.blockEntityLocal.add(local);
+			SlipwayDebug.blockEntityDrawn(vessel.id, blockEntity, local);
 		}
 	}
 

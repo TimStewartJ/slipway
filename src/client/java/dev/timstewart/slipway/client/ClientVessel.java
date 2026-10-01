@@ -50,6 +50,12 @@ public final class ClientVessel {
 	public Vec3 velocity = Vec3.ZERO;
 	public Vec3 angularVelocity = Vec3.ZERO;
 	public final VesselMesh mesh = new VesselMesh(this);
+	/**
+	 * Set when the vessel is gone on the server but still drawn (see {@link ClientVessels#onGone}): the client tick
+	 * it went at, and its block entities as they were, kept because its plot chunks are dropped.
+	 */
+	long goneAtTick = -1;
+	public java.util.List<net.minecraft.world.level.block.entity.BlockEntity> keptBlockEntities = java.util.List.of();
 
 	private final ArrayDeque<Snapshot> snapshots = new ArrayDeque<>();
 	private double playbackTick = Double.NaN;
@@ -240,8 +246,32 @@ public final class ClientVessel {
 		return new Vec3(l.x + this.anchor.getX(), l.y + this.anchor.getY(), l.z + this.anchor.getZ());
 	}
 
+	/** Whether this is the picture of a vessel that is gone. */
+	public boolean gone() {
+		return this.goneAtTick >= 0;
+	}
+
+	/** Keeps the vessel's picture as it is now: the mesh and the block entities of its plot. */
+	void keepPicture(net.minecraft.client.multiplayer.ClientLevel level, long clientTick) {
+		this.mesh.freeze(level);
+		java.util.List<net.minecraft.world.level.block.entity.BlockEntity> kept = new java.util.ArrayList<>();
+		BlockPos min = this.anchor.offset(this.localMin);
+		BlockPos max = this.anchor.offset(this.localMax);
+		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
+			for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
+				var chunk = level.getChunkSource().getChunk(cx, cz, false);
+				if (chunk != null) {
+					kept.addAll(chunk.getBlockEntities().values());
+				}
+			}
+		}
+		this.keptBlockEntities = kept;
+		this.goneAtTick = clientTick;
+	}
+
 	void close() {
 		this.mesh.clear();
+		this.keptBlockEntities = java.util.List.of();
 	}
 
 	private final dev.timstewart.slipway.vessel.VesselLookup.View view = new dev.timstewart.slipway.vessel.VesselLookup.View() {

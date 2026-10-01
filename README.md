@@ -4,9 +4,10 @@
 
 Moving physics block structures for Minecraft 26.3 (Fabric). Build a structure from any blocks, place a Slipway
 Helm on it, assemble it into a vessel and fly it with full pitch, yaw and roll. The blocks stay real blocks: chests,
-furnaces, doors, levers and redstone keep working while the vessel moves, and you can walk on the deck and build on it
-at any angle. Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics) through
-[jolt-jni](https://github.com/stephengold/jolt-jni).
+furnaces, doors, levers, pistons, redstone clocks and farms keep working while the vessel moves, and you can walk on
+the deck and build on it at any angle. A vessel can also be let loose as a plain rigid body: cargo that tumbles, lies
+on another vessel's deck and slides off when it rolls. Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+through [jolt-jni](https://github.com/stephengold/jolt-jni). Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ![A Slipway vessel hovering over flat ground with Bliss shaders, casting a shadow](docs/images/vessel-bliss.png)
 
@@ -37,8 +38,9 @@ Minecraft 26.2 and later (a Distant Horizons bug with Iris, fixed in 3.3.3). The
 for Windows, Linux and macOS (x86_64 and aarch64). Playing is tested on Windows; CI runs the server tests on Linux;
 macOS is untested.
 
-Checked combinations for 0.1.1 (production Minecraft, every mixin applied, a vessel assembled): Fabric API only;
-with Sodium and Iris; with Sodium, Iris and Distant Horizons 3.3.4.
+Checked combinations for 0.1.2 (production Minecraft, every mixin applied, a vessel assembled, a chest on it opened
+by a block event, a vessel set loose): Fabric API only; with Sodium and Iris; with Sodium, Iris and Distant Horizons
+3.3.4.
 
 Install it on both the client and the server for multiplayer.
 
@@ -57,15 +59,24 @@ Install it on both the client and the server for multiplayer.
 | Pitch nose up / down | Up / down arrow |
 | Roll left / right | Left / right arrow |
 | Strafe left / right | N / M |
-| Hover on/off | **Toggle hover** (H): on, the ship holds its position; off, gravity applies |
+| Hover on/off | **Toggle hover** (H): on, the ship holds its position, also under cargo; off, gravity applies |
 | Level on/off | **Toggle level** (B): on, the ship rights itself; off, it holds any attitude, even inverted |
+| Loose on/off | **Toggle loose** (U): on, the ship is a plain rigid body: no hover, no levelling, no drag, the helm does nothing; it falls, tumbles and lies where it lands. Off, hover and level apply again as they were set |
 | Disassemble | Level the ship (within 20° of level), leave the helm, then sneak and use the helm |
 
 Keys are under Options > Controls > Key Binds > **Slipway**. The Slipway Helm is in the creative inventory under
 Functional Blocks (`/give @s slipway:helm`), or crafted from two sticks on top, a compass in the middle and three
 planks below. Anything face-connected to the helm becomes part of the vessel, so build ships in the air or on a
-temporary platform you remove. Operator commands: `/slipway list`, `info`, `stats`, `mode`, `control`,
-`assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided list of things to try.
+temporary platform you remove. Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level` or
+`loose`), `control`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
+list of things to try.
+
+Loose vessels are for cargo: build a few small things over a ship's deck, give each a helm, assemble them and set
+them loose (`/slipway mode <id> loose true`, or the key at their helm). They land on the deck, ride along while the
+ship flies gently, and slide off when it rolls past about 31 degrees.
+
+What is tested on a moving vessel, block by block, is listed in [DESIGN.md](DESIGN.md), "What is proven to work on a
+moving vessel".
 
 ## Known limitations
 
@@ -77,6 +88,14 @@ temporary platform you remove. Operator commands: `/slipway list`, `info`, `stat
 - Distant Horizons draws a far vessel as one coloured box per visible block.
 - The block cap is 4,096 per vessel (`config/slipway.json`).
 - Right after assembly the vessel can be drawn incomplete for a tick or two.
+- Loose vessels: no buoyancy (a vessel falls through water); players and mobs do not push them; a deck passes on at
+  most 0.6 g, so cargo slides when the carrier stops hard or turns sharply and tall thin pieces fall over; a piece
+  sliding fast across a deck can catch on a seam of the deck's collision boxes and tumble.
+- Pistons do not push entities standing on a vessel. Particles appear at the vessel but do not follow it afterwards. A
+  jukebox's music stays where the vessel was when the disc started. Torches, furnaces and other blocks show no
+  ambient particles on a vessel.
+- Blocks that look for players or mobs near themselves (beacons, conduits, spawners, sculk sensors) have not been
+  made to look where the vessel is, and are untested.
 - Distant Horizons and Iris can keep memory after you leave a world (Iris with shaders grows native memory by about
   50 to 80 MB per world reopen, with or without Slipway). Restart the game after many world switches.
   Fixes for the Distant Horizons part exist and are being prepared for upstream; `DESIGN.md`, "World retention",
@@ -103,17 +122,20 @@ All levels run in `gradlew check` (and `build`); CI runs the unit tests, server 
 check on every push. Details are in [DESIGN.md](DESIGN.md), "Testing".
 
 - `gradlew test`: unit tests (math, controller, shapes, mass properties, collisions, records, Jolt engine including a
-  native leak test with the Debug natives).
+  native leak test with the Debug natives, loose cargo on a carrier in the real engine).
 - `gradlew runGametest`: Fabric GameTests in a headless server (assembly round trips, deny list, physics, packets,
-  interaction).
+  interaction, loose vessels, block events and pistons, a repeater clock, a farm, hoppers, observers and droppers).
 - `gradlew runClientGametest`: Fabric client GameTests on a real client with Sodium, Iris (Bliss shaders) and
   Distant Horizons: assembly of a mixed ship, flight through every rotation, deck walking, interaction, collision,
-  forged packets, save and reload, rendering (shadows, reference images, Distant Horizons far view), multiplayer with
-  a second client, performance, world-retention leaks and a flight soak. Reports in `build/client-gametest`. Needs a
+  loose cargo on a carrier, block events (chest lid, piston strokes, note block, mining), a bone meal farm, the
+  picture kept at disassembly, forged packets, save and reload, rendering (shadows, reference images, Distant
+  Horizons far view), multiplayer with a second client, performance, world-retention leaks and a flight soak.
+  Reports in `build/client-gametest`. Needs a
   GPU and the Bliss shader pack (`-PslipwayShaderPack=<zip>`); the window never takes focus.
   `-PslipwaySoakMinutes=20` runs the release soak; `-PslipwayClientGametestOnly=a,b` picks scenarios.
 - `gradlew runPackagedJarCheck`: the release jar with the integration mods in production Minecraft; fails on any
-  mixin or loader error. `-PslipwayPackagedCheckMods=sodium,iris` (or empty for Fabric API only) and
+  mixin or loader error, and assembles a vessel, opens a chest on it by a block event and sets a vessel loose.
+  `-PslipwayPackagedCheckMods=sodium,iris` (or empty for Fabric API only) and
   `-PslipwayPackagedCheckDhJar=<jar>` check other mod combinations.
 - `tools/`: the author's local tooling for a Prism play instance and the Prism-based leak isolation matrix
   (`tools/e2e`, Windows, `$env:SLIPWAY_E2E_ROOT`). `validation.json` and `WORKLOG.md` record every run and the

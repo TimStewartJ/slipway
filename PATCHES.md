@@ -31,8 +31,9 @@ mixin, a targeted method or a covering test is missing. Edit `patches.json`, not
 
 Code that reaches into another mod without a mixin, marked in its source with `slipway-hook: <id>`.
 
-**1 hooks.**
+**2 hooks.**
 
 | Hook | Source | Target mod | Target | Access | Feature | Reason | Covered by |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `iris-overrides-cache` | `src/client/java/dev/timstewart/slipway/client/ClosedWorldCleanup.java` | iris | `com.mojang.blaze3d.systems.RenderSystem#iris$overrides (static map added by Iris's MixinShaderManager_Overrides)` | reflection, guarded: absent or changed fields are skipped | world-retention leak mitigation | Iris 1.11.6 never clears this map; its shader programs hold custom uniforms that capture the ClientLevel of the world they were built for, so every world opened with a shader pack stays in memory. It is cleared when no world is loaded (Iris rebuilds entries on demand). See DESIGN.md, world-retention RCA. | `clientGametest:leak` |
+| `sodium-terrain-complete` | `src/client/java/dev/timstewart/slipway/client/TerrainProgress.java` | sodium | `net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer#instanceNullable and #isTerrainRenderComplete` | reflection, guarded: when the methods are absent or fail, nothing waits for the terrain | no blink at disassembly | A disassembled vessel's picture is drawn until the terrain renderer has built the sections that got its blocks. With Sodium, vanilla's own question (LevelRenderer.hasRenderedAllSections) is never answered with yes, so Sodium is asked. | `clientGametest:disassembly` |
