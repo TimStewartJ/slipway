@@ -76,9 +76,12 @@ with a narrower field of view, so they show exactly what the video shows:
 python tools/film/readme_stills.py build/film/out/reddit-1600x900 <delivery folder>/readme
 ```
 
-`readme_stills.py` picks frames by event and offset (defaults: the galleon at rest, the cargo in mid-air, the machine
-wall with lamps lit, the pistons in mid-sequence and the chest open while the ship is upside down, the farm with
-ripe wheat and bone meal sparkle) and saves them 1600 px wide as JPEG under 500 KB.
+`readme_stills.py` picks frames by event and offset and saves them 1600 px wide as JPEG under 500 KB. Its defaults
+are the delivered stills: `galleon-over-the-bay=hook+0` (the galleon at rest), `cargo-spill=cargo+240` (the cargo
+in mid-air below the rolled ship), `machine-wall=roll+314` (lamps lit, pistons in mid-sequence, door and chest open
+while the ship is upside down) and `deck-farm=farm+146` (the wheat just after the second dose, with the sparkle).
+Other frames: `python tools/film/readme_stills.py <frames> <folder> "name=event+frames" ...`. The wheat's growth per
+dose is random, so look at the farm still after every render.
 
 ## Shots
 
@@ -103,9 +106,9 @@ of this branch.
 | # | Shot | What happens | Frames per tick |
 | --- | --- | --- | --- |
 | 1 | hook | at rest over the bay; lifts off, rolls hard and yaws | 3 |
-| 2 | cargo | eight loose pieces fall onto the deck and stack up; the ship rolls 68 degrees to port; they slide off through the open rail and tumble onto the headland below | 3 |
+| 2 | cargo | eight loose pieces fall onto the deck and stack up; the ship rolls about 70 degrees to port; they slide off through the open rail and tumble onto the headland below | 3 |
 | 3 | roll | level mode off, roll input held: the camera is fixed to the ship while it rolls through inverted; on the castle wall the lever starts the clock, the lamps light in sequence, the pistons pump, the door and the chest open | 3, ramping to 6 (half speed) |
-| 4 | farm | the ship cruises slowly; the lever starts the farm's clock, the dispensers feed bone meal to the wheat, which grows to full height in three doses; four sheep stand behind the bed | 3 |
+| 4 | farm | the ship cruises slowly; the lever starts the farm's clock, the dispensers feed bone meal to the wheat, which grows to full height in two or three doses; four sheep stand behind the bed | 3 |
 | 5 | return | the autopilot brings the ship back to the exact starting point, level, then `disassemble`; the camera settles on the opening frame | 3 |
 
 The ship returns to within a few centimetres of where it was assembled, disassembly snaps it to the same blocks, and
@@ -148,8 +151,9 @@ Everything in the picture is the game and the mod running; the film only gives i
   waterlogged slab (water source blocks are not assembled; a waterlogged block is), four dispensers with bone meal
   that face the wheat, dust on top of the dispensers, and a second comparator clock (period 28 game ticks). In the
   shot the clock's lever is pulled with `LeverBlock.pull` at tick 10; each pulse makes the dispensers fire, vanilla's
-  bone meal behaviour grows the wheat by two to five stages per dose (three doses in the shot, at ticks 15, 43 and
-  71). The green sparkle at the wheat and the smoke at the dispensers are the game's own effects, which Slipway
+  bone meal behaviour grows the wheat by two to five stages per dose, chosen at random (three doses in the shot, at
+  ticks 15, 43 and 71; wheat has seven stages to grow, so it is ripe after the second or the third, and a dispenser
+  facing ripe wheat keeps its bone meal). The green sparkle at the wheat and the smoke at the dispensers are the game's own effects, which Slipway
   0.1.2 shows at the vessel; they are placed in the world when they are made and do not follow the ship, which is
   why the ship only cruises at 3.4 blocks per second here. The wheat is not reset afterwards (it ends the
   video fully grown; from the opening camera it is hidden behind the hull). The world's random ticks are off (as in
@@ -158,7 +162,12 @@ Everything in the picture is the game and the mod running; the film only gives i
   raised, and no block state is set by the film.
 - **The sheep** are ordinary mobs, spawned on the deck before the farm shot and removed after it (unfilmed).
 - **The return**: autopilot to the rest position; when the vessel is within 0.06 blocks and still,
-  `VesselManager.disassemble`. Film time is held until the placed blocks are drawn (`Recorder.hold`).
+  `VesselManager.disassemble`, which is what `/slipway disassemble` and sneak-using the helm call. The change from
+  the vessel to its blocks takes the client a few ticks: Slipway 0.1.2 keeps drawing the vessel until the terrain
+  shows the placed blocks (2 to 6 ticks; 0.1.1 drew neither for a tick or two). Film time is held over those ticks
+  (`Recorder.hold`, until the blocks are drawn and the vessel's picture is gone; 4 ticks in the delivered render), so
+  the film goes from the last frame of the vessel to the first frame of the blocks alone. Nothing is hidden by it
+  that a player would not see: at normal speed the ship simply stays in the picture.
 
 The hero ship (`FilmShips.hero()`, 2,503 blocks, all assembled) is a three-masted galleon: curved dark-oak hull with
 a birch stripe and a keel, spruce decks, forecastle, a two-storey stern castle with windows and a quarterdeck, wool
@@ -215,7 +224,7 @@ Other pieces:
 - Before each frame the recorder re-renders until Sodium reports the terrain in view as built (no pop-in; `settle`
   in `frames.csv` counts those renders) and until no vessel has mesh sections left to rebuild (a lamp, a piston or a
   crop that changed this tick is in the frame it changed in). `Recorder.hold` keeps film time still while the world
-  ticks (used after disassembly, when the client may drop the vessel a tick or two before the placed blocks arrive).
+  ticks (used after disassembly, until the terrain shows the placed blocks and the vessel is no longer drawn).
 - `mixin/FilmHaltMixin`: the client GameTests' IntegratedServer.halt workaround; without it the game never exits.
 - `FilmRig`: options (HUD, chat and vanilla clouds off, no view bobbing, render distance), the scenic world (normal
   world generation with a fixed seed: `setUseConsistentSettings(false)`, otherwise the GameTest builder makes a
@@ -248,6 +257,42 @@ Stack check (2026-09-30): the stills shot was run twice with the default mods an
 water beside it in both default runs, and 0.81x in the no-DH run, so the ship casts a shadow consistently. Near-black
 pixels at time 9000 were 0.02% or less, with no dark blotches. In the low-sun opening view the shadow falls outside
 the frame; that is the sun angle, not a bug.
+
+## Version 2 as delivered (2026-10-01)
+
+Delivery folder `E:\slipway-e2e\film\reddit-v2\`. Rendered with `dev-0.1.2` at `7ece326` (Slipway 0.1.2; the commit
+is in the folder's `mod-commit.txt`), merged into `film`. An earlier complete render with `00814fa` (before the
+version number and the disassembly fix) was replaced by it; the two differ only in the random growth of the wheat.
+
+- `slipway-4x5.mp4`: 1080x1350, 60 fps, 1,635 frames, 27.25 s, 40.9 MB, H.264 High, yuv420p, no audio track.
+- Shots and events in the video's time (raw frame numbers are in `segments.json`; each of the four crossfades
+  shortens the video by six frames):
+
+  | Shot | Seconds | Events |
+  | --- | --- | --- |
+  | hook | 0.00 to 2.00 | helm input from 0.30 s, full at 0.70 s |
+  | cargo | 2.00 to 7.50 | cargo let go 12 ticks (0.6 s) before the cut; roll input from 3.10 s |
+  | roll | 7.50 to 13.50 | lever 7.90 s, first piston stroke 9.50 s, door 10.50 s, chest 11.30 s |
+  | farm | 13.50 to 18.50 | clock lever 14.00 s; bone meal at 14.25 s, 15.65 s and 17.05 s (wheat stages 0000, 2535, 7777: ripe after the second dose) |
+  | return | 18.50 to 27.25 | disassembled at 21.75 s, 4.7 cm from the starting point; end card from 24.15 s |
+
+- Captions: "Every block stays a real block" 0.10 to 1.85 s, "Physics on top of physics" 2.35 to 7.25 s, "Full
+  3-axis physics" 7.65 to 9.40 s, "Pistons. Chests. Redstone." 9.55 to 13.30 s, "Crops grow in flight" 13.80 to
+  18.25 s, "Done flying?" 18.90 to 21.60 s, "Back to plain blocks" 21.80 to 24.15 s (2.35 s; version 1: 1.25 s),
+  end card 24.15 to 27.25 s.
+- `check_encode.py`: passed (1,659 frames, cuts declared at 126, 462, 828 and 1134, no black or repeated frame).
+- Loop point: the last frame against the first differs by 4.85 of 255 on average; 7.1% of the pixels differ by more
+  than 24. Ship and sky match. The water differs: the waves are in another phase, and there is a dark patch on the
+  water under the hull in the last frame only. It appears in the first frame in which the ship is blocks again
+  (version 1 has it too). Not measured, but most likely sky light: placed blocks lower the sky light of the columns
+  below them and the shader darkens by it, while a vessel's blocks are stored elsewhere and change no light where
+  the ship is. Starting the film from placed blocks instead would put the assembly into the first frames.
+- Server load: 1.6 to 2.7 ms per tick, physics step 0.09 to 0.86 ms (nine vessels in the cargo shot: 1.9 ms and
+  0.30 ms). The film held 4 ticks at the disassembly.
+- Times: the render 6 min 33 s (319.5 s in the game, 222.8 s of it recording, 85 ms per frame); `deliver.py` 7 to
+  9.5 min (the PNG checks and the encode); the stills render 5 min 7 s.
+- README stills (`readme/`, 1600x900, 286 to 383 KB): `galleon-over-the-bay`, `cargo-spill`, `machine-wall`,
+  `deck-farm`, from a second render of the same showcase (`only=hook+cargo+roll+farm,fov=55`) with the same commit.
 
 ## Decisions made for version 2
 
@@ -285,7 +330,8 @@ the frame; that is the sun angle, not a bug.
 - "Can't keep up!" lines in a render's log are the film itself: the tick loop waits while each tick's frames are
   rendered (up to half a second per tick in slow motion), so the server reports being seconds behind after every
   shot. No tick is skipped. The server's own work is logged at the end of each shot ("server N ms per tick, physics
-  step N ms"); in version 2 it was 1.7 to 3.4 ms per tick, with nine vessels in the cargo shot.
+  step N ms"); in the delivered render it was 1.6 to 2.7 ms per tick with a physics step of 0.09 to 0.86 ms (1.9 ms
+  and 0.30 ms in the cargo shot, with nine vessels).
 - Build cargo only where the ship is not: `FilmScene.buildCargo` refuses a piece within a block of any ship block
   (the first layout put a piece into the main mast, which rises through every height at ship x 0, z -2).
 - A lever's block, a lamp or a powered wall block next to a door opens it; keep powered blocks two away.
