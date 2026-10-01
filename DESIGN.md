@@ -287,16 +287,18 @@ once; the server has those columns loaded anyway, because the tickets reach two 
   darkened by ambient occlusion depends on the blocks round it, which are air there with or without the ring.
 - A block entity takes its light from its own place, in one of the vessel's own columns: it was never affected.
 
-Checked by the client GameTest `small-vessel-light`: three vessels in daylight without shaders, a 2x2x2 crate of
-white wool under its helm towards +x and +z, the same crate round its helm (in all four columns at the corner; never
-affected), and a build at the corner with glowstone and a chest.
+Checked by the client GameTest `small-vessel-light`: vessels in daylight without shaders, a 2x2x2 crate of white
+wool under its helm towards +x and +z, the same crate round its helm (in all four columns at the corner; never
+affected), a build at the corner with glowstone and a chest, and a row with a piston.
 
 - Pictures of the crate taken square on from the west and the east, and from the north and the south, are equally
   bright in the middle (luminance 100.8 and 100.7 of 255; 134.4 and 134.5; limit 10%). Without the ring the west
   side has 13% of the east side's brightness (13.2 against 100.7), and the north side the same share.
 - Every vertex of every face that looks sideways or up has sky light 15, on all three vessels, and on the third
   again after a block was set at the east end of its column and after one at the west end of the next column (lit
-  in the tick the block showed).
+  in the tick the block showed, or the tick after). On a fourth vessel a piston pushes a block of wool to the east
+  end of its column: the block's east, north, south and top faces have sky light 15. (The extended piston has 14
+  there: it is no full block and is lit by its own place under the redstone block, as it is in the world.)
 - The darkest vertex of the faces beside the glowstone has block light 11 (west) and 10 (north); the chest at the
   edge is drawn with sky light 15 and block light 14.
 

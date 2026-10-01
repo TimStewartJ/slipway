@@ -15,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -31,8 +32,8 @@ import net.minecraft.world.phys.Vec3;
  * has less than full sky light at any vertex (with smooth lighting a vertex blends the light of four blocks, the
  * corner ones from the column diagonally across); the glowstone's light reaches the west and north faces beside it
  * (through the neighbouring columns: they hold real light, not a stand-in); the chest at the edge is drawn lit; and
- * when the vessel grows to another chunk border, by a block in its own column and by one a column further out, the
- * faces there are lit as well.
+ * when a vessel grows to another chunk border, by a block set at the end of its own column, by one a column further
+ * out, and by a piston that pushes a block to the end of its column, the faces there are lit as well.
  */
 final class LightScenarios {
 	private LightScenarios() {
@@ -68,6 +69,21 @@ final class LightScenarios {
 		return blocks;
 	}
 
+	/**
+	 * A row of wool from under the helm to x 12, a piston at x 13 that looks east and a block of wool before it at
+	 * x 14: one push takes that block to x 15, the last of the chunk column.
+	 */
+	private static Map<BlockPos, BlockState> pusher() {
+		Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
+		for (int x = 0; x <= 12; x++) {
+			blocks.put(new BlockPos(x, -1, 0), wool());
+		}
+		blocks.put(new BlockPos(13, -1, 0), Blocks.PISTON.defaultBlockState().setValue(DirectionalBlock.FACING, Direction.EAST));
+		blocks.put(new BlockPos(14, -1, 0), wool());
+		blocks.put(BlockPos.ZERO, Ships.helm(Direction.NORTH));
+		return blocks;
+	}
+
 	/** The lowest sky light and block light baked into the faces of a vessel that look each way: "west 15/0, ...". */
 	private static String meshLight(ClientGameTestContext ctx, long id) {
 		return ctx.computeOnClient(mc -> {
@@ -85,6 +101,14 @@ final class LightScenarios {
 		for (Direction side : SIDES_AND_TOP) {
 			int sky = ctx.computeOnClient(mc -> ClientVessels.get(id).mesh.minSkyLight(side));
 			Check.that(sky == 15, "%s: a face looking %s is drawn with sky light %d at a vertex (15 under the open sky; -1: no such face)", what, side.getName(), sky);
+		}
+	}
+
+	/** One block of a vessel: its faces that look the given ways are in the mesh and have full sky light at every vertex. */
+	private static void expectBlockSkyLit(ClientGameTestContext ctx, long id, BlockPos local, String what, Direction... sides) {
+		for (Direction side : sides) {
+			int sky = ctx.computeOnClient(mc -> ClientVessels.get(id).mesh.minSkyLight(side, local));
+			Check.that(sky == 15, "%s: its face looking %s is drawn with sky light %d at a vertex (15 under the open sky; -1: no such face)", what, side.getName(), sky);
 		}
 	}
 
@@ -114,20 +138,24 @@ final class LightScenarios {
 			BlockPos crateHelm = new BlockPos(0, Game.GROUND_Y + 30, 40);
 			BlockPos controlHelm = crateHelm.offset(12, 0, 0);
 			BlockPos litHelm = crateHelm.offset(0, 0, 12);
+			BlockPos pusherHelm = crateHelm.offset(0, 0, 24);
 			server.runOnServer(s -> {
 				Ships.build(s.overworld(), crateHelm, crate(0, 0));
 				Ships.build(s.overworld(), controlHelm, crate(-1, -1));
 				Ships.build(s.overworld(), litHelm, lit());
+				Ships.build(s.overworld(), pusherHelm, pusher());
 			});
 			long crate = server.computeOnServer(s -> Ships.assemble(s.overworld(), crateHelm).id);
 			long control = server.computeOnServer(s -> Ships.assemble(s.overworld(), controlHelm).id);
 			VesselRecord litRecord = server.computeOnServer(s -> Ships.assemble(s.overworld(), litHelm));
 			long lit = litRecord.id;
+			VesselRecord pusherRecord = server.computeOnServer(s -> Ships.assemble(s.overworld(), pusherHelm));
+			long pusher = pusherRecord.id;
 			Game.hud(ctx, false);
-			// All three in view from the north-west: a vessel's mesh is built when it is drawn.
+			// All of them in view from the north-west: a vessel's mesh is built when it is drawn.
 			LooseScenarios.watch(ctx, sp, new Vec3(crateHelm.getX() - 7.5, crateHelm.getY() + 4.0, crateHelm.getZ() - 7.5),
 				new Vec3(crateHelm.getX() + 6.0, crateHelm.getY() - 1.0, crateHelm.getZ() + 6.0));
-			for (long id : new long[] {crate, control, lit}) {
+			for (long id : new long[] {crate, control, lit, pusher}) {
 				Game.waitClientReady(ctx, id, 200);
 				Game.waitClientComplete(ctx, id, 400);
 			}
@@ -181,6 +209,7 @@ final class LightScenarios {
 			Game.waitClientComplete(ctx, lit, 200);
 			Check.that(ctx.computeOnClient(mc -> mc.level.getBlockState(litRecord.toPlot(eastEdge)).is(wool().getBlock())), "the client lacks the block at the east end of the column");
 			expectSkyLit(ctx, r, lit, "the same after a block at the east end of its column");
+			expectBlockSkyLit(ctx, lit, eastEdge, "the block at the east end of the column", Direction.EAST, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.UP);
 			// A block at the west end of the next column: the vessel now has that column, and the block next to the
 			// new block's west face is in a column that is new to viewers and comes when it has loaded.
 			BlockPos westEdge = new BlockPos(-16, -1, 0);
@@ -195,7 +224,20 @@ final class LightScenarios {
 			r.metric("growth.ticksUntilTheFarWestFaceWasLit", waited);
 			Check.equal("local x the vessel's bounds reach in the west", server.computeOnServer(s -> Game.active(s, lit).record.localMin.getX()), -16);
 			expectSkyLit(ctx, r, lit, "the same after a block at the west end of the next column");
-			Shots.take(ctx, r, "06-grown-to-two-chunk-borders");
+			expectBlockSkyLit(ctx, lit, westEdge, "the block at the west end of the next column", Direction.WEST, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.UP);
+			// A piston's push: the block of wool before it goes to the east end of the column.
+			expectSkyLit(ctx, r, pusher, "row with a piston");
+			BlockPos pushed = new BlockPos(15, -1, 0);
+			server.runOnServer(s -> s.overworld().setBlock(pusherRecord.toPlot(new BlockPos(13, 0, 0)), Blocks.REDSTONE_BLOCK.defaultBlockState(), 3));
+			server.waitFor(s -> s.overworld().getBlockState(pusherRecord.toPlot(pushed)).is(wool().getBlock()), 60);
+			ctx.waitFor(mc -> mc.level.getBlockState(pusherRecord.toPlot(pushed)).is(wool().getBlock()), 60);
+			Game.waitClientComplete(ctx, pusher, 200);
+			Check.equal("local x the pushed block took the vessel's bounds to", server.computeOnServer(s -> Game.active(s, pusher).record.localMax.getX()), 15);
+			// The pushed block's west face is behind the piston's head. (The extended piston itself is no full block
+			// and is lit by its own place, as it is in the world: sky light 14 under the redstone block.)
+			r.note("row with a piston after the push: lowest sky/block light of the faces looking %s", meshLight(ctx, pusher));
+			expectBlockSkyLit(ctx, pusher, pushed, "the block a piston pushed to the east end of its column", Direction.EAST, Direction.NORTH, Direction.SOUTH, Direction.UP);
+			Shots.take(ctx, r, "06-grown-to-chunk-borders");
 			Game.hud(ctx, true);
 		}
 	}

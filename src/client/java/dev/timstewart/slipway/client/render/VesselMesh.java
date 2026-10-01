@@ -131,7 +131,12 @@ public final class VesselMesh {
 	 * without such a face (to check that the faces at the edge of the vessel's chunk columns are lit).
 	 */
 	public int minSkyLight(net.minecraft.core.Direction direction) {
-		return this.minLight(direction, true);
+		return this.minLight(direction, true, null);
+	}
+
+	/** As {@link #minSkyLight(net.minecraft.core.Direction)}, of the faces of the one block at a place in the vessel's frame. */
+	public int minSkyLight(net.minecraft.core.Direction direction, BlockPos local) {
+		return this.minLight(direction, true, local);
 	}
 
 	/**
@@ -140,10 +145,10 @@ public final class VesselMesh {
 	 * chunk columns: it gets there through the columns next to them).
 	 */
 	public int minBlockLight(net.minecraft.core.Direction direction) {
-		return this.minLight(direction, false);
+		return this.minLight(direction, false, null);
 	}
 
-	private int minLight(net.minecraft.core.Direction direction, boolean sky) {
+	private int minLight(net.minecraft.core.Direction direction, boolean sky, @org.jspecify.annotations.Nullable BlockPos block) {
 		int wanted = packNormal(direction.getStepX(), direction.getStepY(), direction.getStepZ());
 		int min = -1;
 		for (SectionMesh mesh : this.sections.values()) {
@@ -153,7 +158,8 @@ public final class VesselMesh {
 				}
 				int[] d = buffer.data;
 				for (int v = 0, i = 0; v < buffer.vertices; v++, i += STRIDE) {
-					if (d[i + 7] == wanted) {
+					if (d[i + 7] == wanted && (block == null || within(Float.intBitsToFloat(d[i]) - block.getX(), Float.intBitsToFloat(d[i + 1]) - block.getY(),
+						Float.intBitsToFloat(d[i + 2]) - block.getZ()))) {
 						int light = sky ? net.minecraft.util.LightCoordsUtil.sky(d[i + 6]) : net.minecraft.util.LightCoordsUtil.block(d[i + 6]);
 						min = min < 0 ? light : Math.min(min, light);
 					}
@@ -161,6 +167,10 @@ public final class VesselMesh {
 			}
 		}
 		return min;
+	}
+
+	private static boolean within(float x, float y, float z) {
+		return x > -0.001f && x < 1.001f && y > -0.001f && y < 1.001f && z > -0.001f && z < 1.001f;
 	}
 
 	public boolean isEmpty() {
