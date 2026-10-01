@@ -22,6 +22,13 @@ public interface PhysicsEngine extends AutoCloseable {
 	/** Applies a force at the centre of mass and a torque for the next step only. */
 	void applyForceAndTorque(long vesselId, Vector3d force, Vector3d torque);
 
+	/**
+	 * Marks a vessel's body as loose (a plain rigid body nobody controls) or controlled. A loose body may fall asleep
+	 * once it rests and then costs nothing until something touches it or the things around it change; a controlled
+	 * body never sleeps, because its controller acts on it every step.
+	 */
+	void setVesselLoose(long vesselId, boolean loose);
+
 	/** Creates, replaces or (with empty boxes) removes the static body of a terrain section. */
 	void setStaticSection(long sectionKey, BoxList boxes, int originX, int originY, int originZ);
 
@@ -47,6 +54,7 @@ public interface PhysicsEngine extends AutoCloseable {
 		public double qx, qy, qz, qw = 1;
 		public double vx, vy, vz;
 		public double wx, wy, wz;
+		/** False while the body sleeps (a loose vessel at rest). */
 		public boolean active;
 
 		public boolean isFinite() {

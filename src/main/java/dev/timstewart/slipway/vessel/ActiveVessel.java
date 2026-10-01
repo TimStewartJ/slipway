@@ -30,6 +30,14 @@ public final class ActiveVessel {
 	public boolean hasBody;
 	/** Mass properties of the current collision shape, local frame. */
 	public BoxList.@Nullable MassProperties mass;
+	/** Where the hovering vessel holds its position; only the physics thread reads and writes it. */
+	final dev.timstewart.slipway.physics.VesselController.Hold hold = new dev.timstewart.slipway.physics.VesselController.Hold();
+	/** The hold point is stale (the vessel was teleported): the next step takes a new one. */
+	boolean holdReset;
+	/** Whether the physics body has been told it is loose; differs from the record until the next exchange. */
+	boolean bodyLoose;
+	/** False while the body sleeps: a loose vessel that has come to rest is not simulated until something disturbs it. */
+	public boolean bodyAwake = true;
 	/** Bumped whenever the vessel's blocks change; clients and proxies use it to know when to refresh. */
 	public int revision;
 	/** Set when bounds, block count or mass changed and viewers need a new info packet. */

@@ -13,7 +13,8 @@ import net.minecraft.client.player.LocalPlayer;
 /**
  * Reads the pilot's keys while they ride a vessel's helm and sends them to the server every tick the input
  * changes (and at least twice a second). Movement keys are the player's own: W/S thrust, A/D turn, jump rises;
- * Slipway adds rebindable keys (category "Slipway") for descending, strafing, pitch, roll and the two toggles.
+ * Slipway adds rebindable keys (category "Slipway") for descending, strafing, pitch, roll and the three toggles
+ * (hover, level, loose).
  */
 public final class HelmControls {
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Slipway.id("controls"));
@@ -26,6 +27,7 @@ public final class HelmControls {
 	static KeyMapping strafeRight;
 	static KeyMapping toggleHover;
 	static KeyMapping toggleLevel;
+	static KeyMapping toggleLoose;
 
 	private static float[] lastSent = new float[6];
 	private static int sequence;
@@ -47,6 +49,8 @@ public final class HelmControls {
 		strafeRight = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.slipway.strafe_right", InputConstants.KEY_M, CATEGORY));
 		toggleHover = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.slipway.toggle_hover", InputConstants.KEY_H, CATEGORY));
 		toggleLevel = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.slipway.toggle_level", InputConstants.KEY_B, CATEGORY));
+		// U: G, the obvious neighbour of H, is vanilla 26.3's quick-actions key, and Iris takes K, O and R.
+		toggleLoose = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.slipway.toggle_loose", InputConstants.KEY_U, CATEGORY));
 	}
 
 	/** Forces the six axes for some ticks (used by the end-to-end test agent to fly like a pilot would). */
@@ -67,6 +71,8 @@ public final class HelmControls {
 			while (toggleHover.consumeClick()) {
 			}
 			while (toggleLevel.consumeClick()) {
+			}
+			while (toggleLoose.consumeClick()) {
 			}
 			scriptedTicks = 0;
 			return;
@@ -93,6 +99,9 @@ public final class HelmControls {
 		}
 		while (toggleLevel.consumeClick()) {
 			toggles ^= SlipwayPayloads.HelmControl.TOGGLE_LEVEL;
+		}
+		while (toggleLoose.consumeClick()) {
+			toggles ^= SlipwayPayloads.HelmControl.TOGGLE_LOOSE;
 		}
 		ticksSinceSend++;
 		boolean changed = toggles != 0 || ticksSinceSend >= 10;

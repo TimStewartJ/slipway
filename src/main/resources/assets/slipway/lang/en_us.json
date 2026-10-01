@@ -12,11 +12,13 @@
   "slipway.disassemble.blocked": "Cannot disassemble: %2$s is in the way at %1$s",
   "slipway.disassemble.outside": "Cannot disassemble: %s is outside the world",
   "slipway.disassemble.unloaded": "Cannot disassemble: %s is not loaded",
-  "slipway.helm.taken": "At the helm: %s/%s thrust, %s/%s turn, %s/%s up/down, %s/%s pitch, %s/%s roll, %s/%s strafe, %s hover, %s level; sneak (%s) to leave, sneak + use the helm to disassemble",
+  "slipway.helm.taken": "At the helm: %s/%s thrust, %s/%s turn, %s/%s up/down, %s/%s pitch, %s/%s roll, %s/%s strafe, %s hover, %s level, %s loose; sneak (%s) to leave, sneak + use the helm to disassemble",
   "slipway.helm.hover_on": "Hover on: the vessel holds its position",
   "slipway.helm.hover_off": "Hover off: gravity applies",
   "slipway.helm.level_on": "Level on: the vessel rights itself",
   "slipway.helm.level_off": "Level off: the vessel holds its attitude",
+  "slipway.helm.loose_on": "Loose on: the vessel is a free body, helm controls are off",
+  "slipway.helm.loose_off": "Loose off: hover, level and helm controls apply again",
   "key.categories.slipway": "Slipway",
   "key.slipway.pitch_up": "Pitch up (nose up)",
   "key.slipway.pitch_down": "Pitch down (nose down)",
@@ -27,8 +29,9 @@
   "key.slipway.descend": "Descend",
   "key.slipway.toggle_hover": "Toggle hover",
   "key.slipway.toggle_level": "Toggle level",
+  "key.slipway.toggle_loose": "Toggle loose",
   "slipway.hud.speed": "Speed %s m/s",
   "slipway.hud.altitude": "Altitude %s",
   "slipway.hud.attitude": "Pitch %s°  Roll %s°  Heading %s°",
-  "slipway.hud.modes": "Hover %s  Level %s  Mass %s t"
+  "slipway.hud.modes": "Hover %s  Level %s  Loose %s  Mass %s t"
 }

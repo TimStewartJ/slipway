@@ -45,7 +45,34 @@ class VesselRecordTest {
 		assertEquals(record.angularVelocity, back.angularVelocity);
 		assertEquals(record.hover, back.hover);
 		assertEquals(record.level, back.level);
+		assertEquals(record.loose, back.loose);
 		assertEquals(record.blockCount, back.blockCount);
+	}
+
+	@Test
+	void looseIsSavedAndOlderSavesLoadAsNotLoose() {
+		VesselRecord record = sample(42, 1025);
+		assertFalse(record.loose, "a new vessel is not loose");
+		record.loose = true;
+		for (var ops : new com.mojang.serialization.DynamicOps<?>[] {NbtOps.INSTANCE, JsonOps.INSTANCE}) {
+			assertTrue(reload(record, ops).loose, "loose was lost in " + ops);
+		}
+		// What 0.1.0 and 0.1.1 wrote: the same record without the field.
+		com.google.gson.JsonObject json = VesselRecord.CODEC.encodeStart(JsonOps.INSTANCE, record).getOrThrow().getAsJsonObject();
+		assertTrue(json.has("loose"));
+		json.remove("loose");
+		VesselRecord old = VesselRecord.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+		assertFalse(old.loose, "a save without the field must load as not loose");
+		assertEquals(record.hover, old.hover);
+		assertEquals(record.level, old.level);
+		assertEquals(record.blockCount, old.blockCount);
+		net.minecraft.nbt.CompoundTag tag = (net.minecraft.nbt.CompoundTag)VesselRecord.CODEC.encodeStart(NbtOps.INSTANCE, record).getOrThrow();
+		tag.remove("loose");
+		assertFalse(VesselRecord.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow().loose);
+	}
+
+	private static <T> VesselRecord reload(VesselRecord record, com.mojang.serialization.DynamicOps<T> ops) {
+		return VesselRecord.CODEC.parse(ops, VesselRecord.CODEC.encodeStart(ops, record).getOrThrow()).getOrThrow();
 	}
 
 	@Test

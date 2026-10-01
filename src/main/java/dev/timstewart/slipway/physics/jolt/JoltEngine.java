@@ -1,12 +1,16 @@
 package dev.timstewart.slipway.physics.jolt;
 
+import com.github.stephengold.joltjni.AaBox;
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.BoxShapeSettings;
+import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
 import com.github.stephengold.joltjni.BroadPhaseLayerInterfaceTable;
 import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JobSystemThreadPool;
 import com.github.stephengold.joltjni.JoltPhysicsObject;
+import com.github.stephengold.joltjni.ObjectLayerFilter;
 import com.github.stephengold.joltjni.ObjectLayerPairFilterTable;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilterTable;
 import com.github.stephengold.joltjni.PhysicsSystem;
@@ -27,6 +31,7 @@ import dev.timstewart.slipway.physics.BoxList;
 import dev.timstewart.slipway.physics.PhysicsEngine;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +45,21 @@ import org.slf4j.LoggerFactory;
  * physics system, allocators, job system and layer tables live as long as it does; shape settings, shape results
  * and body settings are closed right after use; shapes are reference counted and owned by their bodies, which are
  * destroyed when removed. {@link #close()} destroys all bodies and frees everything.
+ *
+ * <p>Sleeping: a controlled vessel never sleeps (its controller applies forces every step). A loose vessel may: once
+ * it has rested for half a second Jolt stops simulating it, and everything resting only on sleeping or static bodies
+ * sleeps with it, so a pile on the ground is calm and free. Jolt wakes a sleeping body when an awake one touches it,
+ * but not when its support goes away, so whenever terrain or a vessel changes, is removed or is teleported, the loose
+ * vessels around it are woken here.
+ *
+ * <p>Seams: a surface is many boxes side by side, and a body sliding fast over it catches on the buried edges between
+ * them ("ghost collisions": a cube sliding at 8 m/s over a floor of single-block boxes tumbled within four blocks).
+ * Vessel bodies therefore use Jolt's enhanced internal edge removal, which drops those contacts for the edges of the
+ * second body of a pair. Terrain is static and always second, so vessels slide over terrain seams as over one slab.
+ * Of two vessels the second is the one with the higher Jolt body id (in practice the one created later), which
+ * jolt-jni gives no control over: a crate sliding fast over the seams of a deck that existed before it still tumbles
+ * there (measured; slow sliding and resting are not affected, and a deck of one material has seams only every 16
+ * blocks).
  */
 public final class JoltEngine implements PhysicsEngine {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Slipway/Physics");
@@ -47,6 +67,11 @@ public final class JoltEngine implements PhysicsEngine {
 	public static final int LAYER_MOVING = 1;
 	private static final float MAX_CONVEX_RADIUS = 0.05F;
 	private static final float MIN_HALF_EXTENT = 0.001F;
+	/**
+	 * Blocks added around a changed terrain section when waking loose vessels: what rests on it reaches a little out
+	 * of it, and Jolt's broad phase keeps bounds as floats, which are coarse far from the origin (2 blocks at 24 million).
+	 */
+	private static final double WAKE_MARGIN = 8.0;
 	/** Process-wide counts of live engines and bodies, for the in-game leak checks. */
 	private static final AtomicInteger LIVE_ENGINES = new AtomicInteger();
 	private static final AtomicInteger LIVE_BODIES = new AtomicInteger();
@@ -60,6 +85,11 @@ public final class JoltEngine implements PhysicsEngine {
 	private final BodyInterface bodies;
 	private final Long2IntMap vesselBodies = new Long2IntOpenHashMap();
 	private final Long2IntMap staticBodies = new Long2IntOpenHashMap();
+	/** Vessels whose bodies are loose (allowed to sleep). */
+	private final LongOpenHashSet looseVessels = new LongOpenHashSet();
+
+	private final BroadPhaseLayerFilter anyBroadPhaseLayer = new BroadPhaseLayerFilter();
+	private final ObjectLayerFilter anyObjectLayer = new ObjectLayerFilter();
 	private final RVec3 scratchPosition = new RVec3();
 	private final Quat scratchRotation = new Quat();
 	private final Vec3 scratchVector = new Vec3();
@@ -78,6 +108,7 @@ public final class JoltEngine implements PhysicsEngine {
 		this.system = new PhysicsSystem();
 		this.system.init(65536, 0, 65536, 32768, this.layerMap, this.broadPhaseFilter, this.pairFilter);
 		this.system.setGravity(0f, -9.81f, 0f);
+
 		this.tempAllocator = new TempAllocatorImpl(32 * 1024 * 1024);
 		this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, Math.max(1, workerThreads));
 		this.bodies = this.system.getBodyInterface();
@@ -108,6 +139,7 @@ public final class JoltEngine implements PhysicsEngine {
 			int existing = this.vesselBodies.get(vesselId);
 			if (existing != Jolt.cInvalidBodyId) {
 				this.bodies.setShape(existing, shape, true, EActivation.Activate);
+				this.wakeLooseVessels();
 				return;
 			}
 			BodyCreationSettings settings = new BodyCreationSettings(shape, new RVec3(pose.x(), pose.y(), pose.z()),
@@ -115,6 +147,7 @@ public final class JoltEngine implements PhysicsEngine {
 			try {
 				settings.setAllowSleeping(false);
 				settings.setMotionQuality(EMotionQuality.LinearCast);
+				settings.setEnhancedInternalEdgeRemoval(true);
 				settings.setLinearDamping(0.0f);
 				settings.setAngularDamping(0.0f);
 				settings.setFriction(0.6f);
@@ -140,9 +173,11 @@ public final class JoltEngine implements PhysicsEngine {
 	public void removeVessel(long vesselId) {
 		int bodyId = this.vesselBodies.remove(vesselId);
 		if (bodyId != Jolt.cInvalidBodyId) {
+			this.looseVessels.remove(vesselId);
 			this.bodies.removeBody(bodyId);
 			this.bodies.destroyBody(bodyId);
 			LIVE_BODIES.decrementAndGet();
+			this.wakeLooseVessels();
 		}
 	}
 
@@ -160,6 +195,46 @@ public final class JoltEngine implements PhysicsEngine {
 		this.bodies.setPositionAndRotation(bodyId, pose.x(), pose.y(), pose.z(), (float)pose.qx(), (float)pose.qy(), (float)pose.qz(), (float)pose.qw(),
 			EActivation.Activate);
 		this.bodies.setLinearAndAngularVelocity(bodyId, 0f, 0f, 0f, 0f, 0f, 0f);
+		this.wakeLooseVessels();
+	}
+
+	@Override
+	public void setVesselLoose(long vesselId, boolean loose) {
+		int bodyId = this.vesselBodies.get(vesselId);
+		if (bodyId == Jolt.cInvalidBodyId || !(loose ? this.looseVessels.add(vesselId) : this.looseVessels.remove(vesselId))) {
+			return;
+		}
+		BodyLockWrite lock = new BodyLockWrite(this.system.getBodyLockInterface(), bodyId);
+		try {
+			if (lock.succeeded()) {
+				lock.getBody().setAllowSleeping(loose);
+			}
+		} finally {
+			lock.releaseLock();
+			lock.close();
+		}
+		this.bodies.activateBody(bodyId);
+	}
+
+	/** Wakes every loose vessel; each falls asleep again once it has rested for half a second. */
+	private void wakeLooseVessels() {
+		for (long id : this.looseVessels) {
+			this.bodies.activateBody(this.vesselBodies.get(id));
+		}
+	}
+
+	/** Wakes the loose vessels in and around a terrain section that changed (they may have rested on it). */
+	private void wakeLooseVesselsNear(double originX, double originY, double originZ) {
+		if (this.looseVessels.isEmpty()) {
+			return;
+		}
+		AaBox box = new AaBox(new RVec3(originX - WAKE_MARGIN, originY - WAKE_MARGIN, originZ - WAKE_MARGIN),
+			new RVec3(originX + 16 + WAKE_MARGIN, originY + 16 + WAKE_MARGIN, originZ + 16 + WAKE_MARGIN));
+		try {
+			this.bodies.activateBodiesInAaBox(box, this.anyBroadPhaseLayer, this.anyObjectLayer);
+		} finally {
+			box.close();
+		}
 	}
 
 	@Override
@@ -189,6 +264,7 @@ public final class JoltEngine implements PhysicsEngine {
 				LIVE_BODIES.incrementAndGet();
 				this.staticBodies.put(sectionKey, bodyId);
 				this.staticChangesSinceOptimize++;
+				this.wakeLooseVesselsNear(originX, originY, originZ);
 			} finally {
 				settings.close();
 			}
@@ -201,6 +277,8 @@ public final class JoltEngine implements PhysicsEngine {
 	public void removeStaticSection(long sectionKey) {
 		int bodyId = this.staticBodies.remove(sectionKey);
 		if (bodyId != Jolt.cInvalidBodyId) {
+			this.bodies.getPositionAndRotation(bodyId, this.scratchPosition, this.scratchRotation);
+			this.wakeLooseVesselsNear(this.scratchPosition.xx(), this.scratchPosition.yy(), this.scratchPosition.zz());
 			this.bodies.removeBody(bodyId);
 			this.bodies.destroyBody(bodyId);
 			LIVE_BODIES.decrementAndGet();
@@ -343,6 +421,8 @@ public final class JoltEngine implements PhysicsEngine {
 		}
 		// jolt-jni keeps every PhysicsSystem in a static map (for PhysicsSystem.find) until forgetMe(); freeing the
 		// native system does not remove it, so without this each closed engine stays reachable with its Java objects.
+		this.anyObjectLayer.close();
+		this.anyBroadPhaseLayer.close();
 		this.system.forgetMe();
 		this.system.close();
 		this.jobSystem.close();

@@ -28,7 +28,9 @@ public final class VesselRecord {
 		Codec.BOOL.fieldOf("level").forGetter(r -> r.level),
 		Codec.INT.fieldOf("blocks").forGetter(r -> r.blockCount),
 		Codec.INT.optionalFieldOf("proxy_revision", 0).forGetter(r -> r.proxyRevision),
-		Codec.INT_STREAM.xmap(java.util.stream.IntStream::toArray, java.util.Arrays::stream).optionalFieldOf("proxy", new int[0]).forGetter(r -> r.proxy)
+		Codec.INT_STREAM.xmap(java.util.stream.IntStream::toArray, java.util.Arrays::stream).optionalFieldOf("proxy", new int[0]).forGetter(r -> r.proxy),
+		// Since 0.1.2; absent in older saves, which load as not loose.
+		Codec.BOOL.optionalFieldOf("loose", false).forGetter(r -> r.loose)
 	).apply(i, VesselRecord::new));
 
 	public final long id;
@@ -47,6 +49,12 @@ public final class VesselRecord {
 	public Vec3 angularVelocity;
 	public boolean hover;
 	public boolean level;
+	/**
+	 * Loose: the vessel is a plain rigid body. Nothing controls it (no hover, levelling, drag, spin brake or thrust,
+	 * and helm input is ignored); gravity and contacts move it. {@link #hover} and {@link #level} keep their values
+	 * and apply again when this is turned off.
+	 */
+	public boolean loose;
 	public int blockCount;
 	/** Bumped whenever {@link #proxy} is recomputed. */
 	public int proxyRevision;
@@ -58,11 +66,12 @@ public final class VesselRecord {
 
 	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
 		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount) {
-		this(id, plot, anchor, localMin, localMax, helm, helmFacing, pose, linearVelocity, angularVelocity, hover, level, blockCount, 0, new int[0]);
+		this(id, plot, anchor, localMin, localMax, helm, helmFacing, pose, linearVelocity, angularVelocity, hover, level, blockCount, 0, new int[0], false);
 	}
 
 	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
-		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount, int proxyRevision, int[] proxy) {
+		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount, int proxyRevision, int[] proxy,
+		boolean loose) {
 		this.id = id;
 		this.plot = plot;
 		this.anchor = anchor;
@@ -75,6 +84,7 @@ public final class VesselRecord {
 		this.angularVelocity = finiteOrZero(angularVelocity);
 		this.hover = hover;
 		this.level = level;
+		this.loose = loose;
 		this.blockCount = blockCount;
 		this.proxyRevision = proxyRevision;
 		this.proxy = proxy == null || proxy.length % 2 != 0 ? new int[0] : proxy;

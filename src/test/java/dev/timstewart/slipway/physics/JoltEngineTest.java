@@ -243,10 +243,16 @@ class JoltEngineTest {
 			}
 			BoxList bigger = deck();
 			bigger.add(3, 0, -1, 6, 1, 2, 700f);
+			// Loose vessels: sleeping is switched through a body lock, and changes around them wake them through a box query.
+			engine.setVesselLoose(2L, true);
+			engine.setVesselLoose(3L, true);
 			engine.setVesselShape(2L, bigger, VesselPose.at(BASE_X, 90, BASE_Z), new Vector3d(), new Vector3d());
 			engine.teleportVessel(3L, VesselPose.fromYawPitchRoll(BASE_X, 100, BASE_Z, 45, 45, 45));
 			engine.removeVessel(1L);
 			engine.removeStaticSection(0L);
+			engine.setStaticSection(1L, floorSection(), (int)BASE_X - 16, 60, (int)BASE_Z - 8);
+			engine.step(0.05f, 3);
+			engine.setVesselLoose(3L, false);
 			engine.step(0.05f, 3);
 		}
 	}
