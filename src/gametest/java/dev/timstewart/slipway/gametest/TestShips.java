@@ -2,14 +2,18 @@ package dev.timstewart.slipway.gametest;
 
 import dev.timstewart.slipway.config.SlipwayConfig;
 import dev.timstewart.slipway.math.VesselPose;
+import dev.timstewart.slipway.physics.BoxList;
 import dev.timstewart.slipway.registry.SlipwayRegistry;
 import dev.timstewart.slipway.vessel.ActiveVessel;
 import dev.timstewart.slipway.vessel.HelmBlock;
 import dev.timstewart.slipway.vessel.VesselAssembly;
 import dev.timstewart.slipway.vessel.VesselManager;
 import dev.timstewart.slipway.vessel.VesselRecord;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -31,6 +35,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.phys.AABB;
 
 /** Builds small test ships inside a game-test arena and reads them back. */
@@ -118,6 +123,77 @@ final class TestShips {
 
 	static ActiveVessel active(GameTestHelper helper, VesselRecord record) {
 		return VesselManager.get(helper.getLevel()).active(record.id);
+	}
+
+	/** The vessel has a body built from its blocks as they are now. */
+	static boolean settled(ActiveVessel vessel) {
+		return vessel != null && vessel.hasBody && vessel.mass != null && !vessel.shapeDirty;
+	}
+
+	/** The same boxes, as far as their mass, centre and inertia tell: one more solid block changes all three. */
+	static boolean sameMass(BoxList.MassProperties a, BoxList.MassProperties b) {
+		boolean same = Math.abs(a.mass() - b.mass()) < 1.0e-6 && Math.abs(a.comX() - b.comX()) < 1.0e-6 && Math.abs(a.comY() - b.comY()) < 1.0e-6
+			&& Math.abs(a.comZ() - b.comZ()) < 1.0e-6;
+		for (int i = 0; same && i < a.inertia().length; i++) {
+			same = Math.abs(a.inertia()[i] - b.inertia()[i]) < 1.0e-6 * Math.max(1.0, Math.abs(a.inertia()[i]));
+		}
+		return same;
+	}
+
+	/** Runs a command as the server in the test's level and returns what it replied. */
+	static List<String> command(GameTestHelper helper, String command) {
+		List<String> output = new ArrayList<>();
+		CommandSource collector = new CommandSource() {
+			@Override
+			public void sendSystemMessage(Component message) {
+				output.add(message.getString());
+			}
+
+			@Override
+			public boolean acceptsSuccess() {
+				return true;
+			}
+
+			@Override
+			public boolean acceptsFailure() {
+				return true;
+			}
+
+			@Override
+			public boolean shouldInformAdmins() {
+				return false;
+			}
+		};
+		var server = helper.getLevel().getServer();
+		server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withLevel(helper.getLevel()).withSource(collector), command);
+		return output;
+	}
+
+	/** How many blocks other than air are in the plot columns a vessel uses or used: those of its bounds and two columns round them. */
+	static int blocksInPlot(ServerLevel level, VesselRecord record) {
+		int count = 0;
+		BlockPos min = record.plotMin();
+		BlockPos max = record.plotMax();
+		for (int cx = (min.getX() >> 4) - 2; cx <= (max.getX() >> 4) + 2; cx++) {
+			for (int cz = (min.getZ() >> 4) - 2; cz <= (max.getZ() >> 4) + 2; cz++) {
+				for (LevelChunkSection section : level.getChunk(cx, cz).getSections()) {
+					if (section.hasOnlyAir()) {
+						continue;
+					}
+					for (int i = 0; i < 4096; i++) {
+						if (!section.getBlockState(i & 15, i >> 8, i >> 4 & 15).isAir()) {
+							count++;
+						}
+					}
+				}
+			}
+		}
+		return count;
+	}
+
+	/** Item entities in and around a vessel's plot (there must never be any: drops belong where the vessel is). */
+	static long itemEntitiesInPlot(ServerLevel level, VesselRecord record) {
+		return level.getEntitiesOfClass(ItemEntity.class, AABB.encapsulatingFullBlocks(record.plotMin().offset(-64, -64, -64), record.plotMax().offset(64, 64, 64))).size();
 	}
 
 	/** A pose with the given rotation that keeps the helm block's centre where it is. */

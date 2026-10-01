@@ -38,7 +38,9 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   A piston does not push a block further out (it does not move, as against obsidian), and a block cannot be placed
   there (the reason is shown, the item is kept). In 0.1.1 the size was only checked at assembly: a slime-block
   flying machine on a vessel could stretch it to the edge of its storage area, 2,016 blocks out, with every chunk
-  column in between loaded, ticked, saved and sent to everyone who saw the vessel.
+  column in between loaded, ticked, saved and sent to everyone who saw the vessel. A block that gets further out
+  another way (a bucket of water, a tree growing, a command) is not part of the vessel: it is not put into the world
+  at disassembly and is deleted with the vessel.
 - Disassembling while a piston moves lets the stroke finish first.
 
 ### Known limits of the new features

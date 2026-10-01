@@ -3,6 +3,7 @@ package dev.timstewart.slipway.gametest;
 import static dev.timstewart.slipway.gametest.TestShips.check;
 
 import dev.timstewart.slipway.math.VesselPose;
+import dev.timstewart.slipway.physics.BoxList;
 import dev.timstewart.slipway.registry.SlipwayRegistry;
 import dev.timstewart.slipway.vessel.ActiveVessel;
 import dev.timstewart.slipway.vessel.HelmBlock;
@@ -11,6 +12,7 @@ import dev.timstewart.slipway.vessel.VesselManager;
 import dev.timstewart.slipway.vessel.VesselRecord;
 import dev.timstewart.slipway.vessel.VesselRegion;
 import dev.timstewart.slipway.vessel.VesselRegistry;
+import java.util.List;
 import java.util.Map;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -21,9 +23,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -185,6 +191,177 @@ public class AssemblyGameTests {
 				});
 			});
 		});
+	}
+
+	/** In a section the deck is in. */
+	private static final BlockPos STRAY_NEAR = new BlockPos(4, 0, 0);
+	private static final BlockPos STRAY_CHEST = new BlockPos(0, 6, 0);
+	private static final BlockPos STRAY_WATER = new BlockPos(-6, 0, 0);
+	/** Two chunk columns from the deck's own, the last its tickets keep loaded. */
+	private static final BlockPos STRAY_FAR = new BlockPos(-40, 0, 0);
+
+	/**
+	 * Sets four blocks in the plot of a three by three deck that the vessel does not take in, with the largest span at
+	 * five blocks: a stone, a chest with diamonds in it, water, and a stone two columns away that a command sets. (The
+	 * setting is the server's, so it is lowered for these calls only; a block is taken in or left out when it is set.)
+	 */
+	private static void setBlocksPastTheLargestSpan(GameTestHelper helper, VesselRecord record) {
+		ServerLevel level = helper.getLevel();
+		BlockPos min = record.localMin;
+		BlockPos max = record.localMax;
+		check(helper, TestShips.blocksInPlot(level, record) == 10, "the deck's plot holds " + TestShips.blocksInPlot(level, record) + " blocks before any is added");
+		TestShips.withConfig(config -> config.maxVesselSpan = 5, () -> {
+			level.setBlock(record.toPlot(STRAY_NEAR), Blocks.STONE.defaultBlockState(), 3);
+			level.setBlock(record.toPlot(STRAY_CHEST), Blocks.CHEST.defaultBlockState(), 3);
+			((ChestBlockEntity)level.getBlockEntity(record.toPlot(STRAY_CHEST))).setItem(0, new ItemStack(Items.DIAMOND, 3));
+			// placed like a copy, so that it stays where it is and does not start to flow
+			level.setBlock(record.toPlot(STRAY_WATER), Blocks.WATER.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS);
+			BlockPos far = record.toPlot(STRAY_FAR);
+			TestShips.command(helper, "setblock " + far.getX() + " " + far.getY() + " " + far.getZ() + " minecraft:stone");
+		});
+		check(helper, level.getBlockState(record.toPlot(STRAY_FAR)).is(Blocks.STONE), "/setblock did not set a block in the plot");
+		check(helper, record.localMin.equals(min) && record.localMax.equals(max), "the vessel took in a block past the largest span: " + record.localMin + ".." + record.localMax);
+		check(helper, TestShips.blocksInPlot(level, record) == 14, "the plot holds " + TestShips.blocksInPlot(level, record) + " blocks with the four that were set");
+	}
+
+	private static void checkThePlotIsEmpty(GameTestHelper helper, VesselRecord record, String when) {
+		ServerLevel level = helper.getLevel();
+		int left = TestShips.blocksInPlot(level, record);
+		check(helper, left == 0, when + " the vessel's plot still holds " + left + " blocks ("
+			+ level.getBlockState(record.toPlot(STRAY_NEAR)) + ", " + level.getBlockState(record.toPlot(STRAY_CHEST)) + ", " + level.getBlockState(record.toPlot(STRAY_WATER))
+			+ ", " + level.getBlockState(record.toPlot(STRAY_FAR)) + ")");
+		check(helper, level.getBlockEntity(record.toPlot(STRAY_CHEST)) == null, when + " the chest's block entity is still in the plot");
+		check(helper, TestShips.itemEntitiesAround(helper) == 0 && TestShips.itemEntitiesInPlot(level, record) == 0, when + " items were dropped");
+	}
+
+	/**
+	 * Blocks a vessel did not take in do not outlive it: after disassembly its plot is empty, and the same ship
+	 * assembled again (it gets the plot freed last, which is usually that one) is made of its own blocks only.
+	 */
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void disassemblyLeavesNothingInThePlot(GameTestHelper helper) {
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		ServerLevel level = helper.getLevel();
+		VesselManager manager = VesselManager.get(level);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		BoxList.MassProperties[] mass = new BoxList.MassProperties[1];
+		VesselRecord[] again = new VesselRecord[1];
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, TestShips.settled(vessel), "the vessel has no body yet"))
+			.thenExecute(() -> {
+				mass[0] = vessel.mass;
+				setBlocksPastTheLargestSpan(helper, record);
+			})
+			.thenIdle(3)
+			.thenExecute(() -> {
+				VesselAssembly.Outcome back = manager.disassemble(record.id, null);
+				check(helper, back.success(), "disassembly failed: " + back.message().getString());
+				checkThePlotIsEmpty(helper, record, "after disassembly");
+				// The deck is back in the world, and none of the four came with it.
+				check(helper, helper.getBlockState(helm).is(SlipwayRegistry.HELM) && helper.getBlockState(helm.offset(1, -1, 1)).is(Blocks.OAK_PLANKS), "the deck is not back in the world");
+				for (BlockPos stray : new BlockPos[] {STRAY_NEAR, STRAY_CHEST, STRAY_WATER}) {
+					check(helper, helper.getBlockState(helm.offset(stray)).isAir(), "a block the vessel had not taken in was put into the world: " + helper.getBlockState(helm.offset(stray)));
+				}
+			})
+			// The plot is freed a tick later.
+			.thenIdle(3)
+			.thenExecute(() -> again[0] = TestShips.assemble(helper, helm))
+			.thenWaitUntil(() -> check(helper, TestShips.settled(TestShips.active(helper, again[0])), "the ship assembled again has no body yet"))
+			.thenExecute(() -> {
+				String plots = " (plot " + again[0].plot + ", the first one had " + record.plot + ")";
+				check(helper, again[0].blockCount == 10, "the ship assembled again counts " + again[0].blockCount + " blocks" + plots);
+				check(helper, TestShips.sameMass(TestShips.active(helper, again[0]).mass, mass[0]), "the ship assembled again has another shape: it weighs "
+					+ TestShips.active(helper, again[0]).mass.mass() + ", not " + mass[0].mass() + plots);
+				check(helper, TestShips.blocksInPlot(level, again[0]) == 10, "its plot holds " + TestShips.blocksInPlot(level, again[0]) + " blocks" + plots);
+				check(helper, manager.disassemble(again[0].id, null).success(), "the second disassembly failed");
+				check(helper, TestShips.blocksInPlot(level, again[0]) == 0, "after the second disassembly the plot holds " + TestShips.blocksInPlot(level, again[0]) + " blocks");
+				for (BlockPos stray : new BlockPos[] {STRAY_NEAR, STRAY_CHEST, STRAY_WATER}) {
+					check(helper, helper.getBlockState(helm.offset(stray)).isAir(), "a block of the first vessel's plot came into the world with the second: " + helper.getBlockState(helm.offset(stray)));
+				}
+			})
+			.thenSucceed();
+	}
+
+	/** The same for a vessel that <code>/slipway remove</code> deletes. */
+	@GameTest(structure = ARENA, maxTicks = 60)
+	public void removingAVesselLeavesNothingInThePlot(GameTestHelper helper) {
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		ServerLevel level = helper.getLevel();
+		VesselManager manager = VesselManager.get(level);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, TestShips.settled(vessel), "the vessel has no body yet"))
+			.thenExecute(() -> setBlocksPastTheLargestSpan(helper, record))
+			.thenIdle(3)
+			.thenExecute(() -> {
+				List<String> reply = TestShips.command(helper, "slipway remove " + record.id);
+				check(helper, manager.registry().get(record.id) == null && reply.size() == 1 && reply.getFirst().contains("its 10 blocks"),
+					"/slipway remove did not remove the vessel and its 10 blocks: " + reply);
+				checkThePlotIsEmpty(helper, record, "after removing");
+				check(helper, helper.getBlockState(helm).isAir() && helper.getBlockState(helm.offset(STRAY_NEAR)).isAir(), "removing the vessel put blocks into the world");
+			})
+			.thenSucceed();
+	}
+
+	/**
+	 * A plot that is handed out with blocks in it (a world in which a version before this one left them there) is
+	 * emptied before the vessel's blocks go in: the vessel is made of its own blocks only, and only they come back.
+	 * The registry hands out the plot that was freed last, so the test takes one, puts blocks into it, gives it back
+	 * and assembles in the same tick.
+	 */
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void aPlotHandedOutWithBlocksInItIsEmptiedFirst(GameTestHelper helper) {
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		ServerLevel level = helper.getLevel();
+		VesselManager manager = VesselManager.get(level);
+		// For comparison: the same ship in a plot that was never used.
+		VesselRecord first = TestShips.assemble(helper, helm);
+		ActiveVessel firstVessel = TestShips.active(helper, first);
+		// Where the deck has air inside its bounds, in a section the deck is in, and in the column next to its own.
+		BlockPos inside = new BlockPos(1, 0, 1);
+		BlockPos chest = new BlockPos(-1, 0, -1);
+		BlockPos near = new BlockPos(5, 0, 0);
+		BlockPos nextColumn = new BlockPos(-20, 0, 0);
+		BoxList.MassProperties[] mass = new BoxList.MassProperties[1];
+		VesselRecord[] second = new VesselRecord[1];
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, TestShips.settled(firstVessel), "the vessel has no body yet"))
+			.thenExecute(() -> {
+				mass[0] = firstVessel.mass;
+				check(helper, first.blockCount == 10, "the deck counts " + first.blockCount + " blocks");
+				check(helper, manager.disassemble(first.id, null).success(), "the first disassembly failed");
+			})
+			.thenIdle(3)
+			.thenExecute(() -> {
+				VesselRegistry registry = manager.registry();
+				int plot = registry.allocatePlot();
+				BlockPos anchor = VesselRegion.anchor(plot, helper.absolutePos(helm).getY());
+				for (BlockPos stale : new BlockPos[] {inside, near, nextColumn}) {
+					level.setBlock(anchor.offset(stale), Blocks.DIAMOND_BLOCK.defaultBlockState(), 2);
+				}
+				level.setBlock(anchor.offset(chest), Blocks.CHEST.defaultBlockState(), 2);
+				((ChestBlockEntity)level.getBlockEntity(anchor.offset(chest))).setItem(0, new ItemStack(Items.DIAMOND, 3));
+				registry.freePlot(plot);
+				second[0] = TestShips.assemble(helper, helm);
+				check(helper, second[0].plot == plot, "the ship got plot " + second[0].plot + ", not the one freed last (" + plot + ")");
+				check(helper, TestShips.blocksInPlot(level, second[0]) == 10, "the plot holds " + TestShips.blocksInPlot(level, second[0]) + " blocks after assembly, the ship has 10");
+				check(helper, level.getBlockEntity(anchor.offset(chest)) == null, "the chest's block entity is still in the plot");
+				check(helper, TestShips.itemEntitiesAround(helper) == 0 && TestShips.itemEntitiesInPlot(level, second[0]) == 0, "emptying the plot dropped items");
+			})
+			.thenWaitUntil(() -> check(helper, TestShips.settled(TestShips.active(helper, second[0])), "the second vessel has no body yet"))
+			.thenExecute(() -> {
+				ActiveVessel vessel = TestShips.active(helper, second[0]);
+				check(helper, second[0].blockCount == 10, "the vessel counts " + second[0].blockCount + " blocks, the ship has 10");
+				check(helper, TestShips.sameMass(vessel.mass, mass[0]), "the vessel has another shape than the ship: it weighs " + vessel.mass.mass() + ", the ship " + mass[0].mass());
+				check(helper, manager.disassemble(second[0].id, null).success(), "the second disassembly failed");
+				check(helper, helper.getBlockState(helm.offset(inside)).isAir() && helper.getBlockState(helm.offset(chest)).isAir(),
+					"blocks that were in the plot came into the world: " + helper.getBlockState(helm.offset(inside)) + ", " + helper.getBlockState(helm.offset(chest)));
+				check(helper, helper.getBlockState(helm).is(SlipwayRegistry.HELM) && helper.getBlockState(helm.offset(1, -1, 1)).is(Blocks.OAK_PLANKS), "the deck is not back in the world");
+				check(helper, TestShips.blocksInPlot(level, second[0]) == 0 && TestShips.itemEntitiesAround(helper) == 0, "the plot is not empty after the disassembly, or items were dropped");
+			})
+			.thenSucceed();
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 20)

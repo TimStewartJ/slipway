@@ -122,6 +122,33 @@ rounding in the pose can otherwise put a rider a few microns inside the deck, an
 that a box already overlaps by more than 1e-7, so the player would fall through the new blocks (seen in the release
 regression run; `InteractionGameTests#entitiesAboardMoveWithTheSnappedBlocks` models it).
 
+**A plot is freed empty (0.1.2, found in review).** Disassembly and `/slipway remove` walk the vessel's bounds, and
+the registry hands the plot that was freed last to the next vessel that is assembled. A block in the plot outside the
+bounds (one the vessel had not taken in because it lies past the largest size or in the plot's margin, see "Block
+events, effects and pistons") stayed there. The next vessel in that plot had it in a section of its own: solid,
+drawn and counted as one of its blocks, and put into the world at its disassembly if it lay inside its bounds; the
+same ship assembled again in the same place got the block back exactly where it had been. Now:
+
+- When a vessel ceases to exist (`VesselManager.retire`, the one path that frees a plot: disassembly and
+  `/slipway remove`; unloading a vessel does not), `VesselAssembly.clearPlot` removes every block and block entity
+  left in the chunk columns of its bounds and two columns round them, with `Block.UPDATE_SKIP_ALL_SIDEEFFECTS`:
+  nothing drops, no neighbour is updated and nothing is sent (viewers drop those chunks a tick later). Two columns is
+  as far as the vessel's tickets load its plot, so as far as anything aboard can have set a block (water flows only
+  where chunks tick, one column out). It does not reach a block that a command set further out in a plot chunk that
+  something else had loaded.
+- As a second line, assembly empties the columns the new vessel takes and the ring its viewers get before its blocks
+  go in (those columns are loaded at that point anyway) and logs a warning when it finds anything, because a plot
+  that is handed out is expected to be empty. This is no migration of old worlds: a block further out in the plot
+  stays until the vessel's bounds reach its section.
+
+Server GameTests (`AssemblyGameTests`): `disassemblyLeavesNothingInThePlot` and
+`removingAVesselLeavesNothingInThePlot` set a stone, a chest with items, water and (with `/setblock`, two columns
+out) another stone past a lowered largest size; after disassembly or `/slipway remove` the plot is empty and nothing
+was dropped, and the ship assembled again has its own ten blocks, shape and mass and disassembles to them.
+`aPlotHandedOutWithBlocksInItIsEmptiedFirst` puts blocks into a free plot directly. Against the code before, the
+first two find the four blocks still in the plot and the third a vessel of 13 blocks instead of 10; with only one of
+the two measures in place, the tests of the other fail.
+
 ### Physics
 
 `PhysicsEngine` is the narrow interface; `JoltEngine` implements it with jolt-jni (double precision). A
@@ -394,9 +421,12 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
     server does not confirm the prediction); Slipway tells the player why (overlay message) and sends the inventory
     again. Server GameTest `blockItemsAreNotPlacedWhereAVesselMayNotGrow`; client GameTest `interaction` (without
     the resent inventory the client showed 14 of its 15 stones).
-  - Whatever else sets a block further out (a plant growing, water flowing, the far half of a bed, a command) is not
-    taken into the bounds, like a block in the plot's margin (`VesselManager.onPlotBlockChanged`). Such a block is
-    in the plot but not part of the vessel: it is left there when the vessel is disassembled. Refusing every such
+  - Whatever else sets a block further out (a bucket of water, a plant growing, water flowing, the far half of a
+    bed, a command) is not taken into the bounds, like a block in the plot's margin
+    (`VesselManager.onPlotBlockChanged`). Such a block is in the plot but not part of the vessel: disassembly does
+    not put it into the world, and it is removed when the vessel ceases to exist (see "A plot is freed empty"
+    under "Assembly and disassembly"). While the vessel exists, such a block is solid and drawn if it lies in a
+    16-block section the bounds reach into (shape and mesh are built from whole sections). Refusing every such
     change in `Level.setBlock` would be the complete rule; it was left out because it changes what every block
     change in a plot may do, for a case that needs a vessel 512 blocks across.
 
@@ -848,7 +878,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 50 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 53 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

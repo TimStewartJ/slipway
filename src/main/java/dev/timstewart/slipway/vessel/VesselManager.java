@@ -405,9 +405,14 @@ public final class VesselManager {
 	 * Forgets a vessel whose blocks have left its plot. Clients keep drawing and colliding with it until they have the
 	 * world blocks that replace it, which go out with the block updates at the end of this tick; the vessel is dropped
 	 * on their side one tick later. The plot is only freed then, so a new vessel cannot take it before the old chunks
-	 * are forgotten.
+	 * are forgotten. It is freed empty: blocks the vessel had not taken in are removed here, while its tickets still
+	 * hold the columns round it.
 	 */
 	private void retire(long id, @Nullable ActiveVessel vessel, VesselRecord record) {
+		int left = VesselAssembly.clearPlot(this.level, record);
+		if (left > 0) {
+			Slipway.LOGGER.info("Removed {} blocks from the plot of vessel {} that were not part of it", left, id);
+		}
 		List<ServerPlayer> viewers = vessel == null ? List.of() : List.copyOf(vessel.viewers);
 		List<Long> chunks = vessel == null ? List.of() : List.copyOf(vessel.viewChunks);
 		if (vessel != null) {

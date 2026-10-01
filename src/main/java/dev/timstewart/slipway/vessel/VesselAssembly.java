@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -18,6 +19,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.piston.PistonMovingBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
@@ -79,6 +81,13 @@ public final class VesselAssembly {
 		int plot = registry.allocatePlot();
 		BlockPos anchor = VesselRegion.anchor(plot, helmPos.getY());
 		loadPlotChunks(level, anchor.offset(localMin), anchor.offset(localMax));
+		// A plot is emptied when its vessel ceases to exist (clearPlot), so a plot that is handed out is empty. Should
+		// one not be (a world in which a version before this one left blocks behind), what lies in the columns this
+		// vessel takes is removed here and does not become part of it.
+		int stale = clearColumns(level, plot, anchor.offset(localMin), anchor.offset(localMax), 1);
+		if (stale > 0) {
+			Slipway.LOGGER.warn("Plot {} was handed out with {} blocks of an earlier vessel in it; they were removed", plot, stale);
+		}
 
 		List<Snapshot> snapshots = new ArrayList<>(scan.size());
 		for (long key : scan.positions()) {
@@ -203,6 +212,62 @@ public final class VesselAssembly {
 		}
 		clear(level, blocks);
 		return blocks.size();
+	}
+
+	/**
+	 * How many plot columns round a vessel's own are emptied with it: as far as its tickets keep the plot loaded, so
+	 * as far as anything can have set a block there, short of a command in a chunk that something else had loaded.
+	 */
+	static final int USED_COLUMNS_AROUND = 2;
+
+	/**
+	 * Empties the part of its plot a vessel used, once the vessel's own blocks have left it (disassembled or erased).
+	 * What is still there are blocks the vessel did not take in because they lie past the largest size or in the
+	 * plot's margin: a bucket of water, the far half of a bed, a tree, a block set by a command. They are removed
+	 * without drops, updates or packets. The plot goes to the next vessel that is assembled, and anything left in it
+	 * would be solid and drawn as part of that vessel and be placed into the world when it is disassembled.
+	 *
+	 * @return how many blocks were removed
+	 */
+	public static int clearPlot(ServerLevel level, VesselRecord record) {
+		return clearColumns(level, record.plot, record.plotMin(), record.plotMax(), USED_COLUMNS_AROUND);
+	}
+
+	/** Removes every block in the chunk columns of a plot that cover the given plot bounds and {@code around} columns round them. */
+	private static int clearColumns(ServerLevel level, int plot, BlockPos plotMin, BlockPos plotMax, int around) {
+		List<BlockPos> found = new ArrayList<>();
+		for (int cx = (plotMin.getX() >> 4) - around; cx <= (plotMax.getX() >> 4) + around; cx++) {
+			for (int cz = (plotMin.getZ() >> 4) - around; cz <= (plotMax.getZ() >> 4) + around; cz++) {
+				if (VesselRegion.plotAtChunk(cx, cz) != plot) {
+					continue;
+				}
+				LevelChunk chunk = level.getChunk(cx, cz);
+				LevelChunkSection[] sections = chunk.getSections();
+				for (int index = 0; index < sections.length; index++) {
+					LevelChunkSection section = sections[index];
+					if (section.hasOnlyAir()) {
+						continue;
+					}
+					int baseY = SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(index));
+					for (int y = 0; y < 16; y++) {
+						for (int z = 0; z < 16; z++) {
+							for (int x = 0; x < 16; x++) {
+								if (!section.getBlockState(x, y, z).isAir()) {
+									found.add(new BlockPos((cx << 4) + x, baseY + y, (cz << 4) + z));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		for (BlockPos pos : found) {
+			level.removeBlockEntity(pos);
+		}
+		for (BlockPos pos : found) {
+			level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_SKIP_ALL_SIDEEFFECTS);
+		}
+		return found.size();
 	}
 
 	static BlockPos worldTarget(BlockPos worldAnchor, BlockPos local, int quarterTurns) {
