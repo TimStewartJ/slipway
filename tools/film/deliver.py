@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turns a finished render of the Reddit showcase into the delivery folder.
 
-Usage: python tools/film/deliver.py <frames dir> <delivery dir> [--name slipway-4x5] [--thumb spill+40] [--back-seconds 2.4]
+Usage: python tools/film/deliver.py <frames dir> <delivery dir> [--name slipway-4x5] [--thumb cargo+205] [--back-seconds 2.4]
 
 Runs the frame checks (check_encode.py; a failure stops the delivery), assembles the captioned video (assemble.py),
 and writes next to it: the caption file, segments.json, the frame sheet of the raw render, a sheet with one frame per
@@ -32,7 +32,7 @@ def main() -> int:
     p.add_argument("dir")
     p.add_argument("out")
     p.add_argument("--name", default="slipway-4x5")
-    p.add_argument("--thumb", default="spill+40")
+    p.add_argument("--thumb", default="cargo+205")
     p.add_argument("--back-seconds", default="2.4")
     p.add_argument("--crf", default="17")
     p.add_argument("--roll-caption", default=None)

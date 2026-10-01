@@ -347,8 +347,8 @@ final class RedditShot {
 		int rollStart = this.rec.frames();
 		int rollFrames = (int)FilmRig.optDouble("rollFrames", 366);
 		int leverAt = (int)FilmRig.optDouble("leverAt", 6);
-		int doorAt = (int)FilmRig.optDouble("doorAt", 36);
-		int chestAt = (int)FilmRig.optDouble("chestAt", 46);
+		int doorAt = (int)FilmRig.optDouble("doorAt", 32);
+		int chestAt = (int)FilmRig.optDouble("chestAt", 40);
 		boolean pistons = false;
 		for (int i = 0; this.rec.frames() - rollStart < rollFrames; i++) {
 			int j = i;

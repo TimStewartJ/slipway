@@ -12,8 +12,8 @@ stays usable while it renders.
 python tools/film/deliver.py build/film/out/reddit-1080x1350 <delivery folder>
 ```
 
-The first command renders the frames (about @@RENDER_MIN@@ minutes including game start, world generation and a 60 s
-wait for Distant Horizons). The second checks them (`check_encode.py`), assembles the captioned video
+The first command renders the frames (about 7 minutes including game start, world generation and a 60 s wait for
+Distant Horizons). The second checks them (`check_encode.py`), assembles the captioned video
 (`assemble.py`) and writes the delivery folder: `slipway-4x5.mp4`, its `.ass` caption file, `segments.json`, a sheet
 of the raw frames, a sheet with one frame per second of the video, and a thumbnail; it then verifies the encode with
 ffprobe and compares the first and the last frame (the loop point).
@@ -55,7 +55,7 @@ terrain before recording, default 60), `fov` (vertical field of view in degrees,
 | `cargoTicks`, `cargoLead`, `cargoRollAt`, `cargoRollTicks`, `cargoRoll` | cargo shot: length; ticks between letting the cargo go and the cut; when the roll starts, how long and how hard the roll input is | 112, 12, 22, 33, 1.0 |
 | `cargoCamDist`, `cargoCamY`, `cargoCamAlong`, `cargoPush`, `cargoRise`, `cargoAimOut`, `cargoAimY`, `cargoAimOutB`, `cargoAimFore`, `cargoAimDrop` | cargo camera: distance to port of the cargo bay, height relative to the deck, offset towards the bow; how far it moves in and up; where it aims at the start and how far the aim moves out, towards the bow and down | 30, -4, 3, 3, 1.5, 3, 0.5, 3, 1.5, -5.0 |
 | `cargoSlowFrom`, `cargoSlowTo` | ticks filmed at 4 frames per tick (mild slow motion); not used | off |
-| `rollFrames`, `preRoll`, `leverAt`, `doorAt`, `chestAt` | roll shot: length in frames; unfilmed ticks of roll input before the cut; ticks at which the lever is pulled and the door and the chest open | 366, 34, 6, 36, 46 |
+| `rollFrames`, `preRoll`, `leverAt`, `doorAt`, `chestAt` | roll shot: length in frames; unfilmed ticks of roll input before the cut; ticks at which the lever is pulled and the door and the chest open | 366, 34, 6, 32, 40 |
 | `rollAX/AY/AZ`, `rollBX/BY/BZ`, `rollLookX/Y` | roll camera in ship coordinates: from, to, and the point on the wall it looks at | -2.4/3.6/-1.9, -2.0/3.3/-0.6, 0.3/2.0 |
 | `lampDelay`, `clockDelay` | the machine: delay of the repeaters between the lamps, and of the clock's repeater (redstone ticks) | 1, 4 |
 | `farmTicks`, `farmClockAt`, `farmSpeed`, `farmTurn` | farm shot: length; tick at which the clock's lever is pulled; forward and yaw input | 102, 10, 0.14, 0.06 |
@@ -65,6 +65,19 @@ terrain before recording, default 60), `fov` (vertical field of view in degrees,
 
 `stills` takes `times=t1+t2` for a time-of-day sweep (at `sweepAngle`, default the Reddit opening view). `probe`
 takes `cx`, `cz`, `radius`.
+
+### README stills
+
+The stills in the delivery's `readme/` folder are raw frames (no captions) of the same showcase rendered in landscape
+with a narrower field of view, so they show exactly what the video shows:
+
+```
+.\gradlew.bat runFilm -PslipwayFilm=reddit -PslipwayFilmSize=1600x900 "-PslipwayFilmOpts=only=hook+cargo+roll+farm,fov=55" --no-daemon --console=plain
+python tools/film/readme_stills.py build/film/out/reddit-1600x900 <delivery folder>/readme
+```
+
+`readme_stills.py` picks frames by event and offset (defaults: the galleon at rest, the cargo in mid-air, the machine
+wall with lamps lit and a piston up, the farm with ripe wheat) and saves them 1600 px wide as JPEG under 500 KB.
 
 ## Shots
 
@@ -125,7 +138,7 @@ Everything in the picture is the game and the mod running; the film only gives i
   a repeater sends the signal down to three repeaters with delays of 1, 2 and 3 ticks, each powering the wall block
   behind a sticky piston that lifts an iron block. In the shot the lever is pulled once with `LeverBlock.pull` (what
   a player's click calls) at tick 6; lamps and pistons follow from the circuit alone. The door is opened with
-  `DoorBlock.setOpen` (what a player's click calls) at tick 36. The chest gets its own open event at tick 46:
+  `DoorBlock.setOpen` (what a player's click calls) at tick 32. The chest gets its own open event at tick 40:
   `level.blockEvent(pos, chest, 1, 1)`, which is what a chest sends when a player opens it (no player is looking in,
   so the film sends the event itself). After the shot, unfilmed, the lever is pulled again, the door closed and the
   chest sent its close event.
