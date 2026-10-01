@@ -27,6 +27,9 @@ uses the GPU at a time:
 
 Rehearsals: a small even size and only the shots in question, for example
 `-PslipwayFilmSize=544x680 "-PslipwayFilmOpts=only=cargo+farm,dhWait=5,warm=0,shotSettle=20"` (about 2 to 3 minutes).
+Rehearse the cargo shot as `only=hook+cargo`: where the ship comes to rest over the headland depends on where it
+flew in from, and the cargo is built on the world's block grid there, so only after the hook does the pile fall
+as it does in the film. The last rehearsal before a delivery is the whole film at 544x680 with no other option.
 
 ## Gradle properties
 
@@ -52,8 +55,12 @@ terrain before recording, default 60), `fov` (vertical field of view in degrees,
 | `only=a+b` | film only these shots (`hook`, `cargo`, `roll`, `farm`, `return`); the ship is brought home only if `return` is among them | all |
 | `warm`, `shotSettle` | 0 skips the warm-up tour of the shot places; unfilmed ticks at each shot's first camera so Distant Horizons can update | 1, 100 |
 | `hookTicks` | length of the first shot in ticks | 42 |
-| `cargoTicks`, `cargoLead`, `cargoRollAt`, `cargoRollTicks`, `cargoRoll` | cargo shot: length; ticks between letting the cargo go and the cut; when the roll starts, how long and how hard the roll input is | 112, 12, 22, 33, 1.0 |
-| `cargoCamDist`, `cargoCamY`, `cargoCamAlong`, `cargoPush`, `cargoRise`, `cargoAimOut`, `cargoAimY`, `cargoAimOutB`, `cargoAimFore`, `cargoAimDrop` | cargo camera: distance to port of the cargo bay, height relative to the deck, offset towards the bow; how far it moves in and up; where it aims at the start and how far the aim moves out, towards the bow and down | 30, -4, 3, 3, 1.5, 3, 0.5, 3, 1.5, -5.0 |
+| `cargoTicks`, `cargoLead`, `cargoRollAt`, `cargoRollTicks`, `cargoRoll` | cargo shot: length; ticks between letting the cargo go and the cut; when the roll starts, how long and how hard the roll input is | 112, 10, 24, 33, 1.0 |
+| `cargoClose`, `cargoCloseDist`, `cargoCloseY`, `cargoCloseAlong`, `cargoCloseAimOut`, `cargoCloseAimY`, `cargoCloseAimFore`, `cargoDrift` | the close view the cargo shot opens on (0 = open on the wide view, as the first delivery did): the camera's distance to port of the cargo bay, height above the deck and offset towards the bow; the point it looks at (to port of the bay's middle, above the deck, towards the bow); its slow drift towards the wide view in blocks per tick | 1, 11, 10, -0.7, 0.3, 3.2, -0.7, 0.05 |
+| `cargoMoveFrom`, `cargoMoveTo`, `cargoPushFrom`, `cargoPushTo` | ticks between which the camera moves from the close view out to the wide view, and between which the wide camera then pushes in | 24, 50, 52, 104 |
+| `cargoCamDist`, `cargoCamY`, `cargoCamAlong`, `cargoPush`, `cargoRise`, `cargoAimOut`, `cargoAimY`, `cargoAimOutB`, `cargoAimFore`, `cargoAimDrop` | the wide view: distance to port of the cargo bay, height relative to the deck, offset towards the bow; how far it pushes in and up; where it aims at the start and how far the aim moves out, towards the bow and down | 30, -4, 3, 3, 1.5, 3, 0.5, 3, 1.5, -5.0 |
+| `cargoTakes`, `<option>@<take>` | rehearsals: film the cargo shot several times in one run (segments `cargo`, `cargo2`, ...; each take builds, drops and removes the cargo again), and set a cargo option for one take only, e.g. `cargoTakes=3,cargoCloseY@2=12`. Only the first take starts from the same state as the film's. Not for `assemble.py` | 1 |
+| `lightDump` | 1 logs, before the cargo shot, the sky light stored in the mesh of the ship and of each cargo piece, by face direction (read only) | 0 |
 | `cargoSlowFrom`, `cargoSlowTo` | ticks filmed at 4 frames per tick (mild slow motion); not used | off |
 | `rollFrames`, `preRoll`, `leverAt`, `doorAt`, `chestAt` | roll shot: length in frames; unfilmed ticks of roll input before the cut; ticks at which the lever is pulled and the door and the chest open | 366, 34, 6, 32, 40 |
 | `rollAX/AY/AZ`, `rollBX/BY/BZ`, `rollLookX/Y` | roll camera in ship coordinates: from, to, and the point on the wall it looks at | -2.4/3.6/-1.9, -2.0/3.3/-0.6, 0.3/2.0 |
@@ -106,7 +113,7 @@ of this branch.
 | # | Shot | What happens | Frames per tick |
 | --- | --- | --- | --- |
 | 1 | hook | at rest over the bay; lifts off, rolls hard and yaws | 3 |
-| 2 | cargo | eight loose pieces fall onto the deck and stack up; the ship rolls about 70 degrees to port; they slide off through the open rail and tumble onto the headland below | 3 |
+| 2 | cargo | opens close above the open rail, looking down on the deck: eight loose pieces fall into the picture, land on each other and stack up; the camera then moves out and down in one go to the wide view while the ship rolls about 70 degrees to port; the pieces slide off through the open rail and tumble onto the headland below | 3 |
 | 3 | roll | level mode off, roll input held: the camera is fixed to the ship while it rolls through inverted; on the castle wall the lever starts the clock, the lamps light in sequence, the pistons pump, the door and the chest open | 3, ramping to 6 (half speed) |
 | 4 | farm | the ship cruises slowly; the lever starts the farm's clock, the dispensers feed bone meal to the wheat, which grows to full height in two or three doses; four sheep stand behind the bed | 3 |
 | 5 | return | the autopilot brings the ship back to the exact starting point, level, then `disassemble`; the camera settles on the opening frame | 3 |
@@ -127,12 +134,12 @@ Everything in the picture is the game and the mod running; the film only gives i
   block, which looks like a wooden block with a wheel on one face). Unfilmed, just before the shot: their blocks are
   placed in the world in the air over the deck, 3 to 17 blocks up (`FilmScene.buildCargo`), and each is assembled
   through its helm with `VesselManager.assemble`, which is what using the helm does; they then hover where they were
-  built. Twelve ticks before the cut each is let go with `/slipway mode <id> loose true` (Slipway 0.1.2: no hover, no
+  built. Ten ticks before the cut each is let go with `/slipway mode <id> loose true` (Slipway 0.1.2: no hover, no
   stabilizer, no drag; gravity, collisions and friction only). From there nothing touches them: they fall, hit the
   deck and each other, and slide when the ship rolls. After the shot, unfilmed, each is deleted with
   `/slipway remove <id>`.
-- **The spill**: the only input of the cargo shot is roll input (-1 for 33 ticks, eased in over half a second, with
-  level mode off, so the ship stays rolled). No other axis gets input; hover mode holds the ship on its spot under the load. The port rail is
+- **The spill**: the only input of the cargo shot is roll input (-1 for 33 ticks from tick 24, eased in over half a
+  second, with level mode off, so the ship stays rolled). No other axis gets input; hover mode holds the ship on its spot under the load. The port rail is
   open for six blocks at the cargo bay (a design decision: against the rail's 1.5-block collision height cargo stays
   aboard until the ship is rolled past 90 degrees).
 - **The machine on the castle wall** (`FilmShips.machine`) is plain redstone, built unpowered: the lever on the wall
@@ -180,7 +187,7 @@ forward is opposite the helm's facing.
 | Shot | Vessel origin (the helm's corner), heading | Why |
 | --- | --- | --- |
 | hook, return | -4620, 80, 5800, north | the bay, mountains and cherry grove behind (version 1's spot) |
-| cargo | -4537.7, 87, 5813.1, north-east | the deck is about 10 blocks over a grassy headland with stone ledges; the camera is 30 blocks to port over the water, below deck level, looking south-east at the snowy peaks; the cargo lands on the grass |
+| cargo | -4537.7, 87, 5813.1, north-east | the deck is about 10 blocks over a grassy headland with stone ledges; the camera starts 11 blocks to port of the cargo bay and 10 above the deck, looking down on it, and ends 30 blocks to port over the water, below deck level, looking south-east at the snowy peaks; the cargo lands on the grass |
 | roll | -4650, 100, 5770, north | open air over the bay |
 | farm | -4665, 88, 5735, north, turning slowly east | the coast with the cherry grove and the peaks passes behind the starboard rail |
 
@@ -302,8 +309,22 @@ every shot agree between the two to a millionth of a block; the wheat grew diffe
   a deck rolled 60 degrees lies in the corner between deck and rail and stays aboard until the roll passes 90 degrees
   (worked out before building; a full roll at a height the masts clear would have needed a camera too far away to
   read the pieces on a phone). The port rail is therefore open for six blocks where the cargo is loaded.
-- **Low camera for the cargo shot** (below deck level, 30 blocks to port): the ship stands against the peaks, the deck
-  comes into view as it rolls towards the camera, and the landing place is in the lower third of the frame.
+- **The cargo shot opens close and moves out** (the owner wanted to see the pieces tumbling on each other on the
+  deck; in the first delivery the whole shot was the wide view and the pile a tenth of the frame's width). The
+  close view is abeam of the pile, 11 blocks to port of the bay and 10 above the deck (13.5 blocks from the pile,
+  looking down about 32 degrees, the pile a third of the frame's width): the pieces fall in from the top of the
+  frame and land on each other during the first 1.2 s. Forward of abeam the lower main sail fills the left of the
+  picture, aft of abeam the castle's corner fills the right, and from lower than about 25 degrees the deck is a thin
+  band. From tick 24 (when the roll input starts) to tick 50 (when the first pieces start to slide, the ship rolled
+  31 degrees) the camera moves in a straight line out and down to the wide view, aimed at the pile all the way.
+- **The wide view** (below deck level, 30 blocks to port): the ship stands against the peaks, the deck comes into
+  view as it rolls towards the camera, and the landing place is in the lower third of the frame. Its slow push
+  towards the ship now starts after the camera has arrived (ticks 52 to 104): started earlier, as in the first
+  delivery, it ran against the move out and the camera stopped dead in between (the smoothness check found it).
+- **The close camera drifts from the first frame** (0.05 blocks per tick towards the wide view): a move that starts
+  from rest breaks the smoothness check's 2x step rule in its first frames.
+- **The cut comes 10 ticks after the cargo is let go and the roll starts at tick 24** (first delivery: 12 and 22):
+  the same moments for the cargo, the picture starts two ticks earlier in the fall.
 - **No slow motion in the cargo shot**: the fall and the spill fit into 5.5 s at normal speed and read well.
 - **The farm bed is on the centreline between the masts**, fenced on the camera's side, with the dispensers behind
   the wheat and the sheep behind the dispensers, so one view shows wheat, dispensers, sheep, rail, sea and coast.
@@ -335,6 +356,13 @@ every shot agree between the two to a millionth of a block; the wheat grew diffe
   and 0.30 ms in the cargo shot, with nine vessels).
 - Build cargo only where the ship is not: `FilmScene.buildCargo` refuses a piece within a block of any ship block
   (the first layout put a piece into the main mast, which rises through every height at ship x 0, z -2).
+- The cargo is built on the world's block grid over a ship that hovers where the autopilot left it (within 0.2
+  blocks). `buildCargo` used to round the deck's height up, so a ship a hair above or below a whole block gave drop
+  heights one block apart (the first delivery had the higher ones; a rehearsal that flew in from the bay instead of
+  from the hook had the lower ones, and the hay ended behind the main mast instead of on the ground). It rounds to
+  the nearest block now and the heights in `FilmShips.cargo()` are the delivered ones. Where a piece bounces still
+  depends on the ship's exact place: rehearse the cargo as `only=hook+cargo`, and read the "cargo at tick" lines
+  of the log (every piece must be on the ground, y 70 to 73, by tick 100).
 - A lever's block, a lamp or a powered wall block next to a door opens it; keep powered blocks two away.
 - Vessel blocks that change (lamps, pistons, crops) need their mesh rebuilt before the frame is saved; the recorder
   now waits for it.

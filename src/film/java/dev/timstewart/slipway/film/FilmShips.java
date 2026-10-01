@@ -528,14 +528,16 @@ final class FilmShips {
 		keg.put(new BlockPos(0, 1, 0), barrel);
 		java.util.List<Cargo> pieces = new java.util.ArrayList<>();
 		// kept clear of the main mast and its yards (forward of z = 0) and of the quarterdeck's overhang (z = 5)
-		pieces.add(new Cargo("barrels", box(-1, 1, -1, 1, -1, 1, barrel), -2.0, 2.0, 3));
-		pieces.add(new Cargo("keg", keg, 2.2, 0.8, 3));
-		pieces.add(new Cargo("crate", box(-1, 1, 0, 1, 0, 1, planks), 1.6, 2.4, 7));
-		pieces.add(new Cargo("pumpkins", pumpkins, -3.0, 2.5, 7));
-		pieces.add(new Cargo("logs", box(0, 1, 0, 1, -1, 2, log), -0.3, 2.0, 10));
-		pieces.add(new Cargo("hay", box(0, 1, 0, 1, 0, 1, hay), 0.6, 1.4, 13));
-		pieces.add(new Cargo("beam", box(0, 0, 0, 0, -2, 2, beam), -3.0, 2.3, 13));
-		pieces.add(new Cargo("wool", box(0, 1, 0, 1, 0, 1, wool), -0.2, 2.6, 16));
+		// heights: the lowest block above the deck surface (the delivered render's drop: FilmScene.buildCargo rounded the
+		// deck's height up then, which made every piece one block higher than the numbers that stood here)
+		pieces.add(new Cargo("barrels", box(-1, 1, -1, 1, -1, 1, barrel), -2.0, 2.0, 4));
+		pieces.add(new Cargo("keg", keg, 2.2, 0.8, 4));
+		pieces.add(new Cargo("crate", box(-1, 1, 0, 1, 0, 1, planks), 1.6, 2.4, 8));
+		pieces.add(new Cargo("pumpkins", pumpkins, -3.0, 2.5, 8));
+		pieces.add(new Cargo("logs", box(0, 1, 0, 1, -1, 2, log), -0.3, 2.0, 11));
+		pieces.add(new Cargo("hay", box(0, 1, 0, 1, 0, 1, hay), 0.6, 1.4, 14));
+		pieces.add(new Cargo("beam", box(0, 0, 0, 0, -2, 2, beam), -3.0, 2.3, 14));
+		pieces.add(new Cargo("wool", box(0, 1, 0, 1, 0, 1, wool), -0.2, 2.6, 17));
 		return pieces;
 	}
 

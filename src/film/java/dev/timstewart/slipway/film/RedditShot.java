@@ -213,6 +213,20 @@ final class RedditShot {
 
 	// ---- 2. cargo: loose pieces drop onto the deck, the ship rolls, they slide off onto the shore ----
 	private void cargo() {
+		// rehearsals can film the shot several times in one run (cargoTakes=3), each take with its own options
+		// (cargoCloseY@2=9.5 applies to the second take only)
+		int takes = (int)FilmRig.optDouble("cargoTakes", 1);
+		for (int take = 1; take <= takes; take++) {
+			this.cargoTake(take, takes > 1 && take > 1 ? "cargo" + take : "cargo");
+		}
+	}
+
+	/** A cargo option, which a rehearsal may set for one take only ({@code key@take=value}). */
+	private static double cargoOpt(int take, String key, double fallback) {
+		return Double.parseDouble(FilmRig.opt(key + "@" + take, FilmRig.opt(key, Double.toString(fallback))));
+	}
+
+	private void cargoTake(int take, String name) {
 		long id = this.id;
 		this.gap();
 		FilmPilot.modes(this.server, id, true, true);
@@ -224,22 +238,54 @@ final class RedditShot {
 			FilmScene.waitVessel(this.ctx, piece.id());
 		}
 		VesselPose pose = FilmPilot.state(this.server, id).pose();
+		if (FilmRig.optDouble("lightDump", 0) > 0) {
+			this.ctx.waitTicks(40);
+			String shipLight = this.ctx.computeOnClient(mc -> FilmScene.meshLight(id));
+			FilmMain.LOG.info("Reddit: light in the mesh of the ship: {}", shipLight);
+			for (FilmScene.Piece piece : pieces) {
+				String light = this.ctx.computeOnClient(mc -> FilmScene.meshLight(piece.id()));
+				FilmMain.LOG.info("Reddit: light in the mesh of {}: {}", piece.name(), light);
+			}
+			FilmMain.LOG.info("Reddit: ship axes in the world: port {}, bow {}", dir(pose, -1, 0, 0), dir(pose, 0, 0, -1));
+		}
 		Vec3 bay = pose.localToWorld(FilmShips.shipPoint(-0.5, 0, 1.5));
 		Vec3 port = dir(pose, -1, 0, 0);
 		Vec3 fore = dir(pose, 0, 0, -1);
-		double dist = FilmRig.optDouble("cargoCamDist", 30);
-		double height = FilmRig.optDouble("cargoCamY", -4);
-		double along = FilmRig.optDouble("cargoCamAlong", 3);
+		// the wide view: low to port, the ship against the peaks, the headland below
+		double dist = cargoOpt(take, "cargoCamDist", 30);
+		double height = cargoOpt(take, "cargoCamY", -4);
+		double along = cargoOpt(take, "cargoCamAlong", 3);
 		Vec3 camA = bay.add(port.scale(dist)).add(fore.scale(along)).add(0, height, 0);
-		Vec3 camB = camA.add(port.scale(-FilmRig.optDouble("cargoPush", 3))).add(0, FilmRig.optDouble("cargoRise", 1.5), 0);
-		Vec3 aimA = bay.add(port.scale(FilmRig.optDouble("cargoAimOut", 3))).add(0, FilmRig.optDouble("cargoAimY", 0.5), 0);
-		Vec3 aimB = aimA.add(port.scale(FilmRig.optDouble("cargoAimOutB", 3))).add(fore.scale(FilmRig.optDouble("cargoAimFore", 1.5))).add(0, FilmRig.optDouble("cargoAimDrop", -5.0), 0);
-		int cargoTicks = (int)FilmRig.optDouble("cargoTicks", 112);
+		Vec3 camB = camA.add(port.scale(-cargoOpt(take, "cargoPush", 3))).add(0, cargoOpt(take, "cargoRise", 1.5), 0);
+		Vec3 aimA = bay.add(port.scale(cargoOpt(take, "cargoAimOut", 3))).add(0, cargoOpt(take, "cargoAimY", 0.5), 0);
+		Vec3 aimB = aimA.add(port.scale(cargoOpt(take, "cargoAimOutB", 3))).add(fore.scale(cargoOpt(take, "cargoAimFore", 1.5))).add(0, cargoOpt(take, "cargoAimDrop", -5.0), 0);
+		// the close view the shot opens on: above the open rail, looking down onto the deck where the pieces land;
+		// from cargoMoveFrom to cargoMoveTo the camera moves out and down to the wide view in one go
+		boolean close = cargoOpt(take, "cargoClose", 1) > 0;
+		Vec3 closeCam = bay.add(port.scale(cargoOpt(take, "cargoCloseDist", 11))).add(fore.scale(cargoOpt(take, "cargoCloseAlong", -0.7)))
+			.add(0, cargoOpt(take, "cargoCloseY", 10), 0);
+		Vec3 closeAim = bay.add(port.scale(cargoOpt(take, "cargoCloseAimOut", 0.3))).add(fore.scale(cargoOpt(take, "cargoCloseAimFore", -0.7)))
+			.add(0, cargoOpt(take, "cargoCloseAimY", 3.2), 0);
+		// it drifts towards the wide view from the first frame (a move that starts from rest trips the smoothness check)
+		Vec3 drift = camA.subtract(closeCam).normalize().scale(cargoOpt(take, "cargoDrift", 0.05));
+		double moveFrom = cargoOpt(take, "cargoMoveFrom", 24);
+		double moveTo = cargoOpt(take, "cargoMoveTo", 50);
+		int cargoTicks = (int)cargoOpt(take, "cargoTicks", 112);
+		// the wide camera's own slow push towards the ship follows the pieces down; with the close opening it starts
+		// once the camera has arrived (a push in against the move out would stop the camera dead in between)
+		double pushFrom = cargoOpt(take, "cargoPushFrom", close ? moveTo + 2 : 0.25 * cargoTicks);
+		double pushTo = cargoOpt(take, "cargoPushTo", close ? cargoTicks - 8 : 0.9 * cargoTicks);
 		long[] b2 = {Long.MAX_VALUE};
 		FilmCamera.set((t, p) -> {
-			double s = b2[0] == Long.MAX_VALUE ? 0 : Math.max(0, t - b2[0]) / cargoTicks;
-			double e = FilmCamera.ease(s, 0.25, 0.9);
-			return FilmCamera.Frame.lookAt(FilmCamera.lerp(camA, camB, e), FilmCamera.lerp(aimA, aimB, e), 0);
+			double ticks = b2[0] == Long.MAX_VALUE ? 0 : Math.max(0, t - b2[0]);
+			Vec3 from = FilmCamera.lerp(camA, camB, FilmCamera.ease(ticks, pushFrom, pushTo));
+			Vec3 at = FilmCamera.lerp(aimA, aimB, FilmCamera.ease(ticks / cargoTicks, 0.25, 0.9));
+			if (close) {
+				double m = FilmCamera.ease(ticks, moveFrom, moveTo);
+				from = FilmCamera.lerp(closeCam.add(drift.scale(ticks)), from, m);
+				at = FilmCamera.lerp(closeAim, at, m);
+			}
+			return FilmCamera.Frame.lookAt(from, at, 0);
 		});
 		FilmRig.followCamera(this.ctx);
 		FilmRig.waitWorld(this.ctx, 3000);
@@ -256,30 +302,30 @@ final class RedditShot {
 		}
 		// the helm is let go: the ship hovers where it is and holds that point under the load (hover mode)
 		this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.Input.NONE));
-		this.ctx.waitTicks((int)FilmRig.optDouble("cargoLead", 12));
-		this.rec.cut("cargo");
-		this.event("cargo");
+		this.ctx.waitTicks((int)cargoOpt(take, "cargoLead", 10));
+		this.rec.cut(name);
+		this.event(name);
 		b2[0] = FilmCamera.ticks();
-		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 22);
-		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 33);
-		double rollInput = FilmRig.optDouble("cargoRoll", 1.0);
-		int slowFrom = (int)FilmRig.optDouble("cargoSlowFrom", 1000);
-		int slowTo = (int)FilmRig.optDouble("cargoSlowTo", 1000);
+		int rollAt = (int)cargoOpt(take, "cargoRollAt", 24);
+		int rollTicks = (int)cargoOpt(take, "cargoRollTicks", 33);
+		double rollInput = cargoOpt(take, "cargoRoll", 1.0);
+		int slowFrom = (int)cargoOpt(take, "cargoSlowFrom", 1000);
+		int slowTo = (int)cargoOpt(take, "cargoSlowTo", 1000);
 		for (int i = 0; i < cargoTicks; i++) {
 			int j = i;
 			if (j == rollAt) {
 				FilmPilot.modes(this.server, id, true, false);
-				this.event("spill");
+				this.event(name.replace("cargo", "spill"));
 			}
 			// the only input of the shot: from rollAt the pilot rolls the ship to port; with level mode off it then stays rolled
 			double ramp = Math.max(0, Math.min(1, Math.min((j - rollAt + 1) / 10.0, (rollAt + rollTicks - j) / 5.0)));
 			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0, 0, 0, 0, 0, -rollInput * ramp)));
 			this.rec.tick(j >= slowFrom && j < slowTo ? 4 : 3);
-			if (j % 10 == 9 || j == cargoTicks - 1) {
+			if (j % 5 == 4 || j == cargoTicks - 1) {
 				this.cargoReport(pieces, j);
 			}
 		}
-		this.logState("cargo end");
+		this.logState(name + " end");
 		// afterwards, unfilmed: the pieces are removed (/slipway remove), the ship levels again
 		this.gap();
 		this.server.runOnServer(s -> {
