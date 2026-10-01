@@ -22,6 +22,19 @@ public final class ClientVessels {
 	private static final Int2LongOpenHashMap BY_PLOT = new Int2LongOpenHashMap();
 	/** Vessels assembled moments ago whose world LODs still need refreshing (once their pose is known). */
 	private static final LongOpenHashSet JUST_ASSEMBLED = new LongOpenHashSet();
+	/**
+	 * Vessels that are gone on the server (disassembled or removed) and still drawn. The blocks of a disassembled
+	 * vessel arrive as world blocks in the same tick, but the terrain renderer shows them a little later (it rebuilds
+	 * the sections off the render thread); without this the ship blinked out for about two ticks. The vessel's picture
+	 * is kept until the terrain renderer has nothing left to build, at least {@link #GONE_MIN_TICKS} and at most
+	 * {@link #GONE_MAX_TICKS} ticks; the server keeps the vessel's entity, which the picture is drawn with, that long.
+	 */
+	private static final Long2ObjectMap<ClientVessel> GONE = new Long2ObjectLinkedOpenHashMap<>();
+	/** Ticks a gone vessel is drawn at least: the terrain renderer only starts on the new blocks in the next frames. */
+	static final int GONE_MIN_TICKS = 2;
+	static final int GONE_MAX_TICKS = dev.timstewart.slipway.vessel.VesselManager.RETIRED_ENTITY_TICKS;
+	/** Turned off by a test to measure the blink this prevents. */
+	public static boolean keepGoneVessels = true;
 	@Nullable
 	private static ClientLevel level;
 	/** Between the start and the end of a client tick. */
@@ -42,6 +55,23 @@ public final class ClientVessels {
 	@Nullable
 	public static ClientVessel get(long id) {
 		return VESSELS.get(id);
+	}
+
+	/** The vessel to draw for an entity: the live one, or the kept picture of one that is gone while it is still due. */
+	@Nullable
+	public static ClientVessel drawn(long id) {
+		ClientVessel vessel = VESSELS.get(id);
+		if (vessel != null) {
+			return vessel;
+		}
+		vessel = GONE.get(id);
+		return vessel != null && !goneLongEnough(vessel) ? vessel : null;
+	}
+
+	/** Whether the terrain has taken over from a gone vessel's picture (asked every frame, so both are never drawn for long). */
+	private static boolean goneLongEnough(ClientVessel vessel) {
+		long age = clientTicks - vessel.goneAtTick;
+		return age >= GONE_MAX_TICKS || age >= GONE_MIN_TICKS && TerrainProgress.complete(Minecraft.getInstance());
 	}
 
 	@Nullable
@@ -73,7 +103,11 @@ public final class ClientVessels {
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.close();
 		}
+		for (ClientVessel vessel : GONE.values()) {
+			vessel.close();
+		}
 		VESSELS.clear();
+		GONE.clear();
 		BY_PLOT.clear();
 		JUST_ASSEMBLED.clear();
 		level = null;
@@ -103,7 +137,13 @@ public final class ClientVessels {
 				// Disassembled (its blocks are back in the world) or removed: refresh the world's LODs there.
 				DhProxyBridge.refreshWorld(vessel.worldBounds(vessel.tickPose()).inflate(2.0));
 			}
-			vessel.close();
+			if (!keepProxy && vessel.ready() && keepGoneVessels && level != null) {
+				// Its plot chunks are still here (they are dropped by the packets that follow this one).
+				vessel.keepPicture(level, clientTicks);
+				GONE.put(id, vessel);
+			} else {
+				vessel.close();
+			}
 		}
 		JUST_ASSEMBLED.remove(id);
 		if (!keepProxy) {
@@ -117,6 +157,19 @@ public final class ClientVessels {
 		clientTicks++;
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.tick();
+		}
+		if (!GONE.isEmpty()) {
+			var gone = GONE.values().iterator();
+			while (gone.hasNext()) {
+				ClientVessel vessel = gone.next();
+				if (goneLongEnough(vessel)) {
+					vessel.close();
+					gone.remove();
+				} else {
+					// Its last poses are still played out.
+					vessel.tick();
+				}
+			}
 		}
 		if (!JUST_ASSEMBLED.isEmpty()) {
 			// The blocks of a just-assembled vessel left the world where it stands: refresh the world's LODs there.
@@ -183,7 +236,7 @@ public final class ClientVessels {
 
 	/** Places a vessel entity at this tick's pose (called from the entity's own tick). */
 	static void tickEntity(VesselEntity entity) {
-		ClientVessel vessel = VESSELS.get(entity.vesselId());
+		ClientVessel vessel = drawn(entity.vesselId());
 		if (vessel == null || !vessel.ready()) {
 			return;
 		}

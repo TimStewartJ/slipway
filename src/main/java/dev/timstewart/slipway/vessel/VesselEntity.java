@@ -34,6 +34,8 @@ public class VesselEntity extends Entity {
 	private VesselPose pose;
 	private BlockPos helmLocal = BlockPos.ZERO;
 	private Direction helmFacing = Direction.NORTH;
+	/** Its vessel is gone (disassembled or removed); the manager discards it a few ticks later. Not saved. */
+	private boolean retired;
 
 	public VesselEntity(EntityType<? extends VesselEntity> type, Level level) {
 		super(type, level);
@@ -52,6 +54,11 @@ public class VesselEntity extends Entity {
 	@Nullable
 	public VesselPose pose() {
 		return this.pose;
+	}
+
+	/** The vessel is gone; this entity only stays so that clients can draw the vessel a moment longer. */
+	void retire() {
+		this.retired = true;
 	}
 
 	/** Called every tick by the vessel's owner (server manager or client state). */
@@ -117,7 +124,9 @@ public class VesselEntity extends Entity {
 	@Override
 	public void tick() {
 		if (this.level() instanceof ServerLevel serverLevel) {
-			VesselManager.get(serverLevel).tickEntity(this);
+			if (!this.retired) {
+				VesselManager.get(serverLevel).tickEntity(this);
+			}
 		} else if (ClientHooks.instance != null) {
 			ClientHooks.instance.tickVesselEntity(this);
 		}
@@ -125,7 +134,7 @@ public class VesselEntity extends Entity {
 
 	@Override
 	protected boolean canAddPassenger(Entity passenger) {
-		return this.getPassengers().isEmpty() && passenger instanceof Player;
+		return !this.retired && this.getPassengers().isEmpty() && passenger instanceof Player;
 	}
 
 	@Override

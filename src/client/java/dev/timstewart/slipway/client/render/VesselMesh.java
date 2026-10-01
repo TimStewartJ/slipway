@@ -43,6 +43,7 @@ public final class VesselMesh {
 	private final Long2ObjectMap<SectionMesh> sections = new Long2ObjectOpenHashMap<>();
 	private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
 	private boolean allDirty = true;
+	private boolean frozen;
 	private int vertexCount;
 
 	public VesselMesh(ClientVessel vessel) {
@@ -50,7 +51,18 @@ public final class VesselMesh {
 	}
 
 	public void markAllDirty() {
-		this.allDirty = true;
+		this.allDirty = !this.frozen;
+	}
+
+	/**
+	 * Builds what is still to build and keeps the mesh as it is from then on, whatever happens to the plot's blocks:
+	 * the picture of a vessel that is gone.
+	 */
+	public void freeze(ClientLevel level) {
+		this.rebuild(level, Long.MAX_VALUE / 2);
+		this.frozen = true;
+		this.allDirty = false;
+		this.dirty.clear();
 	}
 
 	private int minSectionY() {
@@ -68,6 +80,9 @@ public final class VesselMesh {
 	}
 
 	public void markSectionAndNeighboursDirty(int sx, int sy, int sz) {
+		if (this.frozen) {
+			return;
+		}
 		this.dirty.add(SectionPos.asLong(sx, sy, sz));
 		for (int[] d : new int[][] {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}) {
 			long key = SectionPos.asLong(sx + d[0], sy + d[1], sz + d[2]);
@@ -81,6 +96,7 @@ public final class VesselMesh {
 		this.sections.clear();
 		this.dirty.clear();
 		this.allDirty = true;
+		this.frozen = false;
 		this.vertexCount = 0;
 	}
 
@@ -120,7 +136,7 @@ public final class VesselMesh {
 
 	/** Rebuilds dirty sections until the budget is spent; returns true when nothing is left to build. */
 	public boolean rebuild(ClientLevel level, long budgetNanos) {
-		if (!this.vessel.hasInfo) {
+		if (!this.vessel.hasInfo || this.frozen) {
 			return true;
 		}
 		if (this.allDirty) {

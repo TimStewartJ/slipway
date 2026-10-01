@@ -38,6 +38,8 @@ public final class VesselManager {
 	private static final Map<ServerLevel, VesselManager> MANAGERS = new IdentityHashMap<>();
 	/** How long players who got a new vessel early keep it while their tracking of its entity starts. */
 	private static final int VIEWER_GRACE_TICKS = 100;
+	/** How long a vessel's entity outlives the vessel: the longest a client may go on drawing a vessel that is gone. */
+	public static final int RETIRED_ENTITY_TICKS = 6;
 
 	private final ServerLevel level;
 	private final VesselRegistry registry;
@@ -47,6 +49,8 @@ public final class VesselManager {
 	private final VesselProxies proxies;
 	/** Work to do at the start of the next tick (after this tick's block updates have gone out). */
 	private final List<Runnable> nextTick = new ArrayList<>();
+	/** Entities of vessels that are gone, with the game time at which each is discarded. */
+	private final java.util.Map<VesselEntity, Long> retired = new java.util.IdentityHashMap<>();
 
 	private VesselManager(ServerLevel level) {
 		this.level = level;
@@ -401,7 +405,10 @@ public final class VesselManager {
 			vessel.viewers.clear();
 			this.deactivate(vessel, true);
 			if (vessel.entity != null) {
-				vessel.entity.discard();
+				// The entity outlives its vessel by a few ticks: it is what clients draw the vessel with, and they keep
+				// drawing it until their terrain shows the blocks that were put back into the world (see ClientVessels).
+				vessel.entity.retire();
+				this.retired.put(vessel.entity, this.level.getGameTime() + RETIRED_ENTITY_TICKS);
 			}
 		}
 		this.registry.remove(id);
@@ -478,6 +485,8 @@ public final class VesselManager {
 	private void close() {
 		this.nextTick.forEach(Runnable::run);
 		this.nextTick.clear();
+		this.retired.keySet().forEach(VesselEntity::discard);
+		this.retired.clear();
 		for (ActiveVessel vessel : List.copyOf(this.active.values())) {
 			this.physics.syncRecord(vessel);
 			this.deactivate(vessel, false);
@@ -495,6 +504,16 @@ public final class VesselManager {
 			List<Runnable> tasks = List.copyOf(this.nextTick);
 			this.nextTick.clear();
 			tasks.forEach(Runnable::run);
+		}
+		if (!this.retired.isEmpty()) {
+			long now = this.level.getGameTime();
+			this.retired.entrySet().removeIf(entry -> {
+				if (now >= entry.getValue() || entry.getKey().isRemoved()) {
+					entry.getKey().discard();
+					return true;
+				}
+				return false;
+			});
 		}
 		for (ActiveVessel vessel : this.active.values()) {
 			if (!vessel.chunksReady) {
