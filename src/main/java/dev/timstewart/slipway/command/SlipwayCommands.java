@@ -142,7 +142,7 @@ public final class SlipwayCommands {
 			"vessel %d: blocks=%d plot=%d anchor=%s bounds=%s..%s pos=%.3f,%.3f,%.3f centre=%.2f,%.2f,%.2f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f "
 				+ "speed=%.3f spin=%.3f hover=%s level=%s loose=%s active=%s body=%s awake=%s mass=%.1f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f "
 				+ "plotAnchor=%d,%d,%d input=%s fluid=%s displaced=%.2f flooded=%.2f capacity=%.2f sheltered=%.2f sealed=%.2f floats=%s "
-				+ "free=%s sails=%d burners=%d envelope=%.1f topSpeed=%.2f lift=%.2f flies=%s",
+				+ "free=%s sails=%d burners=%d envelope=%.1f topSpeed=%.2f lift=%.2f flies=%s entity=%s",
 			id, record.blockCount, record.plot, record.anchor.toShortString(), record.localMin.toShortString(), record.localMax.toShortString(),
 			pose.x(), pose.y(), pose.z(), centre.x, centre.y, centre.z, attitude[0], attitude[1], attitude[2], pose.tiltDegrees(),
 			record.linearVelocity.length(), record.angularVelocity.length(), record.hover, record.level, record.loose, active != null,
@@ -155,7 +155,10 @@ public final class SlipwayCommands {
 			active == null ? "none" : FLUID_NAMES[active.buoyancy.fluid], active == null ? 0.0 : active.buoyancy.displacedVolume,
 			active == null ? 0.0 : active.buoyancy.floodedVolume, active == null ? 0.0 : active.hull.capacity(), active == null ? 0.0 : active.hull.shelteredVolume(),
 			active == null ? 0.0 : active.hull.sealedVolume(), active != null && active.buoyancyReserve() > 1.0,
-			record.free, rig.sails(), rig.burners(), active == null ? 0.0 : active.rig.envelope(), rig.topSpeed(), rig.liftRatio(), record.free || rig.liftRatio() >= 1f);
+			record.free, rig.sails(), rig.burners(), active == null ? 0.0 : active.rig.envelope(), rig.topSpeed(), rig.liftRatio(), record.free || rig.liftRatio() >= 1f,
+			// Where the entity is; "held" while that is not the middle of the bounds (see VesselManager.entityPlace).
+			active == null || active.entity == null ? "none" : String.format(Locale.ROOT, "%.2f,%.2f,%.2f%s", active.entity.getX(), active.entity.getY(),
+				active.entity.getZ(), active.entityHeld ? ",held" : ""));
 		return reply(ctx, true, text);
 	}
 

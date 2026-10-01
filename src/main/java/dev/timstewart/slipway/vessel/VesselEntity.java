@@ -115,6 +115,24 @@ public class VesselEntity extends Entity {
 		return false;
 	}
 
+	/**
+	 * A vessel is its blocks, and this entity is only where it is in the world: {@code /kill @e} must not take every
+	 * ship with it. A vessel goes by disassembly or {@code /slipway remove}.
+	 */
+	@Override
+	public void kill(ServerLevel level) {
+	}
+
+	/**
+	 * It is moved by its vessel alone ({@code /slipway pose} moves a vessel): {@code /tp @e} would otherwise put it
+	 * where nothing is loaded, or into another dimension, and the vessel would stop there.
+	 */
+	@Override
+	@Nullable
+	public Entity teleport(net.minecraft.world.level.portal.TeleportTransition transition) {
+		return null;
+	}
+
 	@Override
 	public void tick() {
 		if (this.level() instanceof ServerLevel serverLevel) {

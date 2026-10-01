@@ -20,6 +20,14 @@ on other vessels.
 - World **Slipway Harbor 2** (creative, cheats on), for the water and the survival rules: see "The harbour" below.
   **Slipway Harbor**, from the first test build, is kept as you left it.
 
+## Coming in 0.2.1 (not released; not in the play instance)
+
+- **`/kill @e` and `/tp @e` leave ships alone.** Before, either made every ship in the loaded area vanish (the blocks
+  were still stored, and `/slipway disassemble <id>` brought them back). Try `/kill @e[type=!player]` beside a ship:
+  it must stay, and you must still be able to take the helm. `/slipway remove <id>` is how a ship is deleted.
+- **A block set far out in a ship's storage area no longer takes the ship away.** This needs a command or another
+  mod, so there is nothing to try by hand; `/slipway info <id>` now ends with where the ship's entity is.
+
 ## What's new in 0.2.0: water, survival rules, ladders, jumping
 
 Two test builds went before the release (0.2.0-pre.1 with the water, 0.2.0-pre.2 with the rest); 0.2.0 is the second
@@ -88,7 +96,6 @@ Fixes only (the play instance has not been updated by this work: it still runs 0
 - **A block outside a vessel's size limit is deleted with the vessel.** In 0.1.2 a block that got past the limit
   other than by a piston or by placing it (a bucket of water, a tree, a command) stayed in the vessel's storage area
   and could turn up in the next vessel assembled.
-
 ## What's new in 0.1.2
 
 - **Loose vessels** (new key **Toggle loose**, default **U**; `/slipway mode <id> loose true|false`). A loose vessel
@@ -155,8 +162,10 @@ Operator commands (useful while testing): `/slipway list`, `/slipway info <id>`,
 `/slipway mode <id> hover|level|loose|free true|false`, `/slipway disassemble <id>`, `/slipway assemble <x y z of a helm>`, and
 `/slipway control <id> <forward> <strafe> <vertical> <pitch> <yaw> <roll> <ticks>` (each axis -1..1), which flies a
 vessel with nobody at the helm for that many ticks, so you can walk its deck while it moves, e.g.
-`/slipway control 1 0.4 0 0 0 0.3 0 400` for a slow 20-second turn. `/slipway remove <id>` deletes a vessel and its
-blocks.
+`/slipway control 1 0.4 0 0 0 0.3 0 400` for a slow 20-second turn. `/slipway pose <id> <x> <y> <z> <yaw> <pitch> <roll>`
+puts the lower corner of a vessel's helm block at a position, with an attitude in degrees (`/tp` does not move a
+vessel).
+`/slipway remove <id>` deletes a vessel and its blocks (`/kill` does not).
 
 ## The sandbox
 

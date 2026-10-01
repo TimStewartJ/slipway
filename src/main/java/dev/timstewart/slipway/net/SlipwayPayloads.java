@@ -135,6 +135,29 @@ public final class SlipwayPayloads {
 	}
 
 	/**
+	 * Server to client: where on a vessel its entity sits, in the vessel's own coordinates, while that is not the
+	 * middle of its bounds ({@code held}); with {@code held} false it is at the middle again. A client places its
+	 * entity itself, at the middle unless it has been told otherwise. Sent only to clients that know this payload
+	 * (0.1.3 and later).
+	 */
+	public record EntityPlace(long vesselId, boolean held, Vec3 local) implements CustomPacketPayload {
+		public static final Type<EntityPlace> TYPE = new Type<>(Slipway.id("entity_place"));
+		public static final StreamCodec<RegistryFriendlyByteBuf, EntityPlace> CODEC = CustomPacketPayload.codec(
+			(p, buf) -> {
+				buf.writeVarLong(p.vesselId);
+				buf.writeBoolean(p.held);
+				buf.writeDouble(p.local.x);
+				buf.writeDouble(p.local.y);
+				buf.writeDouble(p.local.z);
+			}, buf -> new EntityPlace(buf.readVarLong(), buf.readBoolean(), new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble())));
+
+		@Override
+		public Type<EntityPlace> type() {
+			return TYPE;
+		}
+	}
+
+	/**
 	 * Server to client for vessels beyond entity-tracking range but inside the proxy range: a coarse picture for
 	 * Distant Horizons. {@code blocks} packs a local position per entry (x, y, z as shorts) and {@code colors} an
 	 * ARGB colour per entry; only blocks with an exposed face are listed.

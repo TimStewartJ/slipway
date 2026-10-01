@@ -32,6 +32,7 @@ public final class ServerPackets {
 		PayloadTypeRegistry.clientboundPlay().register(SlipwayPayloads.PoseUpdate.TYPE, SlipwayPayloads.PoseUpdate.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(SlipwayPayloads.VesselInfo.TYPE, SlipwayPayloads.VesselInfo.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(SlipwayPayloads.VesselGone.TYPE, SlipwayPayloads.VesselGone.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(SlipwayPayloads.EntityPlace.TYPE, SlipwayPayloads.EntityPlace.CODEC);
 		PayloadTypeRegistry.clientboundPlay().registerLarge(SlipwayPayloads.VesselProxy.TYPE, SlipwayPayloads.VesselProxy.CODEC, 1 << 20);
 		PayloadTypeRegistry.clientboundPlay().register(SlipwayPayloads.ProxyPose.TYPE, SlipwayPayloads.ProxyPose.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(SlipwayPayloads.HelmControl.TYPE, SlipwayPayloads.HelmControl.CODEC);

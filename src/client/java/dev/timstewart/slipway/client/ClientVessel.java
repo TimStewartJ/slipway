@@ -59,6 +59,12 @@ public final class ClientVessel {
 	public boolean hasInfo;
 	public Vec3 velocity = Vec3.ZERO;
 	public Vec3 angularVelocity = Vec3.ZERO;
+	/**
+	 * Where on the vessel the server holds its entity while that is not the middle of the bounds (their middle is
+	 * where entities do not tick, or out of a viewer's range); null when it is at the middle.
+	 */
+	@Nullable
+	public Vec3 entityLocal;
 	public final VesselMesh mesh = new VesselMesh(this);
 	/**
 	 * What the vessel keeps the water out of, built from the plot's blocks as the server builds its own: for
@@ -316,6 +322,16 @@ public final class ClientVessel {
 
 	public Vec3 worldCentre(VesselPose pose) {
 		Vec3 local = this.localCenter();
+		Vector3d w = pose.localToWorld(local.x, local.y, local.z, new Vector3d());
+		return new Vec3(w.x, w.y, w.z);
+	}
+
+	/**
+	 * Where the vessel's entity is at a pose: where the server has it, so that it is in a chunk this client was sent
+	 * (an entity in a chunk the client does not have is not ticked and, without Sodium, not drawn).
+	 */
+	public Vec3 entityPlace(VesselPose pose) {
+		Vec3 local = this.entityLocal != null ? this.entityLocal : this.localCenter();
 		Vector3d w = pose.localToWorld(local.x, local.y, local.z, new Vector3d());
 		return new Vec3(w.x, w.y, w.z);
 	}

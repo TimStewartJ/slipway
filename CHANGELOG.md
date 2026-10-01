@@ -3,6 +3,29 @@
 What changed for people who play or run Slipway. The development history, with every test run, is in `WORKLOG.md`
 and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
+## 0.2.1 (not released)
+
+Fixes only.
+
+### Fixed
+
+- **A block set far out no longer takes a vessel away from its players.** A vessel is loaded, and shown to a player,
+  by one point: the middle of the box round its blocks. A block set far out in its storage area (by a command or
+  another mod; a placed block or a piston moves the box one block at a time) moved that point half the distance in
+  one tick: out of the range of the players at the vessel, who lost it under their feet, or to where no chunk was
+  loaded, where the vessel stopped until someone went there. The point now stays where it is on the vessel until
+  the new middle is loaded and in range of everyone who has the vessel.
+- **`/kill @e` and `/tp @e` leave vessels alone.** That point is an entity, and both commands took it like any
+  other: the vessel stopped and vanished, with its blocks stored out of reach. It now takes neither. Remove a vessel
+  with `/slipway remove <id>`, move one with `/slipway pose`. If another mod removes the entity, the server log
+  says so; `/slipway disassemble <id>` puts such a vessel's blocks back into the world (in earlier versions too).
+- `/slipway info` shows where the vessel's entity is.
+
+### Network
+
+One new packet tells a client when a vessel's entity is not at the middle of its box. It is sent only to
+clients that have registered it. As before, use the same version of Slipway on client and server.
+
 ## 0.2.0 (2026-10-04)
 
 Water, and rules for what makes a vessel go. Vessels float, sink and sail by their hull and weight; a new vessel moves
@@ -130,7 +153,6 @@ Fixes only; flying, building and the controls are as in 0.1.2.
   game's own light code for chunk columns without any block, which the columns around a vessel are. Right after
   joining a world such a side can still be dark for a moment, until the chunk columns around the vessel's storage
   area have arrived.
-
 ### Build
 
 The jar is reproducible: building the same commit again gives the same file (with the same JDK and the same line

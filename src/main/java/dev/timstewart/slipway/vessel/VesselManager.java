@@ -16,12 +16,14 @@ import java.util.Map;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ThreadedLevelLightEngine;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -591,6 +593,14 @@ public final class VesselManager {
 		ActiveVessel vessel = this.active.get(entity.vesselId());
 		if (vessel != null && vessel.entity == entity) {
 			this.deactivate(vessel, false);
+			Entity.RemovalReason reason = entity.getRemovalReason();
+			if (reason != null && reason.shouldDestroy()) {
+				// Not by this mod (a retired vessel is no longer active here) and not by /kill or a teleport, which the
+				// entity refuses: another mod, or a test's cleanup. The record and the blocks in the plot stay.
+				long id = vessel.record.id;
+				Slipway.LOGGER.info("Vessel {} lost its entity ({}) and is no longer simulated; '/slipway disassemble {}' puts its blocks back into the world, '/slipway remove {}' deletes them",
+					id, reason, id, id);
+			}
 		}
 	}
 
@@ -598,7 +608,10 @@ public final class VesselManager {
 		ActiveVessel vessel = new ActiveVessel(record, entity);
 		this.active.put(record.id, vessel);
 		vessel.unsentChunks.addAll(this.addTickets(vessel));
-		entity.updateFrom(record.pose, record.helm, record.helmFacing, worldCentre(record));
+		// The entity stays where it was saved, as a place on the vessel (see entityPlace).
+		vessel.entityLocal = entityLocal(record, entity.position());
+		vessel.entityHeld = !vessel.entityLocal.equals(record.localCenter());
+		entity.updateFrom(record.pose, record.helm, record.helmFacing, localToWorld(record, vessel.entityLocal));
 		Slipway.LOGGER.debug("Activated vessel {}", record.id);
 	}
 
@@ -612,6 +625,95 @@ public final class VesselManager {
 		if (!removed) {
 			this.registry.setDirty();
 		}
+	}
+
+	/**
+	 * Where a vessel's entity is this tick. It sits in the middle of the bounds, and where it is decides whether the
+	 * vessel is loaded and which players are shown it. So when the bounds grow (a block set far out by a command moves
+	 * their middle half that distance in one tick) it follows only if that takes the vessel from nobody: entities tick
+	 * in the chunk there, or it is the chunk the entity is in, and every player who has the vessel would still track
+	 * it there. Otherwise it stays at its place on the vessel and follows when it can. Clients place their entity
+	 * themselves, so they are told while it is held.
+	 */
+	private Vec3 entityPlace(ActiveVessel vessel) {
+		VesselRecord record = vessel.record;
+		Vec3 middle = record.localCenter();
+		if (!middle.equals(vessel.entityLocal) && this.canSitAt(vessel, middle)) {
+			vessel.entityLocal = middle;
+		}
+		boolean held = !middle.equals(vessel.entityLocal);
+		if (held != vessel.entityHeld) {
+			vessel.entityHeld = held;
+			if (held) {
+				Slipway.LOGGER.info("Vessel {} keeps its entity at {} on the vessel: the middle of its bounds, {}, is where entities do not tick or out of a viewer's range",
+					record.id, vessel.entityLocal, middle);
+			}
+			for (ServerPlayer player : this.audience(vessel)) {
+				this.sendEntityPlace(vessel, player);
+			}
+		}
+		return localToWorld(record, vessel.entityLocal);
+	}
+
+	private boolean canSitAt(ActiveVessel vessel, Vec3 local) {
+		Vec3 world = localToWorld(vessel.record, local);
+		BlockPos block = BlockPos.containing(world);
+		int chunkX = SectionPos.blockToSectionCoord(block.getX());
+		int chunkZ = SectionPos.blockToSectionCoord(block.getZ());
+		ChunkPos now = vessel.entity.chunkPosition();
+		if ((now.x() != chunkX || now.z() != chunkZ) && !this.level.isPositionEntityTicking(block)) {
+			return false;
+		}
+		for (ServerPlayer player : this.audience(vessel)) {
+			if (!this.wouldTrack(player, world, chunkX, chunkZ)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Vanilla's rule for who tracks an entity ({@code ChunkMap.TrackedEntity.updatePlayer}), a chunk short of the range. */
+	private boolean wouldTrack(ServerPlayer player, Vec3 at, int chunkX, int chunkZ) {
+		if (player.isRemoved() || player.level() != this.level) {
+			return true;
+		}
+		int view = Mth.clamp(player.requestedViewDistance(), 2, this.level.getServer().getPlayerList().getViewDistance());
+		double range = Math.min(this.level.getServer().getScaledTrackingDistance(SlipwayRegistry.VESSEL.clientTrackingRange() * 16), view * 16) - 16.0;
+		double dx = player.getX() - at.x;
+		double dz = player.getZ() - at.z;
+		return dx * dx + dz * dz <= range * range && this.level.getChunkSource().chunkMap.isChunkTracked(player, chunkX, chunkZ);
+	}
+
+	/** The players who have a vessel: those who track its entity, and those who were sent it without tracking it yet. */
+	private Collection<ServerPlayer> audience(ActiveVessel vessel) {
+		Collection<ServerPlayer> tracking = net.fabricmc.fabric.api.networking.v1.PlayerLookup.tracking(vessel.entity);
+		if (vessel.viewers.isEmpty()) {
+			return tracking;
+		}
+		java.util.Set<ServerPlayer> all = new java.util.LinkedHashSet<>(tracking);
+		all.addAll(vessel.viewers);
+		return all;
+	}
+
+	private void sendEntityPlace(ActiveVessel vessel, ServerPlayer player) {
+		// A 0.1.2 client does not know the payload: it keeps its entity at the middle, as that version did.
+		if (player.connection.isAcceptingMessages() && ServerPlayNetworking.canSend(player, SlipwayPayloads.EntityPlace.TYPE)) {
+			ServerPlayNetworking.send(player, new SlipwayPayloads.EntityPlace(vessel.record.id, vessel.entityHeld, vessel.entityLocal));
+		}
+	}
+
+	/**
+	 * The place on a vessel of a point of the world (where its entity was saved): the middle of the bounds if it is
+	 * all but there, and never outside them (the entity and the record are saved at different moments).
+	 */
+	private static Vec3 entityLocal(VesselRecord record, Vec3 world) {
+		Vec3 middle = record.localCenter();
+		Vector3d local = record.pose.worldToLocal(world.x, world.y, world.z, new Vector3d());
+		if (!local.isFinite() || middle.distanceToSqr(local.x, local.y, local.z) < 1.0e-4) {
+			return middle;
+		}
+		return new Vec3(Mth.clamp(local.x, record.localMin.getX(), record.localMax.getX() + 1.0), Mth.clamp(local.y, record.localMin.getY(), record.localMax.getY() + 1.0),
+			Mth.clamp(local.z, record.localMin.getZ(), record.localMax.getZ() + 1.0));
 	}
 
 	private void close() {
@@ -657,7 +759,7 @@ public final class VesselManager {
 		for (ActiveVessel vessel : List.copyOf(this.active.values())) {
 			VesselRecord record = vessel.record;
 			if (vessel.entity != null && !vessel.entity.isRemoved()) {
-				vessel.entity.updateFrom(record.pose, record.helm, record.helmFacing, worldCentre(record));
+				vessel.entity.updateFrom(record.pose, record.helm, record.helmFacing, this.entityPlace(vessel));
 				this.broadcastPose(vessel, gameTime);
 			}
 			WaterEffects.tick(this.level, vessel);
@@ -865,6 +967,9 @@ public final class VesselManager {
 				if (!vessel.viewers.contains(player)) {
 					vessel.viewers.add(player);
 					ServerPlayNetworking.send(player, this.info(vessel));
+					if (vessel.entityHeld) {
+						this.sendEntityPlace(vessel, player);
+					}
 					this.sendChunks(vessel, player);
 				}
 			}
@@ -917,7 +1022,11 @@ public final class VesselManager {
 	// ---------------------------------------------------------------------------------------------------------
 
 	public static Vec3 worldCentre(VesselRecord record) {
-		Vec3 local = record.localCenter();
+		return localToWorld(record, record.localCenter());
+	}
+
+	/** Maps a point given in a vessel's own coordinates into world space. */
+	public static Vec3 localToWorld(VesselRecord record, Vec3 local) {
 		Vector3d world = record.pose.localToWorld(local.x, local.y, local.z, new Vector3d());
 		return new Vec3(world.x, world.y, world.z);
 	}
@@ -943,7 +1052,7 @@ public final class VesselManager {
 		vessel.record.angularVelocity = Vec3.ZERO;
 		this.physics.teleport(vessel);
 		if (vessel.entity != null) {
-			vessel.entity.updateFrom(pose, vessel.record.helm, vessel.record.helmFacing, worldCentre(vessel.record));
+			vessel.entity.updateFrom(pose, vessel.record.helm, vessel.record.helmFacing, localToWorld(vessel.record, vessel.entityLocal));
 		}
 		this.registry.setDirty();
 	}

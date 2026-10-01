@@ -14,6 +14,7 @@
 			"dev.timstewart.slipway.gametest.BuoyancyGameTests",
 			"dev.timstewart.slipway.gametest.SurvivalGameTests",
 			"dev.timstewart.slipway.gametest.BlockEventGameTests",
+			"dev.timstewart.slipway.gametest.EntityGameTests",
 			"dev.timstewart.slipway.gametest.MachineGameTests"
 		]
 	},

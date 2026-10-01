@@ -29,6 +29,7 @@ public final class SlipwayClient implements ClientModInitializer {
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.VesselInfo.TYPE, (payload, context) -> ClientVessels.onInfo(payload));
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.PoseUpdate.TYPE, (payload, context) -> ClientVessels.onPose(payload));
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.VesselGone.TYPE, (payload, context) -> ClientVessels.onGone(payload.vesselId(), payload.keepProxy()));
+		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.EntityPlace.TYPE, (payload, context) -> ClientVessels.onEntityPlace(payload));
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.VesselProxy.TYPE, (payload, context) -> DhProxyBridge.onProxy(payload));
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.ProxyPose.TYPE, (payload, context) -> DhProxyBridge.onProxyPose(payload));
 

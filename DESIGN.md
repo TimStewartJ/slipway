@@ -111,12 +111,101 @@ into the world, and code that moves entities, clicks, sounds, drops and renderin
 - `VesselRecord` (saved in the level's `VesselRegistry` SavedData): id, plot, anchor, local bounds, helm, pose,
   linear and angular velocity, hover/level modes, block count and the long-range proxy data. The plot chunks are
   saved by vanilla like any other chunk.
-- `VesselEntity` sits at the vessel's centre in world chunks. It is what players track (it decides who receives the
-  vessel's chunks and poses), what the pilot rides, and what draws the vessel. When its chunk loads, the vessel
-  becomes active (`ActiveVessel`); when it unloads, the vessel stops and keeps its state.
+- `VesselEntity` sits at the middle of the vessel's bounds in world chunks. It is what players track (it decides who
+  receives the vessel's chunks and poses), what the pilot rides, and what draws the vessel. When its chunk loads, the
+  vessel becomes active (`ActiveVessel`); when it unloads, the vessel stops and keeps its state. See "The vessel's
+  entity" below for when it is not at the middle and for what may remove it.
 - `VesselManager` (one per server level) owns active vessels: assembly, disassembly, removal, chunk tickets for plots,
   which players view which vessel (`syncViewers`), pose and info packets, and a next-tick queue for work that must
   follow block updates.
+
+### The vessel's entity: where it sits and what may remove it (0.2.1)
+
+`VesselEntity` is one point of the vessel in the world, and two things hang on where it is. The vessel is active
+while the chunk it is in is loaded (the entity's load and unload events activate and deactivate the vessel). And a
+player is shown the vessel while vanilla has that player track the entity: within the type's tracking range (16
+chunks, 256 blocks) or the player's view distance if that is less, and only with the entity's chunk sent to them
+(`ChunkMap.TrackedEntity.updatePlayer`). One point for a large object has a limit that stays: on a ship longer than
+about twice the view distance, a player at the far end is out of range (README, "Known limitations").
+
+The point is the middle of the bounds, the best single point for both. Up to 0.1.2 it was nothing else, and the
+bounds grow when a block is set outside them (`VesselRecord.include`; they never shrink), so a block set far out
+moved the entity half that distance in one tick. A placed block or a piston stroke grows the bounds by one block and
+a tree by a few; a command or another mod can set a block anywhere in the plot (`/setblock` needs the position
+loaded, which the vessel's tickets give two columns out: one command moves the middle by up to 24 blocks, and
+commands can be repeated). On the released code, in a server GameTest probe: with the new middle in a chunk that is
+not loaded the vessel was inactive one tick later (no body, no tickets, its viewer told to forget its columns) and
+stayed so; with the new middle in a loaded chunk it stayed active, with its entity 234 blocks from the player at
+the vessel, which is out of any player's range at a view distance of 14 chunks or less. With a real player at view
+distance 8 and the middle moved 180 blocks, the vessel unloaded (client GameTest `vessel-entity` with the rule
+turned off). Bounds do not shrink, so such a vessel stayed out of reach of the players standing on it, short of
+`/slipway disassemble <id>`.
+
+This was found through a server GameTest that failed once in seven runs of the film agent's
+(`columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded` as it was before `addbc87`, with one block 100
+blocks out). The log of that run places the test in the first arena of the sixth row with its helm at
+x -14954058; the middle of the bounds moved to x -14954008, inside the arena two places east (helm at -14954012),
+and the progress line in which the test first shows as failed shows that arena's test as passed. A GameTest that
+passes discards every entity in its arena (`GameTestInfo.succeed`), and a vessel whose entity is removed stops
+like one whose entity is unloaded, for good. So that run did not show an unloaded chunk; the probe above did.
+
+**The rule (`VesselManager.entityPlace`).** The entity has a place on the vessel (`ActiveVessel.entityLocal`, in
+the vessel's own coordinates) and is put there every tick. While the middle of the bounds is somewhere else, the
+place moves to it as soon as that takes the vessel from nobody:
+
+- entities tick in the chunk the middle is in (`ServerLevel.isPositionEntityTicking`), or it is the chunk the
+  entity is in already; and
+- every player who has the vessel (tracks its entity, or was sent it at assembly and does not track it yet) would
+  still track it there by vanilla's rule, taken one chunk short of the range.
+
+Otherwise it stays (`entityHeld`), and the question is asked again every tick. In ordinary play the middle moves
+half a block at a time among chunks that tick, so the entity is at the middle as before; it is held at the edge of
+a player's range and for blocks set far out.
+
+- The place survives unloading without a new field in the save. The entity is saved where it is, and `activate`
+  takes its place on the vessel from that position: the middle if it is within a hundredth of a block of it, and
+  never outside the bounds (the entity and the record are saved at different moments). Before, activation put the
+  entity at the middle, which would unload a held vessel again in the tick it loads.
+- Clients place their entity themselves (they play the poses back), at the middle of the bounds they know. A client
+  entity in a chunk the client does not have is not ticked (its riders keep the pose of its last tick) and, with
+  vanilla's renderer, not drawn (`LevelExtractor.isEntityVisible` wants the section at the entity compiled). So the
+  client is told: `EntityPlace` (vessel id, held, place) goes to the players who have the vessel when the entity
+  begins and ceases to be held, and to a new viewer after its `VesselInfo` while it is held. It is a payload of its
+  own, not a field added to another or a second synched value of the entity, and it is sent only to clients that
+  have registered it (`ServerPlayNetworking.canSend`): a 0.1.2 client is not sent what it cannot read and keeps
+  its entity at the middle, as that version did. (Mixed versions were not run.)
+- Assembly is unchanged: the entity starts at the middle. Flight and `/slipway pose` move the vessel and the entity
+  with it, also to where nothing is loaded, where the vessel unloads as before.
+- `/slipway info` ends with `entity=x,y,z` and `,held` while it is.
+
+**Not chosen.** The helm as the entity's place: it never moves and both sides know it, but every ship would be
+loaded and shown by the distance to its helm, a visible change for ships with the helm at one end. The centre of
+mass: it moves with the blocks too, and clients do not know it. An entity that always ticks
+(`Entity.isAlwaysTicking`, as players are) or a chunk ticket where the entity is: the vessel would stay loaded at
+the new middle, where none of its players is in range to be shown it.
+
+**What may remove the entity.** `/kill @e` and `/tp @e` are everyday commands, and the entity took both like any
+other: killed, moved 5,000 blocks, or sent to another dimension, it left its vessel inactive with the record and the
+blocks stored (probe on the released code; `/slipway info` then says `active=false`). `VesselEntity.kill` now
+does nothing and `teleport` refuses. `discard` and a direct `remove` still take it: a test's cleanup uses them
+(see "Testing"), and so can another mod. The vessel then stops as before, and the server log says so and names the
+ways out: `/slipway disassemble <id>`, which works on a vessel that is not active and puts its blocks back where
+the vessel was, and `/slipway remove <id>`. Making a new entity for such a vessel was left out: the server tests
+rely on the cleanup stopping the vessels of a finished test, and each would have to remove its own.
+
+**Tests.** `EntityGameTests`: `growingBoundsDoNotTakeAVesselWhereNothingIsLoaded` (the vessel stays active and its
+entity in place; so after an unload and a load; it goes to the middle once entities tick there),
+`growingBoundsDoNotTakeAVesselFromItsViewers` (the entity stays for a viewer 240 blocks from the new middle although
+entities tick there, and goes when the viewer has gone), `killAndTeleportCommandsLeaveAVessel` and
+`aVesselThatLostItsEntityCanBePutBackIntoTheWorld`. Client GameTest `vessel-entity`, a real player at view
+distance 8: a block 40 out by `/setblock` (the entity goes to the new middle, 19 blocks on, on the server and the
+client), a block 400 out (the middle moves 180 blocks, to where no entity ticks and the client has no chunk: the
+server holds the entity, the client has the same place and the same vessel as before, and its entity is ticked in
+every tick of a flight of 15 blocks), then `/kill @e` and `/tp @e`. Each part was turned off once and its test
+failed: without the ticking condition the vessel unloaded; without the viewer condition the entity went 236 blocks
+from the viewer; with activation putting the entity at the middle the vessel unloaded as it loaded; with the client
+keeping its entity at the middle it was 180 blocks from the server's; with `kill` and `teleport` as inherited the
+vessel went.
 
 ### Assembly and disassembly
 
@@ -511,7 +600,8 @@ the tests of the rules put their own vessels under them, and `make-harbour` turn
 Server-authoritative. Viewers get `VesselInfo` (plot mapping, bounds, helm; flagged on assembly), plot chunks as
 normal chunk packets (`ChunkMapMixin` keeps block, light and block-entity updates flowing to them although plots are
 far outside their view; the client stores them in a separate map, `ClientChunkCacheMixin`), a `PoseUpdate` every
-tick, and `VesselGone` (with `keepProxy` when only the near view ends). The only serverbound packet is `HelmControl`,
+tick, `EntityPlace` in the rare case that the vessel's entity is not at the middle of its bounds (0.2.1, see "The
+vessel's entity"), and `VesselGone` (with `keepProxy` when only the near view ends). The only serverbound packet is `HelmControl`,
 accepted only from the vessel's pilot, rate-limited (40 per second), with NaN/Infinity rejected and axes clamped to
 [-1, 1] (`ServerPackets`). Vanilla use/break packets aimed at plot positions are checked for reach against where
 the block is in the world (`PlayerMixin`).
@@ -1243,7 +1333,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, water, the survival rules, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~45 s for 68 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, water, the survival rules, block events and pistons, redstone, a farm and machines, the vessel's entity inside a headless server | `src/gametest`, `runGametest` | ~45 s for 74 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
@@ -1261,17 +1351,32 @@ Every run starts in a new world, as on CI (`runGametest` deletes `build/gametest
 earlier run holds that run's vessels, its registry with the freed plots, and whatever the code it ran left in them.
 The runner puts the arenas at a random place, eight to a row, in an order that differs from run to run, and runs at
 most 50 tests at a time (the rest follow as a second batch), so a test must not depend on what is beside it. One did:
-a vessel's entity sits at the middle of its bounds, and a block set 100 blocks out moved it 50 blocks, into the arena
-of another test or, from the last arena of a row and depending on where the chunk borders fell, into chunks that are
-not loaded, where the vessel unloaded (`columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`; it now sets
-a block on either side, which leaves the middle where it is).
+a vessel's entity sat at the middle of its bounds, and a block set 100 blocks out moved it 50 blocks, into the arena
+two places on, whose test discards every entity in its arena when it passes, or, from the last arenas of a row and
+depending on where the chunk borders fell, into chunks that are not loaded; either way the vessel stopped
+(`columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded`, once in seven runs of the film agent's; it sets a
+block on either side since 0.1.2, which leaves the middle where it is, and since 0.2.1 the entity stays for the
+test's viewer in any case: "The vessel's entity").
+When a test passes, the framework discards the entities in its arena. The vessels left there stop (this is what
+keeps them out of the next batch, which uses the same places), and the log has a line "Vessel N lost its entity
+(DISCARDED) and is no longer simulated" for each.
+The test server does not wait between ticks (`GameTestServer.waitUntilNextTick` only runs queued tasks), so work
+done on other threads takes a number of ticks that depends on the machine: loading and making chunks, reading a
+column's entities, light. A test waits for the state it needs, not for a number of ticks: a body built from the
+blocks as they are (`settled`); a plot that is ticked (`TestShips.plotTicks`: scheduled ticks, block entities and
+random ticks begin when the columns round the vessel's own are made and the columns' entities read, one tick after
+assembly on the development machine; the chest, clock, farm and machine tests count ticks from there); forced
+chunks loaded (the ship steered from its stern); new columns loaded (`unsentChunks`); the light engine's queue
+(`waitForPendingTasks`). Vessel physics does not depend on the machine: the server tick waits for the physics step
+(`PhysicsWorld.await`), block events run by ticket level, and terrain boxes are built on the server thread, 24
+sections a tick.
 A check that fails inside a step of a test sequence does not end the test at once: the sequence runs for one more
 tick, and the failure that is reported is the last one.
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs nineteen
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs twenty
 scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and
 `disassembly`; `afloat` came with the water, see "Water: floating, sinking and dry hulls"; `deck-jump` with the
-survival pass, see "Interaction and riding"); each starts
+survival pass, see "Interaction and riding"; 0.2.1 `vessel-entity`); each starts
 at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and

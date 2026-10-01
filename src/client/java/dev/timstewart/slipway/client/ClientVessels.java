@@ -136,6 +136,14 @@ public final class ClientVessels {
 		getOrCreate(update.vesselId()).applyPose(update);
 	}
 
+	static void onEntityPlace(SlipwayPayloads.EntityPlace place) {
+		ClientVessel vessel = VESSELS.get(place.vesselId());
+		Vec3 local = place.local();
+		if (vessel != null) {
+			vessel.entityLocal = place.held() && Double.isFinite(local.x) && Double.isFinite(local.y) && Double.isFinite(local.z) ? local : null;
+		}
+	}
+
 	/** The server stopped showing a vessel up close ({@code keepProxy}) or removed it entirely. */
 	static void onGone(long id, boolean keepProxy) {
 		checkLevel();
@@ -255,7 +263,6 @@ public final class ClientVessels {
 			return;
 		}
 		VesselPose pose = vessel.tickPose();
-		Vec3 centre = vessel.worldCentre(pose);
-		entity.updateFrom(pose, vessel.helm, vessel.helmFacing, centre);
+		entity.updateFrom(pose, vessel.helm, vessel.helmFacing, vessel.entityPlace(pose));
 	}
 }

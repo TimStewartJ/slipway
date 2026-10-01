@@ -13,6 +13,14 @@ public final class ActiveVessel {
 	public final VesselRecord record;
 	@Nullable
 	public VesselEntity entity;
+	/**
+	 * Where on the vessel its entity sits, in the vessel's own coordinates: the middle of the bounds, or the place it
+	 * was held at when the bounds grew and their new middle would have taken the vessel from its players (see
+	 * {@code VesselManager.entityPlace}).
+	 */
+	public net.minecraft.world.phys.Vec3 entityLocal = net.minecraft.world.phys.Vec3.ZERO;
+	/** The entity is not at the middle of the bounds; viewers are told where it is, as they place theirs themselves. */
+	public boolean entityHeld;
 	/** Plot chunk columns holding a {@code slipway:vessel} ticket, packed {@code ChunkPos} longs. */
 	public final LongLinkedOpenHashSet ticketChunks = new LongLinkedOpenHashSet();
 	/** True once every ticketed plot chunk is loaded. */

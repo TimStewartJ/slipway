@@ -81,8 +81,8 @@ Keys are under Options > Controls > Key Binds > **Slipway**. The Slipway Helm is
 Functional Blocks (`/give @s slipway:helm`), or crafted from two sticks on top, a compass in the middle and three
 planks below. Anything face-connected to the helm becomes part of the vessel, so build ships in the air, on a
 temporary platform you remove, or on water (water, kelp and sea grass never become part of a vessel). Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level`,
-`loose` or `free`), `control`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
-list of things to try.
+`loose` or `free`), `control`, `pose`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
+list of things to try. `/kill @e` and `/tp @e` do not touch vessels: remove one with `/slipway remove <id>`.
 
 Loose vessels are for cargo: build a few small things over a ship's deck, give each a helm, assemble them and set
 them loose (`/slipway mode <id> loose true`, or the key at their helm). They land on the deck, ride along while the
@@ -153,6 +153,9 @@ moving vessel".
   out, and a piston does not push one there. A block that gets there another way (a bucket of water, a tree growing,
   a command) is not part of the vessel: it is not put into the world when the vessel is disassembled, and it is
   deleted with the vessel.
+- A vessel is loaded while the chunk at the middle of the box round its blocks is loaded, and shown to players
+  within 256 blocks of that point (less if the view distance is smaller). On a ship longer than about twice the view
+  distance, a player at the far end does not have it.
 - Right after assembly the vessel can be drawn incomplete for a tick or two. Right after joining a world, a side of a
   vessel that lies on a chunk border of its storage area (often the west or north side of a small build) can be dark
   for a moment, until the chunk columns around it have arrived; this was not seen in forty world loads in testing.
@@ -211,12 +214,14 @@ check on every push. Details are in [DESIGN.md](DESIGN.md), "Testing".
 - `gradlew runGametest`: Fabric GameTests in a headless server (assembly round trips, deny list, physics, packets,
   interaction, loose vessels, block events and pistons, a repeater clock, a farm, hoppers, observers and droppers,
   floating, sinking, dry hulls and docking in a pool, a ladder on a turned vessel, sails against oars, a balloon
-  that flies on its fires and comes down without them).
+  that flies on its fires and comes down without them, and what must not take a vessel away: a block set far out,
+  `/kill`, `/tp`).
 - `gradlew runClientGametest`: Fabric client GameTests on a real client with Sodium, Iris (Bliss shaders) and
   Distant Horizons: assembly of a mixed ship, flight through every rotation, deck walking, jumping and climbing a
   ladder on a deck in every state of the ship, interaction, collision,
   loose cargo on a carrier, a ballasted hull afloat (the water mask, the player dry below the waterline, thrust on
-  the water, flooding), block events (chest lid, piston strokes, note block, mining), a bone meal farm, the
+  the water, flooding), block events (chest lid, piston strokes, note block, mining), a vessel kept through a
+  block set far out and `/kill @e`, a bone meal farm, the
   picture kept at disassembly, forged packets, save and reload, rendering (shadows, reference images, Distant
   Horizons far view), multiplayer with a second client, performance, world-retention leaks and a flight soak.
   Reports in `build/client-gametest`. Needs a
