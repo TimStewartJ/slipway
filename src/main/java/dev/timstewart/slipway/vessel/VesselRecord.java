@@ -135,6 +135,16 @@ public final class VesselRecord {
 		this.localMax = new BlockPos(Math.max(this.localMax.getX(), local.getX()), Math.max(this.localMax.getY(), local.getY()), Math.max(this.localMax.getZ(), local.getZ()));
 	}
 
+	/**
+	 * Whether the bounds, grown to take in a local position, still span at most {@code maxSpan} blocks on every axis:
+	 * the rule assembly applies to a structure ({@code StructureScan}), applied to a vessel that grows afterwards.
+	 */
+	public boolean fitsSpan(BlockPos local, int maxSpan) {
+		return Math.max(this.localMax.getX(), local.getX()) - Math.min(this.localMin.getX(), local.getX()) < maxSpan
+			&& Math.max(this.localMax.getY(), local.getY()) - Math.min(this.localMin.getY(), local.getY()) < maxSpan
+			&& Math.max(this.localMax.getZ(), local.getZ()) - Math.min(this.localMin.getZ(), local.getZ()) < maxSpan;
+	}
+
 	/** Local centre of the block bounds, used as the vessel entity's position. */
 	public Vec3 localCenter() {
 		return new Vec3((this.localMin.getX() + this.localMax.getX() + 1) / 2.0, (this.localMin.getY() + this.localMax.getY() + 1) / 2.0,

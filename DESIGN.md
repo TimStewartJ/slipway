@@ -296,7 +296,12 @@ opened. `ContainerOpenersCounterMixin` puts the box where the block is in the wo
 - The collision shape, mass, block count and bounds follow each stroke (`LevelChunkMixin` marks the shape dirty; it
   is rebuilt at the next exchange). In mid-stroke the plot holds `minecraft:moving_piston` blocks whose collision
   shape is the moved block's, shifted by its progress; `SectionShapes` weighs such a block as the block it moves (an
-  iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink.
+  iron block weighs as iron while it is pushed). Bounds grow with a push and never shrink. They do not grow past
+  the configured largest size (`maxVesselSpan`, the rule assembly applies; 0.1.2, found in review): a block set
+  further out by a command is not taken in, like a block in the plot's margin, and a piston refuses a push that
+  would carry a block or its head there (server side; the client follows the strokes it is sent). Before, bounds
+  grew to the plot's edge, 2,016 blocks out, and tickets, shared columns and mesh with them
+  (server GameTest `aVesselDoesNotGrowPastTheLargestSpan`).
 - Growing the bounds no longer sends the vessel's chunks to its viewers again; only chunk columns that are new are
   sent (`VesselManager.includeLocal`). Sending a chunk again replaces it on the client, which deletes the moving
   blocks the client has just made from the piston's event (the stroke was invisible whenever it grew the bounds) and

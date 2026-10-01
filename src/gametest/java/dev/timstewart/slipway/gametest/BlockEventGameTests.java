@@ -435,6 +435,52 @@ public class BlockEventGameTests {
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 100)
+	public void aVesselDoesNotGrowPastTheLargestSpan(GameTestHelper helper) {
+		// A three by three deck round its helm: x and z from -1 to 1.
+		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		ServerLevel level = helper.getLevel();
+		BlockPos a = record.anchor;
+		List<BlockPos> placed = new ArrayList<>();
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, settled(vessel), "the vessel has no body yet"))
+			// The configuration is the server's, so it is changed for the length of these calls only (they act at once).
+			.thenExecute(() -> TestShips.withConfig(config -> config.maxVesselSpan = 8, () -> {
+				// Eight blocks from x -1 end at x 6.
+				placed.add(a.offset(7, 0, 0));
+				level.setBlock(a.offset(7, 0, 0), Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMax.getX() == 1, "a block past the largest span grew the bounds to x " + record.localMax.getX());
+				placed.add(a.offset(6, 0, 0));
+				level.setBlock(a.offset(6, 0, 0), Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMax.getX() == 6, "a block at the largest span was not taken in: x " + record.localMax.getX());
+				placed.add(a.offset(-2, 0, 0));
+				level.setBlock(a.offset(-2, 0, 0), Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMin.getX() == -1, "a block on the other side grew the full bounds to x " + record.localMin.getX());
+				placed.add(a.offset(0, 9, 0));
+				level.setBlock(a.offset(0, 9, 0), Blocks.COBWEB.defaultBlockState(), 2);
+				check(helper, record.localMax.getY() < 9, "a block past the largest span above grew the bounds to y " + record.localMax.getY());
+				// Pistons: a block may be pushed to x 6 and not to x 7; a head may not go to x 7.
+				placed.add(a.offset(6, 1, 0));
+				level.setBlock(a.offset(6, 1, 0), Blocks.STONE.defaultBlockState(), 2);
+				placed.add(a.offset(5, 1, 2));
+				level.setBlock(a.offset(5, 1, 2), Blocks.STONE.defaultBlockState(), 2);
+				check(helper, !new PistonStructureResolver(level, a.offset(5, 1, 0), Direction.EAST, true).resolve(), "a piston may push a block past the largest span");
+				check(helper, new PistonStructureResolver(level, a.offset(4, 1, 2), Direction.EAST, true).resolve(), "a piston may not push a block to the edge of the largest span");
+				check(helper, !new PistonStructureResolver(level, a.offset(6, 1, -1), Direction.EAST, true).resolve(), "a piston may put its head past the largest span");
+				check(helper, new PistonStructureResolver(level, a.offset(5, 1, -1), Direction.EAST, true).resolve(), "a piston may not put its head at the edge of the largest span");
+			}))
+			.thenExecute(() -> {
+				// With the configured size back (512) the same push is allowed.
+				check(helper, new PistonStructureResolver(level, a.offset(5, 1, 0), Direction.EAST, true).resolve(), "the limit stayed after the configuration was put back");
+				placed.forEach(pos -> level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2));
+			})
+			.thenIdle(3)
+			.thenExecute(() -> check(helper, settled(vessel) && VesselManager.get(level).active(record.id) == vessel, "the vessel went away"))
+			.thenSucceed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 100)
 	public void viewersHaveTheColumnsAroundAVesselToo(GameTestHelper helper) {
 		// A three by three deck round its helm: the helm stands on a chunk corner of the plot, so four columns.
 		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
