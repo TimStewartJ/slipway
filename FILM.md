@@ -277,6 +277,10 @@ the frame; that is the sun angle, not a bug.
   happened once in about twenty starts. If that line has not appeared 30 s after Iris's "Creating pipeline" lines,
   stop the film's java process by PID (its command line contains `Slipway-film`) and start again.
 - Frame sizes must be even (libx264 with yuv420p): rehearse at 544x680, not 540x675.
+- "Can't keep up!" lines in a render's log are the film itself: the tick loop waits while each tick's frames are
+  rendered (up to half a second per tick in slow motion), so the server reports being seconds behind after every
+  shot. No tick is skipped. The server's own work is logged at the end of each shot ("server N ms per tick, physics
+  step N ms"); in version 2 it was 1.7 to 3.4 ms per tick, with nine vessels in the cargo shot.
 - Build cargo only where the ship is not: `FilmScene.buildCargo` refuses a piece within a block of any ship block
   (the first layout put a piece into the main mast, which rises through every height at ship x 0, z -2).
 - A lever's block, a lamp or a powered wall block next to a door opens it; keep powered blocks two away.
