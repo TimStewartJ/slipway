@@ -9532,6 +9532,166 @@
     "mixinOrLoaderWarnings = []"
    ],
    "note": "the release stack with the Distant Horizons build that would replace leakfix.9 in the play instance (-PslipwayPackagedCheckDhJar, irisfix.1, SHA256 B9FE6130...A79E)"
+  },
+  {
+   "scenario": "render-iris",
+   "result": "pass",
+   "runId": "clientgametest-20260930-182511-render-iris",
+   "harness": "client-gametest",
+   "series": "fork7-render-leak",
+   "run": 1,
+   "date": "2026-09-30T18:25:11",
+   "commit": "e28b909",
+   "seconds": 64.1,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1.log",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\01-outline-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\01-outline-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\02-outline-f1-off.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\02-outline-f1-on.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\03-ground-plain-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\03-ground-plain-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\04-ground-bliss-with-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\04-ground-bliss-without-vessel.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\05-barge-far-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\06-barge-moved-away.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\render-far-dh-bliss.png",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\screenshots\\render-iris\\render-near-bliss.png"
+   ],
+   "checks": [
+    "lod.beforeAssembly = minecraft:oak_planks_STATE_ y-57..-56 detail 0",
+    "lod.afterAssembly = air y-60..321 detail 0",
+    "still.outline.ticks = 50",
+    "outline.pixels = 959",
+    "still.outline-f1.ticks = 10",
+    "outline.pixelsWithHudHidden = 1",
+    "shadow.ratioWithoutShaders = 1.0",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "msd.render-near-bliss = 0.0",
+    "glStateCache.nearBliss = out of sync/samples: startMain 0/118; afterOpaqueTerrain 0/118; afterSolidFeatures 0/118; beforeTranslucentTerrain 0/118; endMain 0/118; betweenFrames 0/40;",
+    "shadow.ratioWithBliss = 0.7621",
+    "proxy.boxes = 868.0",
+    "msd.render-far-dh-bliss = 0.0",
+    "glStateCache.farBliss = out of sync/samples: startMain 0/120; afterOpaqueTerrain 0/120; afterSolidFeatures 0/120; beforeTranslucentTerrain 0/120; endMain 0/120; betweenFrames 0/40;",
+    "far.changedPixels = 235",
+    "far.blob = 20x12 at -1,-1 from the aim point",
+    "far.blobLuminance = 107.0 with the barge, 163.5 without",
+    "proxy.afterMove = 24.00,-30.00,420.00",
+    "msd.render-near-bliss (unrounded, from run1.log) = 4.0254301299076005E-5; limit 2.5e-4",
+    "msd.render-far-dh-bliss (unrounded, from run1.log) = 4.41252503715869E-5; limit 2.5e-4"
+   ],
+   "note": "Distant Horizons test build 3.3.4-tellus-fork.7 (SHA256 BCF32F9969EBF230E6F21BBEED68B6140C3DE9CD256E0C155478E0C4857FEF10) in devmods/test: official 3.3.4 plus the Tellus patches, the leak fixes A-G and I2. Two-scenario run (-PslipwayClientGametestOnly=render-iris,leak, 2 passed); the Bliss reference images are unchanged (recorded with irisfix.1). The other ten scenarios last ran with irisfix.1 (series irisfix-build-d40b68b); Slipway source is unchanged since. Same day against fork.7: gradlew assemble test runGametest checkPatches green (E:\\slipway-e2e\\cgt\\fork7-headless: server GameTests 28/28, checkPatches 13; unit tests up to date)."
+  },
+  {
+   "scenario": "leak",
+   "result": "pass",
+   "runId": "clientgametest-20260930-182511-leak",
+   "harness": "client-gametest",
+   "series": "fork7-render-leak",
+   "run": 1,
+   "date": "2026-09-30T18:25:11",
+   "commit": "e28b909",
+   "seconds": 128.9,
+   "report": "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-junit.xml",
+   "results": "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-results.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-results.json",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1-junit.xml",
+    "E:\\slipway-e2e\\runs\\clientgametest-20260930-182511\\run1.log"
+   ],
+   "checks": [
+    "plain.heapAfterGcMb = [576, 580, 582, 580, 580]",
+    "plain.privateMb = [1768, 1788, 1794, 1718, 1782]",
+    "plain.heapPerCycleMb = 0.0",
+    "plain.privatePerCycleMb = -2.0352",
+    "plain.threadGroupsThatGrew = {}",
+    "plain.threadGroupsThatChanged = {IO-Worker-#=[9, 9, 9, 6, 6], Keep-Alive-Timer=[0, 0, 0, 1, 1], Netty Local IO ##=[9, 12, 15, 18, 21]}",
+    "shaderPack = Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip",
+    "sunPathRotation = -35.0",
+    "bliss.heapAfterGcMb = [626, 626, 622, 626, 626]",
+    "bliss.privateMb = [2029, 2078, 2133, 2185, 2237]",
+    "bliss.heapPerCycleMb = 0.0",
+    "bliss.privatePerCycleMb = 53.0977",
+    "bliss.threadGroupsThatGrew = {}",
+    "bliss.threadGroupsThatChanged = {Netty Local IO ##=[24, 27, 30, 33, 36]}",
+    "live objects after each cycle: plain cycle 1 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=0, ClientLevel=0}; plain cycle 2 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=0, ClientLevel=0}; plain cycle 3 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=0, ClientLevel=0}; plain cycle 4 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=0, ClientLevel=0}; plain cycle 5 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=0, ClientLevel=0}; bliss cycle 1 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=329, ClientLevel=1}; bliss cycle 2 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=341, ClientLevel=1}; bliss cycle 3 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=341, ClientLevel=1}; bliss cycle 4 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=341, ClientLevel=1}; bliss cycle 5 {ServerLevel=0, IntegratedServer=0, PhysicsSystem=0, LevelChunk=341, ClientLevel=1}"
+   ],
+   "note": "Distant Horizons test build 3.3.4-tellus-fork.7 (SHA256 BCF32F9969EBF230E6F21BBEED68B6140C3DE9CD256E0C155478E0C4857FEF10). No ServerLevel or IntegratedServer stays after any of the 10 cycles; with Bliss the newest ClientLevel stays until the next world loads (Iris, as before). Netty Local IO threads run 9 to 36 here because only one scenario ran before this one; it is the same static pool capped at 2 x processors (40) that reads [36, 39, 40, 40, 40] in full-suite runs. Another session ran a CPU-heavy job during this run."
+  },
+  {
+   "scenario": "packaged-jar-check",
+   "result": "pass",
+   "runId": "packaged-jar-check-20260930-181653",
+   "harness": "production-run",
+   "series": "fork7-packaged-check",
+   "date": "2026-09-30T18:16:53",
+   "commit": "e28b909",
+   "report": "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-181653\\report.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-181653\\game-latest.log",
+    "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-181653\\packaged-check.log",
+    "E:\\slipway-e2e\\runs\\packaged-jar-check-20260930-181653\\report.json"
+   ],
+   "checks": [
+    "mods = {\"slipway\": \"0.1.1\", \"fabric-api\": \"0.160.7+26.3\", \"sodium\": \"0.9.2+mc26.3\", \"iris\": \"1.11.6+mc26.3\", \"distanthorizons\": \"3.3.4-tellus-fork.7\"}",
+    "mixinAuditSeconds = 0.4",
+    "vesselAssembled = 1",
+    "mixinOrLoaderErrors = []",
+    "mixinOrLoaderWarnings = []"
+   ],
+   "note": "the play-stack jars with Distant Horizons 3.3.4-tellus-fork.7 (SHA256 BCF32F9969EBF230E6F21BBEED68B6140C3DE9CD256E0C155478E0C4857FEF10) (devmods, the same five jars as the play instance: its release jar is built from the same unchanged source) in production Minecraft; a world opened and a vessel assembled. Stands in for opening the player's own sandbox world."
+  },
+  {
+   "scenario": "shader-artifact-check",
+   "result": "pass",
+   "runId": "diag-plain-ship-fork7-20260930-181712",
+   "harness": "client-gametest-diagnostic",
+   "date": "2026-09-30T18:17:12",
+   "commit": "e28b909",
+   "report": "E:\\Slipway\\DESIGN.md#dark-blotches-on-world-blocks-under-shaders-root-cause-analysis-2026-09-30",
+   "evidence": [
+    "E:\\slipway-e2e\\diag\\run20-fork7-userlods",
+    "E:\\slipway-e2e\\diag\\diag-run20-fork7-userlods.log",
+    "E:\\slipway-e2e\\diag\\deck-luminance.py",
+    "E:\\slipway-e2e\\diag\\run-diag.ps1"
+   ],
+   "checks": [
+    "diag-plain-ship passed on the copy of the player's Slipway Sandbox with their Bliss options and the play instance's Distant Horizons config (version 5), DH 3.3.4-tellus-fork.7 (SHA256 BCF32F9969EBF230E6F21BBEED68B6140C3DE9CD256E0C155478E0C4857FEF10), the world's existing LOD database",
+    "deck luminance of the plain skiff at the fixed left view (clean ~120, affected ~50-70): first load 121.7 / 30 s later 121.6 / after a static shader reload 121.8 / 10 s later 121.8",
+    "Iris \"Unexpected; somehow the Opaque + Translucent pass ran with shaders on\" errors: 0",
+    "pictures reviewed (first load and after the reload): deck, trees and grass evenly lit, far terrain present"
+   ],
+   "note": "The luminance script of the original diagnosis was lost from %TEMP%; deck-luminance.py (Rec. 709 luma, x 600-728, y 358-400 of the 1280x720 shots) was fitted to the six numbers recorded for run17a and run18d and reproduces them to within 0.7."
+  },
+  {
+   "scenario": "play-instance",
+   "result": "pass",
+   "runId": "play-instance-title-check-20260930-181400",
+   "harness": "prism-play-instance",
+   "date": "2026-09-30T18:14:00",
+   "commit": "e28b909",
+   "slipwayJarSha256": "9DDC551D19111E7C372C5A8A7F60656B9719B3E45DA0AAA6F4B5E8E4E24CDCF5",
+   "report": "E:\\slipway-e2e\\runs\\fork7-launch-checks-20260930\\Slipway-MC-26.3-Fabric-title-check.json",
+   "evidence": [
+    "E:\\slipway-e2e\\runs\\fork7-launch-checks-20260930\\Slipway-MC-26.3-Fabric-title-check.json",
+    "E:\\slipway-e2e\\runs\\fork7-launch-checks-20260930\\Slipway-MC-26.3-Fabric-latest.log",
+    "E:\\slipway-e2e\\play-instance-expected-sha256.json",
+    "E:\\slipway-e2e\\tools\\dh-fork7-rollout.ps1"
+   ],
+   "checks": [
+    "installed jars match the expected checksums: True (DistantHorizons-fabric-3.3.4-tellus-fork.7-26.3.jar, fabric-api-0.160.7+26.3.jar, iris-fabric-1.11.6+mc26.3.jar, slipway-fabric-26.3-0.1.1.jar, sodium-fabric-0.9.2+mc26.3.jar)",
+    "reached the title screen with no test agent: True; Fabric mod list: - distanthorizons 3.3.4-tellus-fork.7",
+    "Distant Horizons config kept (no reset line; only _version differs from the pre-swap backup): True",
+    "log problems: 0; mixin errors: 0; ERROR lines: 0",
+    "Iris: Using shaderpack: Bliss_v2.1.2_(Chocapic13_Shaders_edit).zip; jolt-jni 6.1.1 loaded",
+    "closed cleanly: True; exited: True; no file under saves was written"
+   ],
+   "note": "Title screen only: the player's sandbox world was not opened this time. In-world behaviour with the same five jars: packaged-jar-check-20260930-181653 and diag-plain-ship-fork7-20260930-181712."
   }
  ],
  "note": "Since 2026-09-30 in-game validation runs as Fabric client GameTests (harness client-gametest) and a packaged-jar check (harness production-run). Prism-harness runs (harness prism) and earlier client GameTest series are superseded: originalResult keeps their outcome and supersededBy names the run that replaced them."

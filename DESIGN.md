@@ -11,7 +11,7 @@ source of every non-trivial algorithm. It is kept current with the code.
 | --- | --- |
 | License | Apache-2.0 (LICENSE, NOTICE credits jolt-jni, Jolt Physics, V-HACD) |
 | Minecraft / loader | 26.3, Fabric loader 0.19.5, Fabric API 0.160.7+26.3, Java 25. NeoForge later. |
-| Integrations | Sodium 0.9.2+mc26.3, Iris 1.11.6+mc26.3, Distant Horizons 3.3.1-tellus-fork.6 |
+| Integrations | Sodium 0.9.2+mc26.3, Iris 1.11.6+mc26.3, Distant Horizons 3.3.4-tellus-fork.7 (3.3.1-tellus-fork.6 until 2026-09-30; official 3.3.4 is checked too) |
 | Physics | Jolt Physics through jolt-jni 6.1.1 (MIT), double-precision flavour, behind `dev.timstewart.slipway.physics.PhysicsEngine` |
 | Saves | Pre-1.0: no migrations, no backward-compatibility code |
 
@@ -350,6 +350,9 @@ kept growing because of chain 8.
   `...-leakfix.9-irisfix.1` (below, "Dark blotches"). The same work fixed a DH thread leak (one "World Gen Progress Updater"
   thread per level per world) and a DH bug that dropped every block-use packet when a client hosts a dedicated server
   in-process.
+  Since the evening of 2026-09-30 the fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
+  `rebase-3.3.4`). It carries the versions of these fixes prepared for upstream (A-G in its `PATCHES.md`) instead of
+  L1-L8, and it is the Distant Horizons of the client GameTests and of the play instance.
 - Iris and vanilla, mitigated in Slipway: `ClosedWorldCleanup` (client, the first tick without a world) clears
   vanilla's visible-section list and Iris's override cache through guarded reflection (hook `iris-overrides-cache` in
   `patches.json`); Iris rebuilds cache entries on demand. Iris's current pipeline is left alone: destroying it would
@@ -367,6 +370,7 @@ kept growing because of chain 8.
 | after: client GameTest `leak`, no shaders (leakfix.9) | 0 every cycle | 0 | +0 to +2.7 MB (ZGC counts used heap in 2 MB pages) | Netty pool only |
 | after: client GameTest `leak`, Bliss | 0 every cycle | 1 (the newest, Iris pipeline) | -0.7 to +2 MB | Netty pool only |
 | after: matrix, full stack with vessels, 8 cycles | 0 | 0 | +2.6 to +2.9 MB | Netty pool only |
+| after: client GameTest `leak`, fork.7 (`clientgametest-20260930-182511`) | 0 every cycle | 0 (with Bliss 1, the newest) | flat: 576 to 582 MB (622 to 626 with Bliss) | Netty pool only |
 
 Before the `PhysicsSystem` fix (chain 8) that matrix run also kept one jolt-jni `PhysicsSystem` per cycle (1 to 8);
 with it the client GameTest `leak` finds none after any cycle.
@@ -456,14 +460,22 @@ fixed upstream between 3.3.2 and 3.3.3; of that range's rendering changes, the b
   `GlStateManager._enableBlend(i)`/`_disableBlend(i)` and `glEnablei`/`glDisablei`, so cache and GL stay equal.
 - I2, core 9572e8aa0: the render pass is chosen again after `DhApiBeforeRenderEvent`, where Iris sets its
   defer-transparent flag; this removes Iris's "Unexpected; somehow the Opaque + Translucent pass ran with shaders on"
-  after each pipeline creation. Not the cause of the blotches; not seen with upstream 3.3.2+, which draws through
-  Sodium's render groups when a shader pack is active.
+  after each pipeline creation. Not the cause of the blotches. The diagnostic runs with upstream 3.3.2+ (Iris 1.11.6)
+  did not show the message, but twelve film-tool runs on official 3.3.4 with Iris 1.11.7 logged it once each, so
+  upstream still has the ordering problem and fork.7 keeps I2.
 - Build `DistantHorizons-fabric-3.3.1-tellus-fork.6-leakfix.9-irisfix.1-26.3.jar` (SHA-256 `B9FE6130...A79E`), DH core
-  tests 106 of 106. It is the client GameTests' Distant Horizons (`devmods/test`); the play instance keeps its build
-  until the player decides.
-- Upstream 3.3.3+ has two more 26.x Iris fixes the fork does not carry: `eb5076971` (DH's lightmap bound where Iris
-  reads it on 26.1.2+) and `01b9370b5` (GL state left to Iris while a shader pack is active; rendering with a boat on
-  screen). Moving the fork to upstream 3.3.4 or later brings all three.
+  tests 106 of 106. It was the client GameTests' Distant Horizons (`devmods/test`) and, for a few hours, the play
+  instance's, until fork.7 replaced it (below).
+- Upstream 3.3.3+ has two more 26.x Iris fixes the 3.3.1-based builds do not carry: `eb5076971` (DH's lightmap bound
+  where Iris reads it on 26.1.2+) and `01b9370b5` (GL state left to Iris while a shader pack is active; rendering with a
+  boat on screen). Moving the fork to upstream 3.3.4 brings all three.
+
+**Resolution (2026-09-30, evening).** The fork is rebased onto official 3.3.4 as `3.3.4-tellus-fork.7` (local branch
+`rebase-3.3.4` of `E:\distant-horizons`, SHA-256 of the Fabric 26.3 jar `BCF32F99...FEF10`), which contains upstream's
+blend fix instead of the backport I1, and keeps I2. With it: the diagnostic on the copy of the player's world measures
+121.7 / 121.6 / 121.8 / 121.8 (`E:\slipway-e2e\diag\run20-fork7-userlods`); `render-iris` passes with the cache in
+sync at every sampling point and the unchanged reference images (near 4.0e-5, far 4.4e-5); no run logged Iris's
+message. It is installed in the play instance and in the Tellus instances.
 
 **Regression check.** `GlStateCheck` (client GameTest `render-iris`, near and far views with Bliss) compares the
 per-buffer blend and colour-write-mask cache with GL at five of Fabric's level render events and between frames, over
@@ -507,8 +519,9 @@ evidence path); screenshots under `build/client-gametest/screenshots/<scenario>`
 `-PslipwayClientGametestMods=sodium,iris,dh` (subset of render mods), `-PslipwayTestDhJar=<jar>`,
 `-PslipwayTestDhConfig=<file>` (a Distant Horizons config to start from; otherwise its defaults).
 The run uses Sodium, Iris with Bliss (copied into the run directory; shaders are switched on through Iris's API where
-a scenario needs them) and the patched Distant Horizons build from `devmods/test` (the leak and Iris fixes,
-`...-leakfix.9-irisfix.1`; else fork.6). Every run starts from fresh game options and DH defaults
+a scenario needs them) and the Distant Horizons build from `devmods/test` when there is one (now
+`3.3.4-tellus-fork.7`, the same jar as `devmods`; before it the patched `...-leakfix.9-irisfix.1`). Every run starts
+from fresh game options and DH defaults
 (`prepareClientGametestRun` deletes `options.txt` and `DistantHorizons.toml`).
 Checks read game state on the server and client threads (vessel records, client vessels, riders, block states,
 block entities, packets refused, tick times) and wait for conditions or a number of game ticks, never wall-clock time.
@@ -622,6 +635,7 @@ latter. Series runs: `E:\slipway-e2e\cgt\series*` and `clean-build*`, recorded i
 The harness ignores these, each checked to occur without Slipway or to be expected by a test:
 `Reference map ... could not be read` (Iris/Sodium dev refmaps), `Requested post effect does not exist` (vanilla
 26.3 with Iris), `Distant Horizons OpenGL error logging`, `Force-disabling mixin` (Sodium/Iris), `Sodium has applied
-one or more workarounds`, `Rejected helm control` (forged-packet test), and, with Distant Horizons builds before
-`irisfix.1`, Iris's DH compat line `Unexpected; somehow the Opaque + Translucent pass ran with shaders on` (also in the
-Slipway-free Tellus-Expeditions instance; a DH render-pass ordering bug, fixed as I2 under "Dark blotches").
+one or more workarounds`, `Rejected helm control` (forged-packet test), and, with Distant Horizons builds without I2
+(the fork before `irisfix.1`; official builds up to at least 3.3.4), Iris's DH compat line
+`Unexpected; somehow the Opaque + Translucent pass ran with shaders on` (also in the Slipway-free Tellus-Expeditions
+instance; a DH render-pass ordering bug, fixed as I2 under "Dark blotches").

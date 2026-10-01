@@ -104,9 +104,36 @@ official-3.3.4 lane, the blotch diagnostic. No play instance has fork.7 (Slipway
     to both fork repos (the GitHub fork only has 3.2.0b, so fork.6's notes named the wrong base), extend the notes
     template in release.yml, and afterwards replace the locally built jars in the instances with the release assets
     (the fork.6 jars in the instances were the GitHub release assets).
-WAITING for the user's "go" for the game tests: Tellus check with Bliss (rerun), Slipway full build with fork.7
-(client GameTests, packaged-jar check), official-3.3.4 lane, blotch diagnostic, one launch per swapped instance
-(Tellus-Expeditions 26.3 title screen, Slipway play sandbox), then the 26.2 instance (loader 0.19.5 + fork.7 + launch).
+- 18:10 user: "go" for the SHORT set (about 20 min) and update the 26.2 instance; the full Slipway suite and the
+  official-3.3.4 lane are dropped by agreement (Slipway source unchanged; official 3.3.4 passed its load check and
+  blotch measurement today). Results (all game windows in the background, GRADLE_OPTS=-Dorg.gradle.daemon=false so the
+  film session's Gradle daemon is not reused):
+  - Launch to the title screen, worlds not opened (E:\slipway-e2e\runs\fork7-launch-checks-20260930):
+    Tellus-Expeditions-MC-26.3-Fabric PASS, Slipway-MC-26.3-Fabric PASS (5 of 5 jars match, Bliss on, jolt loaded,
+    0 ERROR lines). Both: fork.7 in Fabric's mod list, no config reset (only _version differs from the backup), no
+    mixin errors, clean close, no save file written. The one WARN (Tellus's optional Voxy class) is also in fork.6 logs.
+  - Packaged-jar check with fork.7 PASS (packaged-jar-check-20260930-181653: same five jars as the play instance,
+    world opened, vessel assembled, 0 mixin/loader errors or warnings). Stands in for opening the user's sandbox.
+  - Blotch diagnostic with fork.7 on the world copy, user LODs, play config v5 (E:\slipway-e2e\diag\run20-fork7-userlods):
+    121.7 / 121.6 / 121.8 / 121.8 (clean ~120), 0 Iris pass errors; pictures reviewed, evenly lit.
+  - Tellus check with Bliss on fork.7 PASS twice (fork7-bliss-20260930-182000, fork7-bliss-repeat-20260930-183329):
+    handoff active via the Iris DH shader, Tellus generator + P5/P6/plan overrides, 0 Iris pass errors, 0 ERROR lines,
+    picture matches fork.6 + Bliss (MSD 0.00025). OPEN: LOD rows added 463 and 456 vs 490 on fork.6 + Bliss (491 with
+    shaders off on both builds), with 5 to 6 generation tasks unfinished at close (0 in the other runs). Both runs
+    overlapped another session's CPU-heavy jobs (unrelated project; started 18:18:52 and 18:27:36; CPU 100% at
+    18:39), so the comparison is confounded. Needs one run on a quiet machine before concluding anything.
+  - Slipway render-iris + leak with fork.7 PASS (clientgametest-20260930-182511): GL state cache in sync at every
+    sampling point (0/118 near, 0/120 far), references unchanged at MSD 4.03e-5 near and 4.41e-5 far (limit 2.5e-4;
+    results.json rounds these metrics to 0.0 - reporting flaw to fix), shadow ratio 0.762, 868 proxy boxes; leak: no
+    ServerLevel/IntegratedServer after any of 10 cycles, ClientLevel 0 plain and 1 with Bliss (Iris, as before), heap
+    576-582 MB plain and 622-626 MB Bliss, private +53 MB per cycle with Bliss (known), Netty pool 9 to 36 (bounded 40).
+  - 26.2 instance: backup (E:\slipway-e2e\instance-backups\Tellus-Expeditions-MC-26.2-Fabric-before-fork7-20260930-183137,
+    incl. mmc-pack.json), Fabric Loader 0.19.3 -> 0.19.5 in mmc-pack.json, fork.7 26.2 jar, config v5; launch to the
+    title screen PASS ("Loading Minecraft 26.2 with Fabric Loader 0.19.5", fork.7, 0 ERROR lines, settings kept).
+  - validation.json: 5 entries added (276). DESIGN.md (integrations, leak table row, blotch resolution, I2 note,
+    test DH build), PLAYTEST.md updated.
+Next: commit + push Slipway; clean Tellus + Bliss run when the machine is quiet; ask the user about publishing
+fork.7; cleanup (heap dumps and trial clones now, jars/branches after publishing).
 
 ## Previous goal (shader blotches)
 
