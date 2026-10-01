@@ -103,7 +103,7 @@ moving vessel".
 - Blocks that look for players or mobs near themselves (beacons, conduits, spawners, sculk sensors) have not been
   made to look where the vessel is, and are untested.
 - Distant Horizons and Iris can keep memory after you leave a world (Iris with shaders grows native memory by about
-  50 to 80 MB per world reopen, with or without Slipway). Restart the game after many world switches.
+  50 to 120 MB per world reopen, with or without Slipway). Restart the game after many world switches.
   Fixes for the Distant Horizons part exist and are being prepared for upstream; `DESIGN.md`, "World retention",
   has the investigation.
 - Pre-1.0: saves may not load in later versions.

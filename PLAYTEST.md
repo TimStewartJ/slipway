@@ -156,7 +156,7 @@ you remove, not touching the ground.
   the ship but stay behind when it moves on. A jukebox's music stays where the ship was when the disc started.
   Torches, furnaces and the like show no flame or smoke particles on a ship.
 - With shaders on, leaving and reopening worlds many times in one game session still grows memory outside Java by
-  about 50 to 80 MB per reopen. It happens with Iris and Bliss alone, without Slipway or Distant Horizons (Iris or
+  about 50 to 120 MB per reopen. It happens with Iris and Bliss alone, without Slipway or Distant Horizons (Iris or
   the graphics driver), so restart the game after many world switches with shaders on. Closed worlds themselves are
   freed now.
 - Pre-1.0: saves from this version may not load in later versions.
