@@ -26,8 +26,9 @@ on other vessels.
   the ground or on another vessel's deck, rides along and slides off when that vessel rolls. Hover and level keep
   their settings for when you turn loose off again. The HUD shows "Loose ON".
 - **Hover holds.** A hovering ship now stays where it stopped, also with cargo on it or with something leaning on
-  it, and with level off it keeps its attitude under an off-centre load. Flying an empty ship should feel as before;
-  say so if it does not.
+  it, and with level off it keeps its attitude under an off-centre load. A ship that nothing pushes flies, turns and
+  stops exactly as in 0.1.1, wherever its helm stands (tests fly it beside a reference without the hold); say so if
+  yours feels different.
 - **Chests open their lids**, and stay open while you look inside.
 - **Pistons move visibly** (also sticky pistons and slime blocks), while flying too.
 - **Effects are at the ship**: bone meal's sparkle on crops, a dispenser's smoke, note block notes, lever dust, the
