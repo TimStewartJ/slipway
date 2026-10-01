@@ -252,6 +252,10 @@ final class FilmRig {
 						settle++;
 					}
 					this.settleRenders += settle;
+					// a vessel block changed this tick (a lamp, a piston, a crop): its mesh is rebuilt before the frame is saved
+					for (int i = 0; i < 8 && FilmScene.meshesPending(); i++) {
+						this.capture.render(mc, partial, frameTicks);
+					}
 					this.capture.capture(mc, partial, frameTicks, file);
 					long nanos = System.nanoTime() - start;
 					this.renderNanos += nanos;

@@ -72,6 +72,32 @@ final class FilmPilot {
 		});
 	}
 
+	/** Runs a {@code /slipway} command as the server does from its console; returns the command's result (0 = refused). */
+	static int command(MinecraftServer s, String command) {
+		try {
+			return s.getCommands().getDispatcher().execute(command, s.createCommandSourceStack().withSuppressedOutput());
+		} catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+			FilmMain.LOG.warn("Command '{}' failed: {}", command, e.getMessage());
+			return 0;
+		}
+	}
+
+	/**
+	 * Makes a vessel a loose rigid body (Slipway 0.1.2: {@code /slipway mode <id> loose true}: no hover, no stabilizer,
+	 * no drag; gravity, collisions and friction only), or a flying vessel again. Returns false when the mod has no
+	 * loose mode; hover and level are then switched off instead, which still leaves the controller's drag and spin
+	 * braking (good enough to rehearse a shot, not to film it).
+	 */
+	static boolean loose(MinecraftServer s, long id, boolean on) {
+		if (command(s, "slipway mode " + id + " loose " + on) > 0) {
+			return true;
+		}
+		ActiveVessel v = active(s, id);
+		v.record.hover = !on;
+		v.record.level = !on;
+		return false;
+	}
+
 	/**
 	 * Autopilot input towards {@code target} (vessel origin, the helm block's corner) and {@code heading}: desired
 	 * velocity {@code gain * error} limited to {@code maxSpeed}, turned into thrust per local axis (the physics has

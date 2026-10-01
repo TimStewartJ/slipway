@@ -7,15 +7,24 @@ import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.block.BarrelBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.ComparatorBlock;
+import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.LanternBlock;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.ComparatorMode;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.block.state.properties.SlabType;
 
 /** Ships for the film, as blocks relative to their helm (the vessel's origin), bow towards north (-z). */
 final class FilmShips {
@@ -26,13 +35,20 @@ final class FilmShips {
 	// Built in "ship" coordinates (main deck surface at y = 0, bow tip at z = -22, stern at z = 14), then shifted so
 	// the helm (on the quarterdeck) is the origin.
 	private static final BlockPos HERO_HELM = new BlockPos(0, 5, 12);
-	/** Functional blocks on the stern castle's front wall, helm-relative. */
+	/** Functional blocks, helm-relative. On the stern castle's front wall (z = 6): the door, the chest and the machine. */
 	static final BlockPos HERO_DOOR = ship(0, 0, 6);
-	static final BlockPos HERO_CHEST = ship(-3, 0, 5);
-	static final BlockPos HERO_LAMP = ship(3, 1, 6);
-	static final BlockPos HERO_LEVER = ship(3, 1, 5);
+	static final BlockPos HERO_CHEST = ship(-2, 0, 5);
+	/** The wall machine's lever (starts its clock). */
+	static final BlockPos HERO_LEVER = ship(-3, 1, 5);
+	/** The lamp strip in the wall's top row, in the order the signal reaches them, and the pistons in front of the wall. */
+	static final BlockPos[] HERO_LAMPS = {ship(-4, 3, 6), ship(-2, 3, 6), ship(0, 3, 6), ship(2, 3, 6), ship(4, 3, 6)};
+	static final BlockPos[] HERO_PISTONS = {ship(2, 0, 5), ship(3, 0, 5), ship(4, 0, 5)};
+	/** The farm bed on the starboard side of the main deck: wheat, the dispensers that face it, and the clock's lever. */
+	static final BlockPos[] HERO_WHEAT = {ship(3, 0, -10), ship(3, 0, -9), ship(3, 0, -7), ship(3, 0, -6)};
+	static final BlockPos[] HERO_DISPENSERS = {ship(4, 0, -10), ship(4, 0, -9), ship(4, 0, -7), ship(4, 0, -6)};
+	static final BlockPos HERO_FARM_LEVER = ship(2, 1, -4);
 	/** Where riders stand on the main deck (helm-relative block positions of the deck surface). */
-	static final BlockPos[] HERO_DECK_SPOTS = {ship(-2, 0, -6), ship(2, 0, -4), ship(0, 0, 1), ship(-3, 0, 2)};
+	static final BlockPos[] HERO_DECK_SPOTS = {ship(0, 0, -13), ship(2, 0, -14), ship(4, 0, -13), ship(-2, 0, -11)};
 
 	static BlockPos ship(int x, int y, int z) {
 		return new BlockPos(x, y, z).subtract(HERO_HELM);
@@ -94,10 +110,11 @@ final class FilmShips {
 	}
 
 	/**
-	 * The hero ship (about 1,500 blocks): a hollow dark-oak hull with a birch stripe and a keel, spruce decks, a raised
-	 * forecastle and a two-storey stern castle with glass windows and a quarterdeck, three masts with billowing wool
-	 * sails (red foot bands), yards, a crow's nest, flags, a bowsprit with a jib, dark-oak railings and lanterns. On the
-	 * castle's front wall: a spruce door, a chest, and a redstone lamp with a lever on it.
+	 * The hero ship: a hollow dark-oak hull with a birch stripe and a keel, spruce decks, a raised forecastle and a
+	 * two-storey stern castle with glass windows and a quarterdeck, three masts with billowing wool sails (red foot
+	 * bands), yards, a crow's nest, flags, a bowsprit with a jib, dark-oak railings and lanterns. Working parts: on the
+	 * castle's front wall a spruce door, a chest and the redstone machine ({@link #machine}); on the main deck the farm
+	 * bed ({@link #farm}); and an opening in the port rail for cargo.
 	 */
 	static Map<BlockPos, BlockState> hero() {
 		Map<BlockPos, BlockState> s = new LinkedHashMap<>();
@@ -136,11 +153,15 @@ final class FilmShips {
 				}
 			}
 		}
-		// railings on the main deck and forecastle (not along the castle)
+		// railings on the main deck and forecastle (not along the castle); the port rail is open for five blocks aft of the
+		// main mast, where cargo is loaded (and spills)
 		for (int z = -22; z <= 5; z++) {
 			int w = halfWidth(z, -1);
 			int y = top(z) + 1;
 			for (int x : new int[] {-w, w}) {
+				if (x < 0 && z >= CARGO_GAP_FROM && z <= CARGO_GAP_TO) {
+					continue;
+				}
 				s.put(new BlockPos(x, y, z), fence);
 			}
 			if (z == -22) {
@@ -195,12 +216,10 @@ final class FilmShips {
 		// functional blocks on the castle front wall
 		s.put(new BlockPos(0, 0, 6), Blocks.SPRUCE_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.NORTH).setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER));
 		s.put(new BlockPos(0, 1, 6), Blocks.SPRUCE_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.NORTH).setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
-		s.put(new BlockPos(-3, 0, 5), Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, Direction.NORTH));
-		s.put(new BlockPos(3, 1, 6), Blocks.REDSTONE_LAMP.defaultBlockState());
-		s.put(new BlockPos(3, 1, 5), Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.WALL).setValue(LeverBlock.FACING, Direction.NORTH));
-		s.put(new BlockPos(-2, 3, 5), Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
-		s.put(new BlockPos(2, 3, 5), Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
+		s.put(new BlockPos(-2, 0, 5), Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, Direction.NORTH));
 		s.put(new BlockPos(0, 3, 10), Blocks.LANTERN.defaultBlockState().setValue(LanternBlock.HANGING, true));
+		machine(s);
+		farm(s);
 
 		// masts, yards, sails
 		mast(s, -11, 0, 19, mast);
@@ -303,6 +322,219 @@ final class FilmShips {
 		}
 	}
 
+	/** The port rail is open from here to there (ship z): the cargo bay. */
+	static final int CARGO_GAP_FROM = -1;
+	static final int CARGO_GAP_TO = 3;
+
+	private static BlockState wire() {
+		return Blocks.REDSTONE_WIRE.defaultBlockState();
+	}
+
+	/** A repeater taking its input from {@code inputSide} and putting out on the opposite side. */
+	private static BlockState repeater(Direction inputSide, int delay) {
+		return Blocks.REPEATER.defaultBlockState().setValue(RepeaterBlock.FACING, inputSide).setValue(RepeaterBlock.DELAY, Math.max(1, Math.min(4, delay)));
+	}
+
+	/** A comparator in subtract mode taking its input from {@code inputSide}. */
+	private static BlockState comparator(Direction inputSide) {
+		return Blocks.COMPARATOR.defaultBlockState().setValue(ComparatorBlock.FACING, inputSide).setValue(ComparatorBlock.MODE, ComparatorMode.SUBTRACT);
+	}
+
+	/**
+	 * The machine on the stern castle's front wall (z = 6), all plain redstone, everything unpowered as built:
+	 *
+	 * <ul>
+	 * <li>the lever on the wall (port of the door) powers its wall block; behind it, inside the castle, dust leads to a
+	 * comparator in subtract mode whose output runs through a repeater back into its own side: a clock that runs
+	 * while the lever is on (period 2 x (1 + repeater delay) redstone ticks);
+	 * <li>the clock's output climbs a dust staircase to the top row of the wall, where five lamps alternate with four
+	 * repeaters (each lamp is powered by the repeater before it and read by the one after it): the lamps light one
+	 * after the other from port to starboard, and go out the same way;
+	 * <li>behind the last lamp a repeater sends the signal down another staircase to three repeaters with delays of 1,
+	 * 2 and 3 ticks, each powering the wall block behind a sticky piston that stands on the deck in front of the wall
+	 * and lifts an iron block: the pistons pump one after the other.
+	 * </ul>
+	 * No powered block touches the door, which is opened separately.
+	 */
+	private static void machine(Map<BlockPos, BlockState> s) {
+		BlockState spruce = Blocks.SPRUCE_PLANKS.defaultBlockState();
+		BlockState back = Blocks.DARK_OAK_PLANKS.defaultBlockState();
+		int lampDelay = (int)FilmRig.optDouble("lampDelay", 1);
+		for (int x = -4; x <= 4; x++) {
+			if (x % 2 == 0) {
+				s.put(new BlockPos(x, 3, 6), Blocks.REDSTONE_LAMP.defaultBlockState());
+			} else {
+				s.put(new BlockPos(x, 3, 6), repeater(Direction.WEST, lampDelay));
+				s.put(new BlockPos(x, 3, 7), back);
+			}
+		}
+		// lever and clock
+		s.put(new BlockPos(-3, 1, 5), Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.WALL).setValue(LeverBlock.FACING, Direction.NORTH));
+		s.put(new BlockPos(-3, 0, 7), spruce);
+		s.put(new BlockPos(-3, 1, 7), wire());
+		s.put(new BlockPos(-3, 0, 8), wire());
+		s.put(new BlockPos(-3, 0, 9), comparator(Direction.NORTH));
+		s.put(new BlockPos(-3, 0, 10), wire());
+		s.put(new BlockPos(-2, 0, 10), wire());
+		s.put(new BlockPos(-1, 0, 10), wire());
+		s.put(new BlockPos(-1, 0, 9), wire());
+		s.put(new BlockPos(-2, 0, 9), repeater(Direction.EAST, (int)FilmRig.optDouble("clockDelay", 4)));
+		// up to the port end of the lamp strip
+		s.put(new BlockPos(-3, 0, 11), wire());
+		s.put(new BlockPos(-4, 0, 11), wire());
+		s.put(new BlockPos(-4, 0, 10), spruce);
+		s.put(new BlockPos(-4, 1, 10), wire());
+		s.put(new BlockPos(-4, 1, 9), spruce);
+		s.put(new BlockPos(-4, 2, 9), wire());
+		s.put(new BlockPos(-4, 2, 8), spruce);
+		s.put(new BlockPos(-4, 3, 8), wire());
+		s.put(new BlockPos(-4, 2, 7), spruce);
+		s.put(new BlockPos(-4, 3, 7), repeater(Direction.SOUTH, 1));
+		// from the starboard end of the lamp strip down to the pistons
+		s.put(new BlockPos(4, 2, 7), spruce);
+		s.put(new BlockPos(4, 3, 7), repeater(Direction.NORTH, 1));
+		s.put(new BlockPos(4, 2, 8), spruce);
+		s.put(new BlockPos(4, 3, 8), wire());
+		s.put(new BlockPos(4, 1, 9), spruce);
+		s.put(new BlockPos(4, 2, 9), wire());
+		s.put(new BlockPos(4, 0, 10), spruce);
+		s.put(new BlockPos(4, 1, 10), wire());
+		s.put(new BlockPos(4, 0, 11), wire());
+		s.put(new BlockPos(3, 0, 11), wire());
+		s.put(new BlockPos(3, 0, 10), wire());
+		s.put(new BlockPos(3, 0, 9), wire());
+		for (int x = 2; x <= 4; x++) {
+			s.put(new BlockPos(x, 0, 8), wire());
+			s.put(new BlockPos(x, 0, 7), repeater(Direction.SOUTH, x - 1));
+			s.put(new BlockPos(x, 0, 5), Blocks.STICKY_PISTON.defaultBlockState().setValue(PistonBaseBlock.FACING, Direction.UP));
+			s.put(new BlockPos(x, 1, 5), Blocks.IRON_BLOCK.defaultBlockState());
+		}
+	}
+
+	/**
+	 * The farm bed on the starboard side of the main deck: four wheat plants (just planted) on moist farmland set
+	 * into the deck around a waterlogged slab (water source blocks are not assembled; a waterlogged block is), a
+	 * birch fence on the open sides, and behind the wheat four dispensers that face it. Redstone dust on top of the
+	 * dispensers joins them to a clock aft of the bed: a lever on a block, a comparator in subtract mode reading that
+	 * block, and two repeaters leading its output back into its side. While the lever is on, the dispensers fire
+	 * once per period.
+	 */
+	private static void farm(Map<BlockPos, BlockState> s) {
+		BlockState fence = Blocks.BIRCH_FENCE.defaultBlockState();
+		for (int z = -10; z <= -6; z++) {
+			boolean water = z == -8;
+			s.put(new BlockPos(3, -1, z), water
+				? Blocks.SPRUCE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM).setValue(SlabBlock.WATERLOGGED, true)
+				: Blocks.FARMLAND.defaultBlockState().setValue(FarmlandBlock.MOISTURE, FarmlandBlock.MAX_MOISTURE));
+			if (!water) {
+				s.put(new BlockPos(3, 0, z), Blocks.WHEAT.defaultBlockState());
+			}
+			s.put(new BlockPos(4, 0, z), water ? Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING, Direction.UP)
+				: Blocks.DISPENSER.defaultBlockState().setValue(DispenserBlock.FACING, Direction.WEST));
+			s.put(new BlockPos(4, 1, z), wire());
+		}
+		for (int z = -11; z <= -5; z++) {
+			s.put(new BlockPos(2, 0, z), fence);
+		}
+		s.put(new BlockPos(3, 0, -11), fence);
+		s.put(new BlockPos(4, 0, -11), fence);
+		s.put(new BlockPos(3, 0, -5), fence);
+		// the clock
+		s.put(new BlockPos(4, 0, -5), wire());
+		s.put(new BlockPos(2, 0, -4), Blocks.SPRUCE_PLANKS.defaultBlockState());
+		s.put(new BlockPos(2, 1, -4), Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR).setValue(LeverBlock.FACING, Direction.NORTH));
+		s.put(new BlockPos(3, 0, -4), comparator(Direction.WEST));
+		s.put(new BlockPos(4, 0, -4), wire());
+		s.put(new BlockPos(4, 0, -3), repeater(Direction.NORTH, (int)FilmRig.optDouble("farmDelayA", 4)));
+		s.put(new BlockPos(4, 0, -2), wire());
+		s.put(new BlockPos(3, 0, -2), wire());
+		s.put(new BlockPos(3, 0, -3), repeater(Direction.SOUTH, (int)FilmRig.optDouble("farmDelayB", 2)));
+	}
+
+	/** Fills the hero ship's containers (helm at {@code helm}): the chest, and bone meal for the dispensers. */
+	static void fillHero(net.minecraft.server.level.ServerLevel level, BlockPos helm) {
+		var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity)level.getBlockEntity(helm.offset(HERO_CHEST));
+		chest.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.MAP, 1));
+		chest.setItem(1, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS, 1));
+		chest.setItem(2, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD, 24));
+		chest.setItem(3, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BREAD, 16));
+		chest.setChanged();
+		for (BlockPos pos : HERO_DISPENSERS) {
+			var dispenser = (net.minecraft.world.level.block.entity.DispenserBlockEntity)level.getBlockEntity(helm.offset(pos));
+			dispenser.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BONE_MEAL, 64));
+			dispenser.setChanged();
+		}
+	}
+
+	// ---- loose cargo ----
+
+	/**
+	 * A cargo piece: its blocks relative to its own helm (each piece is a vessel of its own and needs one), and where
+	 * it is built before it is let go: the place of its middle over the hero ship's deck in ship coordinates (x, z)
+	 * and the height of its lowest block above the deck surface.
+	 */
+	record Cargo(String name, Map<BlockPos, BlockState> blocks, double x, double z, int height) {
+		int minY() {
+			return this.blocks.keySet().stream().mapToInt(BlockPos::getY).min().orElse(0);
+		}
+
+		/** The middle of the piece's footprint, relative to its helm block's corner. */
+		double midX() {
+			return (this.blocks.keySet().stream().mapToInt(BlockPos::getX).min().orElse(0) + this.blocks.keySet().stream().mapToInt(BlockPos::getX).max().orElse(0) + 1) / 2.0;
+		}
+
+		double midZ() {
+			return (this.blocks.keySet().stream().mapToInt(BlockPos::getZ).min().orElse(0) + this.blocks.keySet().stream().mapToInt(BlockPos::getZ).max().orElse(0) + 1) / 2.0;
+		}
+	}
+
+	private static BlockState helmBlock() {
+		return SlipwayRegistry.HELM.defaultBlockState().setValue(HelmBlock.FACING, Direction.NORTH);
+	}
+
+	private static Map<BlockPos, BlockState> box(int x0, int x1, int y0, int y1, int z0, int z1, BlockState state) {
+		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
+		for (int x = x0; x <= x1; x++) {
+			for (int y = y0; y <= y1; y++) {
+				for (int z = z0; z <= z1; z++) {
+					b.put(new BlockPos(x, y, z), state);
+				}
+			}
+		}
+		b.put(BlockPos.ZERO, helmBlock());
+		return b;
+	}
+
+	/**
+	 * The cargo for the spill shot: eight pieces of 2 to 27 blocks. The helm looks like a wooden block with a wheel on
+	 * one face; it is the hidden core of the barrel stack and shows as one block of the others.
+	 */
+	static java.util.List<Cargo> cargo() {
+		BlockState barrel = Blocks.BARREL.defaultBlockState().setValue(BarrelBlock.FACING, Direction.UP);
+		BlockState hay = Blocks.HAY_BLOCK.defaultBlockState();
+		BlockState log = Blocks.SPRUCE_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
+		BlockState beam = Blocks.STRIPPED_OAK_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.Z);
+		BlockState pumpkin = Blocks.PUMPKIN.defaultBlockState();
+		BlockState wool = Blocks.WOOL.pick(DyeColor.LIGHT_BLUE).defaultBlockState();
+		BlockState planks = Blocks.OAK_PLANKS.defaultBlockState();
+		Map<BlockPos, BlockState> pumpkins = box(0, 1, 0, 0, 0, 1, pumpkin);
+		pumpkins.put(new BlockPos(0, 1, 0), pumpkin);
+		Map<BlockPos, BlockState> keg = new LinkedHashMap<>();
+		keg.put(BlockPos.ZERO, helmBlock());
+		keg.put(new BlockPos(0, 1, 0), barrel);
+		java.util.List<Cargo> pieces = new java.util.ArrayList<>();
+		// kept clear of the main mast and its yards (forward of z = 0) and of the quarterdeck's overhang (z = 5)
+		pieces.add(new Cargo("barrels", box(-1, 1, -1, 1, -1, 1, barrel), -2.0, 2.0, 3));
+		pieces.add(new Cargo("keg", keg, 3.2, 2.6, 3));
+		pieces.add(new Cargo("crate", box(-1, 1, 0, 1, 0, 1, planks), 2.2, 1.6, 7));
+		pieces.add(new Cargo("pumpkins", pumpkins, -3.0, 2.5, 7));
+		pieces.add(new Cargo("logs", box(0, 1, 0, 1, -1, 2, log), -0.3, 2.3, 10));
+		pieces.add(new Cargo("hay", box(0, 1, 0, 1, 0, 1, hay), 2.3, 2.6, 13));
+		pieces.add(new Cargo("beam", box(0, 0, 0, 0, -2, 2, beam), -3.0, 2.3, 13));
+		pieces.add(new Cargo("wool", box(0, 1, 0, 1, 0, 1, wool), 0.0, 2.5, 16));
+		return pieces;
+	}
+
 	/** Places a ship with its helm at {@code helm}, then lets fences, panes and doors take their connected shapes. */
 	static void place(net.minecraft.server.level.ServerLevel level, BlockPos helm, Map<BlockPos, BlockState> blocks) {
 		for (Map.Entry<BlockPos, BlockState> e : blocks.entrySet()) {
@@ -316,16 +548,6 @@ final class FilmShips {
 				level.setBlock(pos, shaped, 2 | 16);
 			}
 		}
-	}
-
-	/** Fills the hero ship's chest (helm at {@code helm}). */
-	static void fillHero(net.minecraft.server.level.ServerLevel level, BlockPos helm) {
-		var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity)level.getBlockEntity(helm.offset(HERO_CHEST));
-		chest.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.MAP, 1));
-		chest.setItem(1, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS, 1));
-		chest.setItem(2, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.EMERALD, 24));
-		chest.setItem(3, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BREAD, 16));
-		chest.setChanged();
 	}
 
 	/** A small sailing skiff (spike test ship): deck, hull, keel, railings, a mast with a sail and a flag, a chest, a lantern. */

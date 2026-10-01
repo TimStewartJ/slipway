@@ -73,6 +73,70 @@ final class FilmScene {
 		FilmMain.LOG.info("Vessel {} mesh: {} vertices", id, ctx.computeOnClient(mc -> ClientVessels.get(id).mesh.vertexCount()));
 	}
 
+	/** A cargo piece once it is a vessel. */
+	record Piece(String name, long id, int blocks) {
+	}
+
+	/**
+	 * Builds the cargo over the hero ship's deck: each piece's blocks are placed in the world (in the air above the
+	 * deck, at its own height so no two pieces touch) and assembled through its own helm, as a player would. The
+	 * pieces then hover where they were built until they are let go (FilmPilot.loose).
+	 */
+	static java.util.List<Piece> buildCargo(TestServerContext server, long heroId) {
+		return server.computeOnServer(s -> {
+			var level = s.overworld();
+			dev.timstewart.slipway.math.VesselPose pose = FilmPilot.active(s, heroId).record.pose;
+			Map<BlockPos, BlockState> hero = FilmShips.hero();
+			java.util.List<Piece> pieces = new java.util.ArrayList<>();
+			for (FilmShips.Cargo cargo : FilmShips.cargo()) {
+				Vec3 deck = pose.localToWorld(FilmShips.shipPoint(cargo.x(), 0, cargo.z()));
+				BlockPos helm = new BlockPos((int)Math.round(deck.x - cargo.midX()), (int)Math.ceil(deck.y - 1.0e-6) + cargo.height() - cargo.minY(),
+					(int)Math.round(deck.z - cargo.midZ()));
+				for (BlockPos rel : cargo.blocks().keySet()) {
+					BlockPos p = helm.offset(rel);
+					if (!level.getBlockState(p).isAir()) {
+						throw new AssertionError("cargo piece " + cargo.name() + " would overwrite " + level.getBlockState(p) + " at " + p.toShortString());
+					}
+					for (net.minecraft.core.Direction d : net.minecraft.core.Direction.values()) {
+						if (!cargo.blocks().containsKey(rel.relative(d)) && !level.getBlockState(p.relative(d)).isAir()) {
+							throw new AssertionError("cargo piece " + cargo.name() + " would touch " + level.getBlockState(p.relative(d)) + " at " + p.relative(d).toShortString());
+						}
+					}
+					// clear of the hero ship (its blocks are not in the world): no ship block within a block of this one
+					Vec3 local = pose.worldToLocal(Vec3.atCenterOf(p));
+					BlockPos cell = BlockPos.containing(local);
+					for (BlockPos near : BlockPos.betweenClosed(cell.offset(-1, -1, -1), cell.offset(1, 1, 1))) {
+						if (hero.containsKey(near) && Vec3.atCenterOf(near).distanceTo(local) < 1.75) {
+							throw new AssertionError("cargo piece " + cargo.name() + " would be built into the ship (" + hero.get(near).getBlock().getDescriptionId() + " at helm-relative "
+								+ near.toShortString() + ")");
+						}
+					}
+				}
+				FilmShips.place(level, helm, cargo.blocks());
+				VesselAssembly.Outcome outcome = VesselManager.get(level).assemble(helm, null);
+				if (!outcome.success() || outcome.record() == null) {
+					throw new AssertionError("assembling cargo piece " + cargo.name() + " failed: " + outcome.message().getString());
+				}
+				if (outcome.record().blockCount != cargo.blocks().size()) {
+					throw new AssertionError("cargo piece " + cargo.name() + " assembled " + outcome.record().blockCount + " of " + cargo.blocks().size() + " blocks");
+				}
+				pieces.add(new Piece(cargo.name(), outcome.record().id, outcome.record().blockCount));
+			}
+			FilmMain.LOG.info("Cargo: {}", pieces);
+			return pieces;
+		});
+	}
+
+	/** Whether a vessel the client draws still has mesh sections to rebuild (a block of it changed this tick). */
+	static boolean meshesPending() {
+		for (ClientVessel v : ClientVessels.all()) {
+			if (v.ready() && v.mesh.hasPendingWork()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** The vessel's centre as drawn at this partial tick (client thread), or {@code fallback} before it is known. */
 	static Vec3 centre(long id, float partial, Vec3 fallback) {
 		ClientVessel v = ClientVessels.get(id);

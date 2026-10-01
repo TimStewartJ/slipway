@@ -3,7 +3,7 @@
 
 Usage: python tools/film/assemble.py <frames dir> --out video.mp4 [--xfade 6] [--crf 17]
 
-- Shots come from <dir>/segments.json (events named after shots: hook, flyby, roll, deck, return; `end` closes the
+- Shots come from <dir>/segments.json (events named after shots: hook, cargo, roll, farm, return; `end` closes the
   last). Consecutive shots are joined with a short crossfade of --xfade frames (the outgoing shot's last frames blended
   into the incoming shot's first ones), which makes the video that many frames shorter per cut.
 - Captions are an ASS file (<out>.ass, kept next to the video) timed from the events and burned in with libass:
@@ -20,7 +20,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-SHOTS = ["hook", "flyby", "roll", "deck", "return"]
+SHOTS = ["hook", "cargo", "roll", "farm", "return"]
 
 
 def ass_time(seconds):
@@ -28,19 +28,32 @@ def ass_time(seconds):
     return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
 
-def captions(ev, fps, w, h, total_seconds):
-    """The caption script: list of (start s, end s, style, text), from event times in output seconds."""
+def captions(ev, fps, w, h, total_seconds, shots, back_seconds):
+    """The caption script: list of (start s, end s, style, text), from event times in output seconds. Works for a
+    rehearsal with only some of the shots too."""
     t = {k: v / fps for k, v in ev.items()}
-    lines = [
-        (0.10, t["flyby"] - 0.15, "Cap", "Every block stays a real block"),
-        (t["flyby"] + 0.35, t["roll"] - 0.25, "Cap", "Built from any blocks"),
-        (t["roll"] + 0.15, t["door"] - 0.1, "Cap", "Full 3-axis physics"),
-        (t["door"] + 0.05, t["deck"] - 0.2, "Cap", "Doors. Levers. Redstone."),
-        (t["deck"] + 0.3, t["return"] - 0.25, "Cap", "Riders stay on deck"),
-        (t["return"] + 0.4, t["disassemble"] - 0.15, "Cap", "Bring it home level"),
-        (t["disassemble"] + 0.05, t["disassemble"] + 1.3, "Cap", "Back to plain blocks"),
-        (t["disassemble"] + 1.3, total_seconds, "Card", "Slipway — open source · built by AI agents\\N{\\rUrl}github.com/TimStewartJ/slipway"),
-    ]
+
+    def after(shot):
+        """When the shot after `shot` starts (or the video ends)."""
+        later = [t[s] for s in shots[shots.index(shot) + 1:]]
+        return later[0] if later else total_seconds
+
+    lines = []
+    if "hook" in t:
+        lines.append((t["hook"] + 0.10, after("hook") - 0.15, "Cap", "Every block stays a real block"))
+    if "cargo" in t:
+        lines.append((t["cargo"] + 0.35, after("cargo") - 0.25, "Cap", "Physics on top of physics"))
+    if "roll" in t:
+        # the second caption starts when the machine is seen working: the first piston stroke (else the door, else mid-shot)
+        switch = t.get("pistons", t.get("door", (t["roll"] + after("roll")) / 2))
+        lines.append((t["roll"] + 0.15, switch - 0.1, "Cap", "Full 3-axis physics"))
+        lines.append((switch + 0.05, after("roll") - 0.2, "Cap", "Pistons. Chests. Redstone."))
+    if "farm" in t:
+        lines.append((t["farm"] + 0.3, after("farm") - 0.25, "Cap", "Crops grow in flight"))
+    if "return" in t:
+        lines.append((t["return"] + 0.4, t["disassemble"] - 0.15, "Cap", "Done flying?"))
+        lines.append((t["disassemble"] + 0.05, t["disassemble"] + back_seconds, "Cap", "Back to plain blocks"))
+        lines.append((t["disassemble"] + back_seconds, total_seconds, "Card", "Slipway — open source · built by AI agents\\N{\\rUrl}github.com/TimStewartJ/slipway"))
     portrait = h > w
     size = round(h * (0.058 if portrait else 0.068))
     card = round(size * (0.62 if portrait else 0.7))
@@ -79,13 +92,15 @@ def main():
     p.add_argument("--out", required=True)
     p.add_argument("--xfade", type=int, default=6)
     p.add_argument("--crf", type=int, default=17)
+    p.add_argument("--back-seconds", type=float, default=2.4, help="how long 'Back to plain blocks' stays before the end card")
     a = p.parse_args()
     d = pathlib.Path(a.dir)
     seg = json.loads((d / "segments.json").read_text(encoding="utf-8"))
     fps = seg["fps"]
     w, h = seg["size"]
     src = {e["name"]: e["frame"] for e in seg["events"]}
-    starts = [src[s] for s in SHOTS] + [src["end"]]
+    shots = [s for s in SHOTS if s in src]
+    starts = [src[s] for s in shots] + [src["end"]]
     x = a.xfade
 
     def out_index(frame):
@@ -95,7 +110,7 @@ def main():
 
     ev = {k: out_index(v) for k, v in src.items()}
     total = out_index(starts[-1] - 1) + 1
-    script, lines = captions(ev, fps, w, h, total / fps)
+    script, lines = captions(ev, fps, w, h, total / fps, shots, a.back_seconds)
     out = pathlib.Path(a.out).resolve()
     ass = out.with_suffix(".ass")
     ass.write_text(script, encoding="utf-8")
@@ -108,10 +123,10 @@ def main():
            "-movflags", "+faststart", "-an", str(out)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, cwd=str(ass.parent))
     written = 0
-    for si in range(len(SHOTS)):
+    for si in range(len(shots)):
         first, last = starts[si], starts[si + 1]
         lo = first + (x if si > 0 else 0)
-        hi = last - (x if si + 1 < len(SHOTS) else 0)
+        hi = last - (x if si + 1 < len(shots) else 0)
         if si > 0:
             # the crossfade into this shot: the previous shot's last x frames over this shot's first x
             for j in range(x):

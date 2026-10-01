@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.IntFunction;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -24,340 +23,593 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.RedstoneLampBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 
 /**
- * The Reddit showcase (~30 s at 60 fps, loopable), one continuous simulation filmed in five shots with cuts between
- * them; between shots the vessel keeps flying unfilmed (an autopilot moves it to the next shot's start). All vessel
- * motion is helm input (FilmPilot), never a teleport. Frames and frames.csv go to build/film/out/reddit-&lt;size&gt;/,
- * plus segments.json (shot and event frames, for the captions and the encoder).
+ * The Reddit showcase, version 2 (about 27 s at 60 fps, 4:5, loopable): one continuous simulation filmed in five shots
+ * with cuts between them. Between shots the vessel keeps flying unfilmed (an autopilot moves it to the next shot's
+ * start). All motion of the ship is helm input (FilmPilot), never a teleport; the cargo moves by gravity and
+ * collisions only. Frames and frames.csv go to build/film/out/reddit-&lt;size&gt;/, plus segments.json (shot and event
+ * frames, for the captions and the encoder).
  *
  * <ol>
  * <li>hook: at rest over the bay, the galleon lifts off and rolls hard towards the camera;
- * <li>flyby: a pass along the coast in front of the mountains, banking;
- * <li>roll: slow motion with level mode off, a camera fixed to the ship while it rolls through inverted; the
- * door opens and the lever lights the lamp;
- * <li>deck: sheep on the main deck while the ship banks one way and the other;
- * <li>return: a low pass over the water, the autopilot brings it back to where it started, it levels and is
- * disassembled into plain blocks; the camera settles on the opening frame (the loop point).
+ * <li>cargo: eight loose pieces (vessels of their own) drop onto the deck and pile up; the ship rolls and they slide
+ * off through the open rail onto the shore;
+ * <li>roll: slow motion with level mode off, a camera fixed to the ship while it rolls through inverted; on the
+ * castle wall the lever starts a clock, lamps light in sequence, pistons pump, the door and the chest open;
+ * <li>farm: wheat on deck grows as dispensers feed it bone meal on a redstone clock, sheep standing by;
+ * <li>return: the autopilot brings the ship back to where it started, it levels and is disassembled into plain
+ * blocks; the camera settles on the opening frame (the loop point).
  * </ol>
+ * {@code only=cargo+roll} films just those shots (rehearsals; the ship is not brought home unless {@code return} is
+ * among them).
  */
 final class RedditShot {
-	private RedditShot() {
-	}
-
 	private record Event(String name, int frame) {
 	}
 
-	private static final Vec3 P2 = new Vec3(-4670, 90, 5975);
-	private static final Vec3 P3 = new Vec3(-4700, 100, 5790);
-	private static final Vec3 P4 = new Vec3(-4690, 92, 5700);
-	private static final Vec3 P5 = new Vec3(-4642, 78, 5872);
+	// Where each shot happens: the vessel's origin (the helm block's corner) and heading (degrees, 0 = north, 90 = east).
+	/** Cargo: over the grassy headland east of the bay, bow north-east, port side towards the camera in the north-west. */
+	private static final Vec3 CARGO_AT = new Vec3(-4537.7, 87, 5813.1);
+	private static final double CARGO_HEADING = 45;
+	private static final Vec3 ROLL_AT = new Vec3(-4650, 100, 5770);
+	private static final Vec3 FARM_AT = new Vec3(-4665, 88, 5735);
+	private static final Vec3 RETURN_FROM = new Vec3(-4632, 79, 5840);
+
+	private final ClientGameTestContext ctx;
+	private final int[] size = FilmRig.size();
+	private final double k = this.size[1] > this.size[0] ? 1.3 : 1.0;
+	private final List<Event> events = new ArrayList<>();
+	private final List<String> only = FilmRig.opt("only", "").isEmpty() ? List.of() : List.of(FilmRig.opt("only", "").split("\\+"));
+	private final Vec3[] lastCentre = new Vec3[1];
+	private TestServerContext server;
+	private FilmRig.Recorder rec;
+	private long id;
+	/** The vessel's origin and centre at rest, and the opening camera. */
+	private Vec3 rest;
+	private Vec3 c;
+	private Vec3 c0Pos;
+	private Vec3 c0Target;
+	private FilmCamera.Frame c0;
+
+	private RedditShot(ClientGameTestContext ctx) {
+		this.ctx = ctx;
+	}
 
 	static void run(ClientGameTestContext ctx) {
-		int[] size = FilmRig.size();
-		double k = size[1] > size[0] ? 1.3 : 1.0;
+		new RedditShot(ctx).film();
+	}
+
+	private boolean films(String shot) {
+		return this.only.isEmpty() || this.only.contains(shot);
+	}
+
+	private void film() {
 		Path out = FilmRig.outDir("reddit");
-		List<Event> events = new ArrayList<>();
 		long wallStart = System.nanoTime();
-		try (TestSingleplayerContext sp = FilmScene.open(ctx, (int)FilmRig.optDouble("rd", 16))) {
-			TestServerContext server = sp.getServer();
+		try (TestSingleplayerContext sp = FilmScene.open(this.ctx, (int)FilmRig.optDouble("rd", 16))) {
+			this.server = sp.getServer();
+			double k = this.k;
 			Vec3 helm = Vec3.atLowerCornerOf(FilmScene.HELM);
 			Vec3 approx = helm.add(0.5, 4, -18);
 			FilmCamera.resetClock();
 			FilmCamera.set((t, p) -> FilmCamera.Frame.lookAt(approx.add(-34 * k, -7 * k, -24 * k), approx, 0));
-			FilmRig.followCamera(ctx);
-			FilmRig.waitWorld(ctx, 6000);
-			long id = FilmScene.buildHero(server);
-			FilmScene.waitVessel(ctx, id);
-			Vec3 rest = FilmPilot.state(server, id).position();
-			Vec3 c = ctx.computeOnClient(mc -> FilmScene.centre(id, 1.0f, approx));
-			Vec3 c0Target = c.add(0, 3, 0);
-			Vec3 c0Pos = c.add(-34 * k, -7 * k, -24 * k);
-			FilmCamera.Frame c0 = FilmCamera.Frame.lookAt(c0Pos, c0Target, 0);
-			FilmMain.LOG.info("Reddit: vessel {} at rest at {}, centre {}, opening camera {}", id, rest, c, c0);
+			FilmRig.followCamera(this.ctx);
+			FilmRig.waitWorld(this.ctx, 6000);
+			this.id = FilmScene.buildHero(this.server);
+			long id = this.id;
+			FilmScene.waitVessel(this.ctx, id);
+			this.rest = FilmPilot.state(this.server, id).position();
+			this.c = this.ctx.computeOnClient(mc -> FilmScene.centre(id, 1.0f, approx));
+			Vec3 c = this.c;
+			this.c0Target = c.add(0, 3, 0);
+			this.c0Pos = c.add(-34 * k, -7 * k, -24 * k);
+			this.c0 = FilmCamera.Frame.lookAt(this.c0Pos, this.c0Target, 0);
+			this.lastCentre[0] = c;
+			FilmMain.LOG.info("Reddit: vessel {} at rest at {}, centre {}, opening camera {}", id, this.rest, c, this.c0);
 
 			// warm up: every shot's surroundings loaded, then time for Distant Horizons at the opening view
-			List<Vec3> tour = FilmRig.optDouble("warm", 1) > 0 ? List.of(P2.add(-45 * k, -3, -75), P3, P4, P5, c0Pos) : List.of(c0Pos);
+			List<Vec3> tour = new ArrayList<>();
+			if (FilmRig.optDouble("warm", 1) > 0) {
+				if (this.films("cargo")) {
+					tour.add(CARGO_AT.add(-20, -8, -30));
+				}
+				if (this.films("roll")) {
+					tour.add(ROLL_AT);
+				}
+				if (this.films("farm")) {
+					tour.add(FARM_AT);
+				}
+				if (this.films("return")) {
+					tour.add(RETURN_FROM);
+				}
+			}
+			tour.add(this.c0Pos);
 			for (Vec3 p : tour) {
 				FilmCamera.set((t, pp) -> FilmCamera.Frame.lookAt(p, c, 0));
-				FilmRig.followCamera(ctx);
-				FilmRig.waitWorld(ctx, 6000);
+				FilmRig.followCamera(this.ctx);
+				FilmRig.waitWorld(this.ctx, 6000);
 			}
-			FilmCamera.set((t, p) -> c0);
-			FilmRig.followCamera(ctx);
-			FilmRig.waitWorld(ctx, 6000);
-			FilmRig.waitShaders(ctx);
-			ctx.waitTicks((int)(20 * FilmRig.optDouble("dhWait", 60)));
+			FilmCamera.set((t, p) -> this.c0);
+			FilmRig.followCamera(this.ctx);
+			FilmRig.waitWorld(this.ctx, 6000);
+			FilmRig.waitShaders(this.ctx);
+			this.ctx.waitTicks((int)(20 * FilmRig.optDouble("dhWait", 60)));
 			long recordStart = System.nanoTime();
 
-			Vec3[] lastCentre = {c};
-			try (FilmRig.Recorder rec = new FilmRig.Recorder(ctx, out, "vesX,vesY,vesZ,tilt,heading", (mc, partial) -> {
+			try (FilmRig.Recorder rec = new FilmRig.Recorder(this.ctx, out, "vesX,vesY,vesZ,tilt,heading", (mc, partial) -> {
 				VesselPose pose = FilmScene.pose(id, partial);
-				Vec3 centre = FilmScene.centre(id, partial, lastCentre[0]);
-				lastCentre[0] = centre;
+				Vec3 centre = FilmScene.centre(id, partial, this.lastCentre[0]);
+				this.lastCentre[0] = centre;
 				double tilt = pose == null ? 0 : pose.tiltDegrees();
 				double heading = pose == null ? 0 : heading(pose);
 				return String.format(Locale.ROOT, "%.5f,%.5f,%.5f,%.2f,%.2f", centre.x, centre.y, centre.z, tilt, heading);
 			})) {
-				// ---- 1. hook ----
-				rec.cut("hook");
-				events.add(new Event("hook", rec.frames()));
-				long b1 = FilmCamera.ticks();
-				FilmCamera.set((t, p) -> {
-					double s = t - b1;
-					Vec3 ship = FilmScene.centre(id, p, c);
-					double e = FilmCamera.ease(s, 8, 44);
-					Vec3 target = FilmCamera.lerp(c0Target, ship.add(0, 3, 0), FilmCamera.ease(s, 8, 26));
-					Vec3 pos = c0Pos.add(0, 5 * e, 0).add(c0Pos.subtract(c0Target).normalize().scale(7 * k * e));
-					return FilmCamera.Frame.lookAt(pos, target, 0);
-				});
-				int hookTicks = (int)FilmRig.optDouble("hookTicks", 44);
-				for (int i = 0; i < hookTicks; i++) {
-					// the helm is pushed over within a few ticks, as a player's analogue input would be
-					double ramp = Math.max(0, Math.min(1, (i - 7) / 6.0));
-					FilmPilot.Input in = new FilmPilot.Input(0.5 * ramp, 0, 0.9 * ramp, 0, -0.35 * ramp, -1 * ramp);
-					server.runOnServer(s -> FilmPilot.apply(s, id, in));
-					rec.tick(3);
+				this.rec = rec;
+				if (this.films("hook")) {
+					this.hook();
 				}
-				logState(server, id, "hook end");
-				if (FilmRig.opt("stopAfter", "").equals("hook")) {
-					return;
+				if (this.films("cargo")) {
+					this.cargo();
 				}
-
-				// ---- 2. flyby ----
-				gap(ctx, server, id, rec);
-				flyTo(ctx, server, id, P2, 0, 1600, 0.4);
-				long b2 = FilmCamera.ticks();
-				int flybyTicks = (int)FilmRig.optDouble("flybyTicks", 112);
-				FilmCamera.set((t, p) -> {
-					double s = Math.max(0, t - b2) / flybyTicks;
-					Vec3 ship = FilmScene.centre(id, p, P2);
-					Vec3 pos = new Vec3(P2.x - 32 * k, k > 1 ? FilmRig.optDouble("flybyY", 83.5) : 85, FilmCamera.lerp(5915, 5872, FilmCamera.ease(s)));
-					return FilmCamera.Frame.lookAt(pos, ship.add(0, k > 1 ? FilmRig.optDouble("flybyAim", 4.5) : 2, -4), 0);
-				});
-				FilmRig.followCamera(ctx);
-				FilmRig.waitWorld(ctx, 3000);
-				settle(ctx);
-				for (int i = 0; i < 50; i++) {
-					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
-					ctx.waitTick();
+				if (this.films("roll")) {
+					this.roll();
 				}
-				rec.cut("flyby");
-				events.add(new Event("flyby", rec.frames()));
-				for (int i = 0; i < flybyTicks; i++) {
-					int j = i;
-					FilmPilot.Input in = j >= 10 && j < 40 ? new FilmPilot.Input(1, 0, 0, 0, -0.1, -0.35) : new FilmPilot.Input(1, 0, 0, 0, 0, 0);
-					server.runOnServer(s -> FilmPilot.apply(s, id, in));
-					rec.tick(3);
+				if (this.films("farm")) {
+					this.farm();
 				}
-				logState(server, id, "flyby end");
-				if (FilmRig.opt("stopAfter", "").equals("flyby")) {
-					return;
+				if (this.films("return")) {
+					this.homecoming();
 				}
-
-				// ---- 3. roll (slow motion, level off) ----
-				gap(ctx, server, id, rec);
-				flyTo(ctx, server, id, P3, 0, 1600, 0.4);
-				long b3 = FilmCamera.ticks();
-				double rollTicksGuess = FilmRig.optDouble("rollTicks", 64);
-				// a camera on the ship, between the main mast and the castle (not scaled for portrait: it would enter the sail)
-				Vec3 look = FilmShips.shipPoint(1.2, 1.2, 6);
-				Vec3 fromA = FilmShips.shipPoint(-5, 6.5, k > 1 ? -1.2 : -2.5);
-				Vec3 fromB = FilmShips.shipPoint(-1.8, 3.6, 1.2);
-				FilmCamera.set((t, p) -> {
-					double s = Math.max(0, t - b3) / rollTicksGuess;
-					VesselPose pose = FilmScene.pose(id, p);
-					if (pose == null) {
-						return c0;
-					}
-					Vec3 from = pose.localToWorld(FilmCamera.lerp(fromA, fromB, FilmCamera.ease(s)));
-					Vec3 at = pose.localToWorld(look);
-					Vector3d up = pose.rotate(0, 1, 0, new Vector3d());
-					return FilmCamera.Frame.basis(from, at.subtract(from).normalize(), new Vec3(up.x, up.y, up.z));
-				});
-				FilmRig.followCamera(ctx);
-				FilmRig.waitWorld(ctx, 3000);
-				settle(ctx);
-				FilmPilot.modes(server, id, true, false);
-				int preRoll = (int)FilmRig.optDouble("preRoll", 34);
-				for (int i = 0; i < preRoll; i++) {
-					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0.5, 0, 0, 0, 0, -1)));
-					ctx.waitTick();
-				}
-				rec.cut("roll");
-				events.add(new Event("roll", rec.frames()));
-				int rollStart = rec.frames();
-				boolean lever = false;
-				IntFunction<Integer> slow = i -> i < 2 ? 3 : i < 4 ? 4 : i < 6 ? 5 : 6;
-				int rollFrames = (int)FilmRig.optDouble("rollFrames", 360);
-				for (int i = 0; rec.frames() - rollStart < rollFrames; i++) {
-					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0.5, 0, 0, 0, 0, -1)));
-					if (i == 32) {
-						server.runOnServer(s -> door(s, id, true));
-						events.add(new Event("door", rec.frames()));
-					}
-					if (!lever && FilmPilot.state(server, id).tilt() > 160) {
-						lever = true;
-						server.runOnServer(s -> lever(s, id));
-						events.add(new Event("lever", rec.frames()));
-						logState(server, id, "lever pulled");
-					}
-					rec.tick(slow.apply(i));
-				}
-				logState(server, id, "roll end");
-
-				// ---- 4. deck ----
-				gap(ctx, server, id, rec);
-				server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.Input.NONE));
-				FilmPilot.modes(server, id, true, true);
-				ctx.waitTicks(80);
-				server.runOnServer(s -> {
-					lever(s, id);
-					door(s, id, false);
-				});
-				flyTo(ctx, server, id, P4, 0, 1600, 0.4);
-				List<Integer> sheep = server.computeOnServer(s -> spawnSheep(s, id));
-				ctx.waitTicks(60);
-				long b4 = FilmCamera.ticks();
-				FilmCamera.set((t, p) -> {
-					VesselPose pose = FilmScene.pose(id, p);
-					if (pose == null) {
-						return c0;
-					}
-					Vec3 centre = FilmScene.centre(id, p, P4);
-					Vec3 deck = pose.localToWorld(FilmShips.shipPoint(0.5, 1.2, -3));
-					Vec3 offset = new Vec3(-22 * k, 3, 10 * k).yRot((float)-Math.toRadians(heading(pose)));
-					return FilmCamera.Frame.lookAt(centre.add(offset), deck, 0);
-				});
-				FilmRig.followCamera(ctx);
-				FilmRig.waitWorld(ctx, 3000);
-				settle(ctx);
-				for (int i = 0; i < 20; i++) {
-					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(0.35, 0, 0, 0, 0, 0)));
-					ctx.waitTick();
-				}
-				rec.cut("deck");
-				events.add(new Event("deck", rec.frames()));
-				int deckTicks = (int)FilmRig.optDouble("deckTicks", 110);
-				double bank = FilmRig.optDouble("bank", 0.6);
-				for (int i = 0; i < deckTicks; i++) {
-					FilmPilot.Input in;
-					if (i < 28) {
-						in = new FilmPilot.Input(0.35, 0, 0, 0, -0.25, -bank);
-					} else if (i < 52) {
-						in = new FilmPilot.Input(0.35, 0, 0, 0, -0.25, 0);
-					} else if (i < 80) {
-						in = new FilmPilot.Input(0.35, 0, 0, 0, 0.25, bank);
-					} else {
-						in = new FilmPilot.Input(0.35, 0, 0, 0, 0.1, 0);
-					}
-					server.runOnServer(s -> FilmPilot.apply(s, id, in));
-					rec.tick(3);
-				}
-				logState(server, id, "deck end");
-				server.runOnServer(s -> sheepReport(s, id, sheep));
-
-				// ---- 5. return and disassembly ----
-				gap(ctx, server, id, rec);
-				server.runOnServer(s -> {
-					for (int sheepId : sheep) {
-						Entity e = s.overworld().getEntity(sheepId);
-						if (e != null) {
-							e.discard();
-						}
-					}
-				});
-				flyTo(ctx, server, id, P5, 0, 1600, 0.4);
-				FilmCamera.set((t, p) -> {
-					Vec3 ship = FilmScene.centre(id, p, lastCentre[0]);
-					double d = ship.distanceTo(c);
-					double e = FilmCamera.ease(1 - d / 50.0);
-					double e2 = FilmCamera.ease(1 - d / 12.0);
-					Vec3 extra = new Vec3(-10, -3, 30).scale(k * (1 - e));
-					Vec3 chase = ship.add(c0Pos.subtract(c)).add(extra);
-					chase = new Vec3(chase.x, Math.max(65.5, chase.y), chase.z);
-					return FilmCamera.blend(FilmCamera.Frame.lookAt(chase, ship.add(0, 3, 0), 0), c0, e2);
-				});
-				FilmRig.followCamera(ctx);
-				FilmRig.waitWorld(ctx, 3000);
-				settle(ctx);
-				int runUp = (int)FilmRig.optDouble("returnRunUp", 40);
-				for (int i = 0; i < runUp; i++) {
-					server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
-					ctx.waitTick();
-				}
-				rec.cut("return");
-				events.add(new Event("return", rec.frames()));
-				double returnGain = FilmRig.optDouble("returnGain", 1.0);
-				double returnSpeed = FilmRig.optDouble("returnSpeed", 17);
-				int after = -1;
-				for (int i = 0; i < 600; i++) {
-					if (after < 0) {
-						FilmPilot.State st = FilmPilot.state(server, id);
-						if (i > 20 && FilmPilot.settled(st, rest, 0, 0.06)) {
-							logState(server, id, "settled, disassembling");
-							VesselAssembly.Outcome outcome = server.computeOnServer(s -> VesselManager.get(s.overworld()).disassemble(id, null));
-							if (!outcome.success()) {
-								throw new AssertionError("disassembly failed: " + outcome.message().getString());
-							}
-							events.add(new Event("disassemble", rec.frames()));
-							after = 0;
-							// the client drops the vessel a tick or two before the placed blocks arrive and are meshed
-							// (reported, not fixed here): hold film time until the blocks are drawn
-							BlockPos helmPos = FilmScene.HELM;
-							int held = rec.hold(mc -> mc.level.getBlockState(helmPos).is(dev.timstewart.slipway.registry.SlipwayRegistry.HELM), 100);
-							FilmMain.LOG.info("Reddit: disassembled; held film time {} ticks until the placed blocks were drawn", held);
-							continue;
-						} else {
-							server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(st, rest, 0, returnGain, returnSpeed)));
-						}
-					}
-					rec.tick(3);
-					if (after >= 0 && ++after >= (int)FilmRig.optDouble("holdTicks", 76)) {
-						break;
-					}
-				}
-				if (after < 0) {
-					throw new AssertionError("the vessel did not settle at its starting point");
-				}
-				events.add(new Event("end", rec.frames()));
+				this.events.add(new Event("end", rec.frames()));
 				FilmMain.LOG.info("Reddit: {} frames of {}x{} in {} s recording ({} s total), {} ms per frame, {} settle renders; frames in {}", rec.frames(),
-					size[0], size[1], String.format(Locale.ROOT, "%.1f", (System.nanoTime() - recordStart) / 1e9),
+					this.size[0], this.size[1], String.format(Locale.ROOT, "%.1f", (System.nanoTime() - recordStart) / 1e9),
 					String.format(Locale.ROOT, "%.1f", (System.nanoTime() - wallStart) / 1e9), String.format(Locale.ROOT, "%.0f", rec.meanFrameMillis()),
 					rec.settleRenders(), out);
 			}
 			FilmCamera.set(null);
-			writeSegments(out, events, size);
+			writeSegments(out, this.events, this.size);
+		}
+	}
+
+	private void event(String name) {
+		this.events.add(new Event(name, this.rec.frames()));
+	}
+
+	// ---- 1. hook: lifts off and rolls hard ----
+	private void hook() {
+		long id = this.id;
+		double k = this.k;
+		Vec3 c = this.c;
+		this.rec.cut("hook");
+		this.event("hook");
+		long b1 = FilmCamera.ticks();
+		FilmCamera.set((t, p) -> {
+			double s = t - b1;
+			Vec3 ship = FilmScene.centre(id, p, c);
+			double e = FilmCamera.ease(s, 8, 44);
+			Vec3 target = FilmCamera.lerp(this.c0Target, ship.add(0, 3, 0), FilmCamera.ease(s, 8, 26));
+			Vec3 pos = this.c0Pos.add(0, 5 * e, 0).add(this.c0Pos.subtract(this.c0Target).normalize().scale(7 * k * e));
+			return FilmCamera.Frame.lookAt(pos, target, 0);
+		});
+		int hookTicks = (int)FilmRig.optDouble("hookTicks", 42);
+		for (int i = 0; i < hookTicks; i++) {
+			// the helm is pushed over within a few ticks, as a player's analogue input would be
+			double ramp = Math.max(0, Math.min(1, (i - 7) / 6.0));
+			FilmPilot.Input in = new FilmPilot.Input(0.5 * ramp, 0, 0.9 * ramp, 0, -0.35 * ramp, -1 * ramp);
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, in));
+			this.rec.tick(3);
+		}
+		this.logState("hook end");
+	}
+
+	// ---- 2. cargo: loose pieces drop onto the deck, the ship rolls, they slide off onto the shore ----
+	private void cargo() {
+		long id = this.id;
+		this.gap();
+		FilmPilot.modes(this.server, id, true, true);
+		this.flyTo(CARGO_AT, CARGO_HEADING, 2400, 0.2);
+		this.ctx.waitTicks(20);
+		// the cargo: blocks placed over the deck and assembled through their own helms (unfilmed); they hover until let go
+		List<FilmScene.Piece> pieces = FilmScene.buildCargo(this.server, id);
+		for (FilmScene.Piece piece : pieces) {
+			FilmScene.waitVessel(this.ctx, piece.id());
+		}
+		VesselPose pose = FilmPilot.state(this.server, id).pose();
+		Vec3 bay = pose.localToWorld(FilmShips.shipPoint(-0.5, 0, 1.5));
+		Vec3 port = dir(pose, -1, 0, 0);
+		Vec3 fore = dir(pose, 0, 0, -1);
+		double dist = FilmRig.optDouble("cargoCamDist", 27);
+		double height = FilmRig.optDouble("cargoCamY", -4);
+		double along = FilmRig.optDouble("cargoCamAlong", 3);
+		Vec3 camA = bay.add(port.scale(dist)).add(fore.scale(along)).add(0, height, 0);
+		Vec3 camB = camA.add(port.scale(-FilmRig.optDouble("cargoPush", 3))).add(0, FilmRig.optDouble("cargoRise", 1.5), 0);
+		Vec3 aimA = bay.add(port.scale(FilmRig.optDouble("cargoAimOut", 3))).add(0, FilmRig.optDouble("cargoAimY", 0.5), 0);
+		Vec3 aimB = aimA.add(port.scale(FilmRig.optDouble("cargoAimOutB", 3))).add(0, FilmRig.optDouble("cargoAimDrop", -3.5), 0);
+		int cargoTicks = (int)FilmRig.optDouble("cargoTicks", 112);
+		long[] b2 = {Long.MAX_VALUE};
+		FilmCamera.set((t, p) -> {
+			double s = b2[0] == Long.MAX_VALUE ? 0 : Math.max(0, t - b2[0]) / cargoTicks;
+			double e = FilmCamera.ease(s, 0.25, 0.9);
+			return FilmCamera.Frame.lookAt(FilmCamera.lerp(camA, camB, e), FilmCamera.lerp(aimA, aimB, e), 0);
+		});
+		FilmRig.followCamera(this.ctx);
+		FilmRig.waitWorld(this.ctx, 3000);
+		this.settle();
+		// let go: from here the pieces are loose bodies; a few ticks before the cut, so the shot opens on them falling
+		boolean[] real = {true};
+		this.server.runOnServer(s -> {
+			for (FilmScene.Piece piece : pieces) {
+				real[0] &= FilmPilot.loose(s, piece.id(), true);
+			}
+		});
+		if (!real[0]) {
+			FilmMain.LOG.warn("Reddit: this Slipway build has no loose mode; the cargo falls with hover and level off (controller drag and spin braking remain)");
+		}
+		Vec3 hold = FilmPilot.state(this.server, id).position();
+		int lead = (int)FilmRig.optDouble("cargoLead", 12);
+		for (int i = 0; i < lead; i++) {
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(FilmPilot.state(s, id), hold, CARGO_HEADING, 0.8, 4)));
+			this.ctx.waitTick();
+		}
+		this.rec.cut("cargo");
+		this.event("cargo");
+		b2[0] = FilmCamera.ticks();
+		int rollAt = (int)FilmRig.optDouble("cargoRollAt", 28);
+		int rollTicks = (int)FilmRig.optDouble("cargoRollTicks", 34);
+		double rollInput = FilmRig.optDouble("cargoRoll", 0.85);
+		int slowFrom = (int)FilmRig.optDouble("cargoSlowFrom", 1000);
+		int slowTo = (int)FilmRig.optDouble("cargoSlowTo", 1000);
+		for (int i = 0; i < cargoTicks; i++) {
+			int j = i;
+			if (j == rollAt) {
+				FilmPilot.modes(this.server, id, true, false);
+				this.event("spill");
+			}
+			// the pilot holds the ship over the spot and, from rollAt, rolls it to port; with level mode off it then stays rolled
+			double ramp = Math.max(0, Math.min(1, Math.min((j - rollAt + 1) / 5.0, (rollAt + rollTicks - j) / 5.0)));
+			this.server.runOnServer(s -> {
+				FilmPilot.Input in = FilmPilot.autopilot(FilmPilot.state(s, id), hold, CARGO_HEADING, 0.8, 4);
+				FilmPilot.apply(s, id, new FilmPilot.Input(in.forward(), in.strafe(), in.vertical(), 0, j < rollAt ? in.yaw() : 0, -rollInput * ramp));
+			});
+			this.rec.tick(j >= slowFrom && j < slowTo ? 4 : 3);
+			if (j % 10 == 9 || j == cargoTicks - 1) {
+				this.cargoReport(pieces, j);
+			}
+		}
+		this.logState("cargo end");
+		// afterwards, unfilmed: the pieces are removed (/slipway remove), the ship levels again
+		this.gap();
+		this.server.runOnServer(s -> {
+			for (FilmScene.Piece piece : pieces) {
+				if (FilmPilot.command(s, "slipway remove " + piece.id()) <= 0) {
+					throw new AssertionError("could not remove cargo piece " + piece);
+				}
+			}
+			FilmPilot.apply(s, id, FilmPilot.Input.NONE);
+		});
+		FilmPilot.modes(this.server, id, true, true);
+		this.ctx.waitTicks(80);
+	}
+
+	private void cargoReport(List<FilmScene.Piece> pieces, int tick) {
+		long id = this.id;
+		this.server.runOnServer(s -> {
+			VesselPose ship = record(s, id).pose;
+			StringBuilder b = new StringBuilder();
+			for (FilmScene.Piece piece : pieces) {
+				VesselRecord r = record(s, piece.id());
+				Vec3 centre = VesselManager.worldCentre(r);
+				Vec3 local = ship.worldToLocal(centre);
+				b.append(String.format(Locale.ROOT, "%s y %.1f deck(%.1f,%.1f,%.1f) v %.1f; ", piece.name(), centre.y, local.x, local.y + 5, local.z + 12, r.linearVelocity.length()));
+			}
+			FilmMain.LOG.info("Reddit: cargo at tick {} (ship tilt {}): {}", tick, fmt(ship.tiltDegrees()), b);
+		});
+	}
+
+	// ---- 3. roll (slow motion, level off): the machine on the castle wall ----
+	private void roll() {
+		long id = this.id;
+		this.gap();
+		FilmPilot.modes(this.server, id, true, true);
+		this.flyTo(ROLL_AT, 0, 2400, 0.4);
+		long b3 = FilmCamera.ticks();
+		double rollTicksGuess = FilmRig.optDouble("rollTicks", 64);
+		// a camera on the ship, just aft of the main sail and beside the main mast, looking at the castle wall
+		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("rollLookX", 0.3), FilmRig.optDouble("rollLookY", 2.0), 6);
+		Vec3 fromA = FilmShips.shipPoint(FilmRig.optDouble("rollAX", -2.4), FilmRig.optDouble("rollAY", 3.6), FilmRig.optDouble("rollAZ", -1.9));
+		Vec3 fromB = FilmShips.shipPoint(FilmRig.optDouble("rollBX", -2.0), FilmRig.optDouble("rollBY", 3.3), FilmRig.optDouble("rollBZ", -0.6));
+		FilmCamera.set((t, p) -> {
+			double s = Math.max(0, t - b3) / rollTicksGuess;
+			VesselPose pose = FilmScene.pose(id, p);
+			if (pose == null) {
+				return this.c0;
+			}
+			Vec3 from = pose.localToWorld(FilmCamera.lerp(fromA, fromB, FilmCamera.ease(s)));
+			Vec3 at = pose.localToWorld(look);
+			Vector3d up = pose.rotate(0, 1, 0, new Vector3d());
+			return FilmCamera.Frame.basis(from, at.subtract(from).normalize(), new Vec3(up.x, up.y, up.z));
+		});
+		FilmRig.followCamera(this.ctx);
+		FilmRig.waitWorld(this.ctx, 3000);
+		this.settle();
+		FilmPilot.modes(this.server, id, true, false);
+		int preRoll = (int)FilmRig.optDouble("preRoll", 34);
+		FilmPilot.Input rolling = new FilmPilot.Input(0.5, 0, 0, 0, 0, -1);
+		for (int i = 0; i < preRoll; i++) {
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, rolling));
+			this.ctx.waitTick();
+		}
+		this.rec.cut("roll");
+		this.event("roll");
+		int rollStart = this.rec.frames();
+		int rollFrames = (int)FilmRig.optDouble("rollFrames", 366);
+		int leverAt = (int)FilmRig.optDouble("leverAt", 6);
+		int doorAt = (int)FilmRig.optDouble("doorAt", 36);
+		int chestAt = (int)FilmRig.optDouble("chestAt", 46);
+		boolean pistons = false;
+		for (int i = 0; this.rec.frames() - rollStart < rollFrames; i++) {
+			int j = i;
+			this.server.runOnServer(s -> {
+				FilmPilot.apply(s, id, rolling);
+				if (j == leverAt) {
+					lever(s, id, FilmShips.HERO_LEVER);
+				}
+				if (j == doorAt) {
+					door(s, id, true);
+				}
+				if (j == chestAt) {
+					chest(s, id, true);
+				}
+			});
+			if (j == leverAt) {
+				this.event("lever");
+				this.logState("lever pulled");
+			}
+			if (j == doorAt) {
+				this.event("door");
+			}
+			if (j == chestAt) {
+				this.event("chest");
+			}
+			this.rec.tick(i < 2 ? 3 : i < 4 ? 4 : i < 6 ? 5 : 6);
+			this.machineReport(j);
+			if (!pistons && this.server.computeOnServer(s -> pistonExtended(s, id))) {
+				pistons = true;
+				this.event("pistons");
+			}
+		}
+		this.logState("roll end");
+		// afterwards, unfilmed: everything on the wall back as it was, the ship level again
+		this.gap();
+		this.server.runOnServer(s -> {
+			FilmPilot.apply(s, id, FilmPilot.Input.NONE);
+			lever(s, id, FilmShips.HERO_LEVER);
+			door(s, id, false);
+			chest(s, id, false);
+		});
+		FilmPilot.modes(this.server, id, true, true);
+		this.ctx.waitTicks(100);
+		this.machineReport(-1);
+	}
+
+	/** Whether any of the machine's pistons is extended (or extending). */
+	private static boolean pistonExtended(MinecraftServer s, long id) {
+		ServerLevel level = s.overworld();
+		VesselRecord r = record(s, id);
+		for (BlockPos pos : FilmShips.HERO_PISTONS) {
+			BlockState state = level.getBlockState(r.toPlot(pos));
+			if (state.hasProperty(PistonBaseBlock.EXTENDED) && state.getValue(PistonBaseBlock.EXTENDED)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Logs the machine's state (lamps lit, pistons extended), to check it against the frames. */
+	private void machineReport(int tick) {
+		long id = this.id;
+		this.server.runOnServer(s -> {
+			ServerLevel level = s.overworld();
+			VesselRecord r = record(s, id);
+			StringBuilder b = new StringBuilder("lamps ");
+			for (BlockPos pos : FilmShips.HERO_LAMPS) {
+				BlockState state = level.getBlockState(r.toPlot(pos));
+				b.append(state.hasProperty(RedstoneLampBlock.LIT) ? state.getValue(RedstoneLampBlock.LIT) ? '#' : '.' : '?');
+			}
+			b.append(" pistons ");
+			for (BlockPos pos : FilmShips.HERO_PISTONS) {
+				BlockState state = level.getBlockState(r.toPlot(pos));
+				b.append(state.hasProperty(PistonBaseBlock.EXTENDED) ? state.getValue(PistonBaseBlock.EXTENDED) ? '#' : '.' : '?');
+			}
+			BlockState leverState = level.getBlockState(r.toPlot(FilmShips.HERO_LEVER));
+			b.append(" lever ").append(leverState.hasProperty(LeverBlock.POWERED) ? leverState.getValue(LeverBlock.POWERED) : "?");
+			FilmMain.LOG.info("Reddit: machine at tick {}: {}", tick, b);
+		});
+	}
+
+	// ---- 4. farm: wheat grows on deck in flight ----
+	private void farm() {
+		long id = this.id;
+		this.gap();
+		FilmPilot.modes(this.server, id, true, true);
+		this.flyTo(FARM_AT, 0, 2400, 0.4);
+		List<Integer> sheep = this.server.computeOnServer(s -> spawnSheep(s, id));
+		this.ctx.waitTicks(60);
+		Vec3 from = FilmShips.shipPoint(FilmRig.optDouble("farmX", -4.2), FilmRig.optDouble("farmY", 5.6), FilmRig.optDouble("farmZ", -6.2));
+		Vec3 fromB = from.add(FilmRig.optDouble("farmDX", 0.8), FilmRig.optDouble("farmDY", -0.5), FilmRig.optDouble("farmDZ", -0.4));
+		Vec3 look = FilmShips.shipPoint(FilmRig.optDouble("farmLookX", 3.2), FilmRig.optDouble("farmLookY", 0.4), FilmRig.optDouble("farmLookZ", -8.8));
+		int farmTicks = (int)FilmRig.optDouble("farmTicks", 102);
+		long[] b4 = {Long.MAX_VALUE};
+		FilmCamera.set((t, p) -> {
+			VesselPose pose = FilmScene.pose(id, p);
+			if (pose == null) {
+				return this.c0;
+			}
+			double s = b4[0] == Long.MAX_VALUE ? 0 : Math.max(0, t - b4[0]) / farmTicks;
+			return FilmCamera.Frame.lookAt(pose.localToWorld(FilmCamera.lerp(from, fromB, FilmCamera.ease(s))), pose.localToWorld(look), 0);
+		});
+		FilmRig.followCamera(this.ctx);
+		FilmRig.waitWorld(this.ctx, 3000);
+		this.settle();
+		double speed = FilmRig.optDouble("farmSpeed", 0.14);
+		double turn = FilmRig.optDouble("farmTurn", 0.06);
+		for (int i = 0; i < 40; i++) {
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(speed, 0, 0, 0, turn, 0)));
+			this.ctx.waitTick();
+		}
+		this.rec.cut("farm");
+		this.event("farm");
+		b4[0] = FilmCamera.ticks();
+		int clockAt = (int)FilmRig.optDouble("farmClockAt", 4);
+		for (int i = 0; i < farmTicks; i++) {
+			int j = i;
+			this.server.runOnServer(s -> {
+				FilmPilot.apply(s, id, new FilmPilot.Input(speed, 0, 0, 0, turn, 0));
+				if (j == clockAt) {
+					lever(s, id, FilmShips.HERO_FARM_LEVER);
+				}
+			});
+			if (j == clockAt) {
+				this.event("clock");
+			}
+			this.rec.tick(3);
+			this.farmReport(j);
+		}
+		this.logState("farm end");
+		// afterwards, unfilmed: the clock is switched off, the sheep leave
+		this.gap();
+		this.server.runOnServer(s -> {
+			lever(s, id, FilmShips.HERO_FARM_LEVER);
+			sheepReport(s, id, sheep);
+			for (int sheepId : sheep) {
+				Entity e = s.overworld().getEntity(sheepId);
+				if (e != null) {
+					e.discard();
+				}
+			}
+		});
+		this.ctx.waitTicks(40);
+	}
+
+	/** Logs the wheat's growth stages when they change. */
+	private String lastWheat = "";
+
+	private void farmReport(int tick) {
+		long id = this.id;
+		String wheat = this.server.computeOnServer(s -> {
+			ServerLevel level = s.overworld();
+			VesselRecord r = record(s, id);
+			StringBuilder b = new StringBuilder();
+			for (BlockPos pos : FilmShips.HERO_WHEAT) {
+				BlockState state = level.getBlockState(r.toPlot(pos));
+				b.append(state.hasProperty(CropBlock.AGE) ? Integer.toString(state.getValue(CropBlock.AGE)) : "?");
+			}
+			return b.toString();
+		});
+		if (!wheat.equals(this.lastWheat)) {
+			FilmMain.LOG.info("Reddit: wheat stages at tick {}: {}", tick, wheat);
+			this.lastWheat = wheat;
+		}
+	}
+
+	// ---- 5. return and disassembly ----
+	private void homecoming() {
+		long id = this.id;
+		double k = this.k;
+		Vec3 c = this.c;
+		Vec3 rest = this.rest;
+		this.gap();
+		FilmPilot.modes(this.server, id, true, true);
+		this.flyTo(RETURN_FROM, 0, 2400, 0.4);
+		// the machines must be at rest before the ship turns back into blocks
+		this.machineReport(-2);
+		FilmCamera.set((t, p) -> {
+			Vec3 ship = FilmScene.centre(id, p, this.lastCentre[0]);
+			double d = ship.distanceTo(c);
+			double e = FilmCamera.ease(1 - d / 40.0);
+			double e2 = FilmCamera.ease(1 - d / 12.0);
+			Vec3 extra = new Vec3(-10, -3, 30).scale(k * (1 - e));
+			Vec3 chase = ship.add(this.c0Pos.subtract(c)).add(extra);
+			chase = new Vec3(chase.x, Math.max(65.5, chase.y), chase.z);
+			return FilmCamera.blend(FilmCamera.Frame.lookAt(chase, ship.add(0, 3, 0), 0), this.c0, e2);
+		});
+		FilmRig.followCamera(this.ctx);
+		FilmRig.waitWorld(this.ctx, 3000);
+		this.settle();
+		int runUp = (int)FilmRig.optDouble("returnRunUp", 26);
+		for (int i = 0; i < runUp; i++) {
+			this.server.runOnServer(s -> FilmPilot.apply(s, id, new FilmPilot.Input(1, 0, 0, 0, 0, 0)));
+			this.ctx.waitTick();
+		}
+		this.rec.cut("return");
+		this.event("return");
+		double returnGain = FilmRig.optDouble("returnGain", 1.8);
+		double returnSpeed = FilmRig.optDouble("returnSpeed", 17);
+		int after = -1;
+		for (int i = 0; i < 600; i++) {
+			if (after < 0) {
+				FilmPilot.State st = FilmPilot.state(this.server, id);
+				if (i > 20 && FilmPilot.settled(st, rest, 0, 0.06)) {
+					this.logState("settled, disassembling");
+					VesselAssembly.Outcome outcome = this.server.computeOnServer(s -> VesselManager.get(s.overworld()).disassemble(id, null));
+					if (!outcome.success()) {
+						throw new AssertionError("disassembly failed: " + outcome.message().getString());
+					}
+					this.event("disassemble");
+					after = 0;
+					// the client may drop the vessel a tick or two before the placed blocks arrive and are meshed: hold film
+					// time until the blocks are drawn (harmless when the mod no longer blinks)
+					BlockPos helmPos = FilmScene.HELM;
+					int held = this.rec.hold(mc -> mc.level.getBlockState(helmPos).is(dev.timstewart.slipway.registry.SlipwayRegistry.HELM), 100);
+					FilmMain.LOG.info("Reddit: disassembled; held film time {} ticks until the placed blocks were drawn", held);
+					continue;
+				} else {
+					this.server.runOnServer(s -> FilmPilot.apply(s, id, FilmPilot.autopilot(st, rest, 0, returnGain, returnSpeed)));
+				}
+			}
+			this.rec.tick(3);
+			if (after >= 0 && ++after >= (int)FilmRig.optDouble("holdTicks", 110)) {
+				break;
+			}
+		}
+		if (after < 0) {
+			throw new AssertionError("the vessel did not settle at its starting point");
 		}
 	}
 
 	/** Between shots: the game renders normally again and the camera rides along so the terrain around the ship loads. */
-	private static void gap(ClientGameTestContext ctx, TestServerContext server, long id, FilmRig.Recorder rec) {
+	private void gap() {
+		long id = this.id;
 		FilmClock.holdLoop = false;
 		FilmCamera.set((t, p) -> {
 			Vec3 ship = FilmScene.centre(id, p, Vec3.ZERO);
 			return FilmCamera.Frame.lookAt(ship.add(-40, 14, 12), ship, 0);
 		});
-		FilmRig.followCamera(ctx);
+		FilmRig.followCamera(this.ctx);
 	}
 
 	/**
 	 * Unfilmed ticks at a shot's first camera position (film time does not advance): Distant Horizons updates its far
 	 * terrain around the new view, which otherwise shows as pale patches on the water for a second after a cut.
 	 */
-	private static void settle(ClientGameTestContext ctx) {
-		ctx.waitTicks((int)FilmRig.optDouble("shotSettle", 100));
+	private void settle() {
+		this.ctx.waitTicks((int)FilmRig.optDouble("shotSettle", 100));
 	}
 
 	/** Autopilot (unfilmed) to a point and heading, until settled there. */
-	private static void flyTo(ClientGameTestContext ctx, TestServerContext server, long id, Vec3 target, double heading, int maxTicks, double distance) {
+	private void flyTo(Vec3 target, double heading, int maxTicks, double distance) {
+		long id = this.id;
 		for (int i = 0; i < maxTicks; i++) {
-			boolean done = server.computeOnServer(s -> {
+			boolean done = this.server.computeOnServer(s -> {
 				FilmPilot.State st = FilmPilot.state(s, id);
 				if (FilmPilot.settled(st, target, heading, distance)) {
 					return true;
@@ -369,26 +621,34 @@ final class RedditShot {
 				FilmMain.LOG.info("Reddit: at {} after {} ticks", target, i);
 				return;
 			}
-			ctx.waitTick();
-			FilmRig.followCamera(ctx);
+			this.ctx.waitTick();
+			FilmRig.followCamera(this.ctx);
 		}
-		logState(server, id, "flyTo timeout");
+		this.logState("flyTo timeout");
 		throw new AssertionError("autopilot did not reach " + target);
 	}
 
-	private static void logState(TestServerContext server, long id, String what) {
-		FilmPilot.State st = FilmPilot.state(server, id);
+	private void logState(String what) {
+		FilmPilot.State st = FilmPilot.state(this.server, this.id);
 		double[] att = st.pose().attitudeDegrees();
-		FilmMain.LOG.info("Reddit: {}: pos {} heading {} pitch {} roll {} tilt {} speed {}", what, st.position(), fmt(st.heading()), fmt(att[0]), fmt(att[2]),
-			fmt(st.tilt()), fmt(st.velocity().length()));
+		// the server's own work per tick (it runs in step with the film, so waiting for frames does not count)
+		double[] perf = this.server.computeOnServer(s -> {
+			VesselManager manager = VesselManager.get(s.overworld());
+			var world = manager.physics().worldIfStarted();
+			return new double[] {s.getAverageTickTimeNanos() / 1.0e6, world == null ? 0 : world.lastStepNanos() / 1.0e6, manager.activeVessels().size()};
+		});
+		FilmMain.LOG.info("Reddit: {}: pos {} heading {} pitch {} roll {} tilt {} speed {}; server {} ms per tick, physics step {} ms, {} vessels", what, st.position(),
+			fmt(st.heading()), fmt(att[0]), fmt(att[2]), fmt(st.tilt()), fmt(st.velocity().length()), fmt(perf[0]), String.format(Locale.ROOT, "%.2f", perf[1]), (int)perf[2]);
 	}
 
 	private static String fmt(double v) {
 		return String.format(Locale.ROOT, "%.1f", v);
 	}
 
-	private static Vec3 scaleFrom(Vec3 look, Vec3 from, double k) {
-		return look.add(from.subtract(look).scale(k));
+	/** A direction of the vessel's own axes in the world. */
+	private static Vec3 dir(VesselPose pose, double x, double y, double z) {
+		Vector3d v = pose.rotate(x, y, z, new Vector3d());
+		return new Vec3(v.x, v.y, v.z);
 	}
 
 	static double heading(VesselPose pose) {
@@ -400,14 +660,15 @@ final class RedditShot {
 		return FilmPilot.active(s, id).record;
 	}
 
-	/** Pulls the vessel's lever as a player's click does (it powers the lamp it is on). */
-	private static void lever(MinecraftServer s, long id) {
+	/** Pulls a lever of the vessel as a player's click does. */
+	private static void lever(MinecraftServer s, long id, BlockPos helmRelative) {
 		ServerLevel level = s.overworld();
-		BlockPos pos = record(s, id).toPlot(FilmShips.HERO_LEVER);
+		BlockPos pos = record(s, id).toPlot(helmRelative);
 		BlockState state = level.getBlockState(pos);
 		((LeverBlock)state.getBlock()).pull(state, level, pos, null);
 	}
 
+	/** Opens or closes the vessel's door as a player's click does. */
 	private static void door(MinecraftServer s, long id, boolean open) {
 		ServerLevel level = s.overworld();
 		BlockPos pos = record(s, id).toPlot(FilmShips.HERO_DOOR);
@@ -415,8 +676,15 @@ final class RedditShot {
 		((DoorBlock)state.getBlock()).setOpen(null, level, state, pos, open);
 	}
 
-	// No chest-lid shot: the lid animation is a block event, which the game sends only to players near the block's
-	// position, i.e. the vessel's plot far away; the mod does not forward it, so a player would not see it either.
+	/**
+	 * The chest's own open or close event: block event 1 with the number of players looking into it (1 or 0), which
+	 * is what the chest sends when a player opens or closes it.
+	 */
+	private static void chest(MinecraftServer s, long id, boolean open) {
+		ServerLevel level = s.overworld();
+		BlockPos pos = record(s, id).toPlot(FilmShips.HERO_CHEST);
+		level.blockEvent(pos, level.getBlockState(pos).getBlock(), 1, open ? 1 : 0);
+	}
 
 	private static List<Integer> spawnSheep(MinecraftServer s, long id) {
 		ServerLevel level = s.overworld();
@@ -428,7 +696,7 @@ final class RedditShot {
 			Vec3 at = pose.localToWorld(new Vec3(spot.getX() + 0.5, spot.getY() + 0.05, spot.getZ() + 0.5));
 			Sheep sheep = EntityTypes.SHEEP.create(level, EntitySpawnReason.COMMAND);
 			sheep.setColor(colours[i % colours.length]);
-			sheep.snapTo(at.x, at.y, at.z, 180f + i * 70f, 0f);
+			sheep.snapTo(at.x, at.y, at.z, 150f + i * 40f, 0f);
 			sheep.setPersistenceRequired();
 			level.addFreshEntity(sheep);
 			ids.add(sheep.getId());
@@ -443,7 +711,7 @@ final class RedditShot {
 			Entity e = s.overworld().getEntity(sheepId);
 			b.append(e == null ? "gone " : String.format(Locale.ROOT, "local %s ", pose.worldToLocal(e.position())));
 		}
-		FilmMain.LOG.info("Reddit: sheep after the deck shot: {}", b);
+		FilmMain.LOG.info("Reddit: sheep after the farm shot: {}", b);
 	}
 
 	private static void writeSegments(Path out, List<Event> events, int[] size) {

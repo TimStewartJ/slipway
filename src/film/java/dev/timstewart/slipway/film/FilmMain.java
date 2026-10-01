@@ -18,6 +18,7 @@ public final class FilmMain implements FabricClientGameTest {
 			case "scout" -> ScoutShot.run(ctx);
 			case "stills" -> StillsShot.run(ctx);
 			case "reddit" -> RedditShot.run(ctx);
+			case "probe" -> ProbeShot.run(ctx);
 			default -> throw new IllegalArgumentException("unknown film shot " + shot);
 		}
 	}
