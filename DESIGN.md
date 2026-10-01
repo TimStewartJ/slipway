@@ -1361,15 +1361,27 @@ When a test passes, the framework discards the entities in its arena. The vessel
 keeps them out of the next batch, which uses the same places), and the log has a line "Vessel N lost its entity
 (DISCARDED) and is no longer simulated" for each.
 The test server does not wait between ticks (`GameTestServer.waitUntilNextTick` only runs queued tasks), so work
-done on other threads takes a number of ticks that depends on the machine: loading and making chunks, reading a
-column's entities, light. A test waits for the state it needs, not for a number of ticks: a body built from the
-blocks as they are (`settled`); a plot that is ticked (`TestShips.plotTicks`: scheduled ticks, block entities and
-random ticks begin when the columns round the vessel's own are made and the columns' entities read, one tick after
-assembly on the development machine; the chest, clock, farm and machine tests count ticks from there); forced
-chunks loaded (the ship steered from its stern); new columns loaded (`unsentChunks`); the light engine's queue
-(`waitForPendingTasks`). Vessel physics does not depend on the machine: the server tick waits for the physics step
-(`PhysicsWorld.await`), block events run by ticket level, and terrain boxes are built on the server thread, 24
-sections a tick.
+done on other threads takes a number of ticks that depends on the machine and on the batch: loading and making
+chunks, reading a column's entities, light. Measured on the development machine: the fifty tests of the first batch
+all begin in the same few ticks, which take seconds each, and everything of that kind is done within a tick or two;
+the second batch, with a few tests, runs hundreds of ticks a second, and there the five by five chunks round a
+force-loaded chunk were not ready after 385 ticks (about a second) in three runs of four. That was a new test of
+0.1.3, found by running the tests twelve times in a row. So:
+
+- a test loads the chunks it needs at once, on the server thread (`TestShips.loadNow`: the two tests that grow
+  bounds towards a far chunk, the ship steered from its stern), unless the loading is what it is about;
+- it waits for the state it needs, not for a number of ticks: a body built from the blocks as they are
+  (`settled`); a plot that is ticked (`TestShips.plotTicks`: scheduled ticks, block entities and random ticks begin
+  when the columns round the vessel's own are made and the columns' entities read, within a tick here; the chest,
+  clock, farm and machine tests count ticks from there, where they used to count from assembly); new plot columns
+  loaded (`unsentChunks`, the one test that is about loading); the light engine's queue (`waitForPendingTasks`);
+- and the ticks a test may take are a limit with room for that wait (2,000 for the columns), not what it needs.
+
+Vessel physics does not depend on the machine: the server tick waits for the physics step (`PhysicsWorld.await`),
+block events run by ticket level, and terrain boxes are built on the server thread, 24 sections a tick. With the
+vessels of a batch all made in the same ticks, the last sections wait six or seven ticks for their turn (measured:
+up to 92 waiting at once); a vessel that falls onto ground in a test starts at least four blocks above it, eighteen
+ticks of falling.
 A check that fails inside a step of a test sequence does not end the test at once: the sequence runs for one more
 tick, and the failure that is reported is the last one.
 

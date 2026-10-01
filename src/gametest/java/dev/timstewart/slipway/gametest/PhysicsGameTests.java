@@ -247,7 +247,7 @@ public class PhysicsGameTests {
 		List<ChunkPos> under = new ArrayList<>();
 		for (int cx = base.getX() - 56 >> 4; cx <= base.getX() + 56 >> 4; cx++) {
 			for (int cz = base.getZ() - 56 >> 4; cz <= base.getZ() + 56 >> 4; cz++) {
-				level.setChunkForced(cx, cz, true);
+				TestShips.loadNow(level, cx, cz, 0);
 				under.add(new ChunkPos(cx, cz));
 			}
 		}
@@ -263,8 +263,7 @@ public class PhysicsGameTests {
 		};
 		helper.startSequence()
 			.thenWaitUntil(() -> check(helper, a.hasBody && b.hasBody && a.mass != null && b.mass != null, "no physics bodies yet"))
-			// Chunks are loaded on other threads, and the test server does not wait for them between ticks.
-			.thenWaitUntil(() -> check(helper, under.stream().allMatch(chunk -> level.getChunkSource().getChunkNow(chunk.x(), chunk.z()) != null), "the chunks under the flight are not loaded yet"))
+			.thenExecute(() -> check(helper, under.stream().allMatch(chunk -> level.getChunkSource().getChunkNow(chunk.x(), chunk.z()) != null), "the chunks under the flight are not loaded"))
 			.thenExecute(() -> {
 				manager.teleport(a, held.pose.withPosition(held.pose.x(), base.getY() + 60, held.pose.z()));
 				manager.teleport(b, plain.pose.withPosition(plain.pose.x(), base.getY() + 100, plain.pose.z()));

@@ -150,7 +150,8 @@ public class BlockEventGameTests {
 		});
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 100)
+	// The ticks a test may take are a limit for what it waits for (here: the plot being ticked), not what it needs.
+	@GameTest(structure = ARENA, maxTicks = 400)
 	public void aChestOnAVesselStaysOpenWhileItsUserIsAtTheVessel(GameTestHelper helper) {
 		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 2);
 		helper.setBlock(helm.east(), Blocks.CHEST);
@@ -405,7 +406,9 @@ public class BlockEventGameTests {
 			.thenSucceed();
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 200)
+	// The new columns are loaded on other threads: one or two ticks among fifty tests, where a tick is long, and many
+	// more in a batch of a few tests, which runs hundreds of ticks a second.
+	@GameTest(structure = ARENA, maxTicks = 2000)
 	public void columnsOfABlockSetFarOutsideAVesselReachItsViewersOnceLoaded(GameTestHelper helper) {
 		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 1);
 		VesselRecord record = TestShips.assemble(helper, helm);

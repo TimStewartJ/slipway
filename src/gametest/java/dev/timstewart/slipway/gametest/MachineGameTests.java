@@ -102,7 +102,7 @@ public class MachineGameTests {
 		return edges;
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 300)
+	@GameTest(structure = ARENA, maxTicks = 500)
 	public void aRepeaterClockLightsARowOfLampsInTurnWhileTheVesselFlies(GameTestHelper helper) {
 		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 4);
 		// The clock: two repeaters of four ticks side by side, joined by dust at both ends. Dust goes down first; every
@@ -178,7 +178,7 @@ public class MachineGameTests {
 		return !(z == 0 && (x == 0 || x == 1)) && !(x == WATER.getX() && z == WATER.getZ());
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 1200)
+	@GameTest(structure = ARENA, maxTicks = 1500)
 	public void aFarmOnAFlyingVesselTakesBoneMealAndGrowsByItself(GameTestHelper helper) {
 		BlockPos helm = new BlockPos(8, 5, 8);
 		Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
@@ -284,7 +284,7 @@ public class MachineGameTests {
 			.thenSucceed();
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 300)
+	@GameTest(structure = ARENA, maxTicks = 500)
 	public void machinesOnAFlyingVesselWorkAndTheirOutputAppearsAtTheVessel(GameTestHelper helper) {
 		BlockPos helm = InteractionGameTests.deck(helper, 8, 4, 8, 3);
 		BlockPos chest = new BlockPos(2, 0, 2);

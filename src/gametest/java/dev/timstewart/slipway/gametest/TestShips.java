@@ -145,6 +145,22 @@ final class TestShips {
 		return !vessel.ticketChunks.isEmpty();
 	}
 
+	/**
+	 * Loads the chunks within {@code radius} of a chunk now, and keeps that chunk loaded until the batch ends (the
+	 * runner releases forced chunks then); with a radius of two, entities tick in it a few ticks later. A chunk that
+	 * is only asked for is made on other threads, and the test server does not wait for them between ticks: how many
+	 * ticks that takes depends on the machine and on how many tests are running (a batch of a few tests runs
+	 * hundreds of ticks a second), and a test that waits for it can run out of its ticks.
+	 */
+	static void loadNow(ServerLevel level, int chunkX, int chunkZ, int radius) {
+		level.setChunkForced(chunkX, chunkZ, true);
+		for (int dx = -radius; dx <= radius; dx++) {
+			for (int dz = -radius; dz <= radius; dz++) {
+				level.getChunk(chunkX + dx, chunkZ + dz);
+			}
+		}
+	}
+
 	/** The same boxes, as far as their mass, centre and inertia tell: one more solid block changes all three. */
 	static boolean sameMass(BoxList.MassProperties a, BoxList.MassProperties b) {
 		boolean same = Math.abs(a.mass() - b.mass()) < 1.0e-6 && Math.abs(a.comX() - b.comX()) < 1.0e-6 && Math.abs(a.comY() - b.comY()) < 1.0e-6

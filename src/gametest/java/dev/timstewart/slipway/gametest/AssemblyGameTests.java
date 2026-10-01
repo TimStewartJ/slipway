@@ -390,7 +390,7 @@ public class AssemblyGameTests {
 	 * its blocks (the order in which chunks come from a save is not fixed), the game fills that room with sky light.
 	 * For a column without any block vanilla's own code did not (SkyLightEngineMixin): the sides stayed black.
 	 */
-	@GameTest(structure = ARENA, maxTicks = 100)
+	@GameTest(structure = ARENA, maxTicks = 400)
 	public void anEmptyPlotColumnGetsItsSkyLightWhenItsLightComesOnLast(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
 		// A plot that no test vessel gets.

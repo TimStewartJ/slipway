@@ -119,7 +119,7 @@ public class EntityGameTests {
 			.thenExecute(() -> {
 				check(helper, manager.active(record.id) == vessel[0] && level.getEntity(entity.getUUID()) == entity && entity.position().distanceTo(before[0]) < 0.01
 					&& vessel[0].entityHeld, "loaded again, the vessel went to the middle of its bounds: the entity is " + entity.position().distanceTo(before[0]) + " blocks from where it was");
-				level.setChunkForced(growth[0].chunkX(), growth[0].chunkZ(), true);
+				TestShips.loadNow(level, growth[0].chunkX(), growth[0].chunkZ(), 2);
 			})
 			.thenWaitUntil(() -> check(helper, level.isPositionEntityTicking(growth[0].there()), "entities do not tick at the middle of the bounds yet"))
 			.thenIdle(2)
@@ -150,7 +150,7 @@ public class EntityGameTests {
 		BlockEventGameTests.Spy viewer = BlockEventGameTests.spy(helper, Vec3.atCenterOf(helmAbs).add(3, 0, 0));
 		// North of every arena (the test above goes west), in a chunk this test makes entities tick in.
 		Growth growth = Growth.towards(helmAbs, Direction.NORTH);
-		level.setChunkForced(growth.chunkX(), growth.chunkZ(), true);
+		TestShips.loadNow(level, growth.chunkX(), growth.chunkZ(), 2);
 		Vec3[] before = new Vec3[1];
 		helper.startSequence()
 			.thenWaitUntil(() -> check(helper, TestShips.settled(vessel) && vessel.chunksReady, "the vessel is not ready yet"))
