@@ -431,6 +431,9 @@ was drawn turning in every frame. At the helm every turn juddered. Vanilla place
 tick (`Entity.rideTick`), so the turn is made there now, and the frames between two ticks show the turn in between. The
 pilot's position was always set there and was never affected. An entity standing on a deck is turned in its own
 `move` (`VesselCollisions.carry`), which is inside its tick as well.
+Measured in the level turn of `flight-rotation` (179 frames at 60 frames a second, the vessel turning up to 2.57
+degrees a tick): the camera's yaw and the vessel as drawn in the same frame turned up to 2.48 degrees apart before
+the change and 0.00005 degrees after it.
 No test had looked at the pilot's view: the smoothness trace of `multiplayer` records the vessel as drawn, not the
 camera. `flight-rotation` now records the camera's yaw and the vessel as drawn in every frame of its level turn
 (`SlipwayDebug.viewTraceStart`) and allows them to turn 0.1 degrees apart, and the server GameTest
