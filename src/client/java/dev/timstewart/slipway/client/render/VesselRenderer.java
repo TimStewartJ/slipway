@@ -100,6 +100,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		VesselPose pose = vessel.renderPose(partialTicks);
 		state.pose = pose;
 		SlipwayDebug.traceFrame(vessel.id, pose, partialTicks);
+		SlipwayDebug.viewFrame(vessel, pose, partialTicks);
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.level == null) {
 			return;

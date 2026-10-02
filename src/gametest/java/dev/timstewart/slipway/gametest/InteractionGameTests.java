@@ -15,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -126,6 +127,63 @@ public class InteractionGameTests {
 			check(helper, record.pose.tiltDegrees() > 50, "the deck levelled out");
 			helper.succeed();
 		});
+	}
+
+	/**
+	 * The pilot keeps facing the same way relative to the vessel while it turns, and the turn of each tick is made
+	 * within the pilot's own tick. An entity's tick begins by keeping its rotation as the old one, and the view of a
+	 * frame is interpolated from the old rotation to the new one: only when the old one is the facing before the turn
+	 * does the pilot's view turn in every frame, as the vessel is drawn. Up to 0.1.3 the pilot was turned when the
+	 * vessel's pose arrived, before the pilot's tick; the old facing was then the new one already, and the view stood
+	 * still between ticks and jumped at each of them.
+	 */
+	@GameTest(structure = ARENA, maxTicks = 200)
+	public void thePilotTurnsWithTheVesselWithinTheTick(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		ServerPlayer pilot = helper.makeMockServerPlayerInLevel();
+		int ticksToMeasure = 50;
+		VesselPose[] last = {null};
+		float[] facingAtFirst = {0f};
+		int[] ticks = {0};
+		// The vessel's turn in all, its largest turn in a tick, and the furthest the pilot's turn within a tick was from the vessel's.
+		double[] turned = {0.0, 0.0, 0.0};
+		helper.onEachTick(() -> {
+			if (ticks[0] >= ticksToMeasure) {
+				return;
+			}
+			if (last[0] == null) {
+				if (vessel.hasBody && vessel.entity != null && vessel.entity.pose() != null) {
+					check(helper, pilot.startRiding(vessel.entity, true, true), "the mock player could not take the helm");
+					long now = helper.getLevel().getGameTime();
+					vessel.input.set(0f, 0f, 0f, 0f, 1f, 0f, now);
+					vessel.scriptedInputUntil = now + ticksToMeasure + 20;
+					last[0] = vessel.entity.pose();
+					facingAtFirst[0] = pilot.getYRot();
+				}
+				return;
+			}
+			VesselPose pose = vessel.entity.pose();
+			double turn = pose.yawTurnSinceDegrees(last[0]);
+			last[0] = pose;
+			double withinTheTick = Mth.wrapDegrees(pilot.yRotO - pilot.getYRot());
+			turned[0] += turn;
+			turned[1] = Math.max(turned[1], Math.abs(turn));
+			turned[2] = Math.max(turned[2], Math.abs(Mth.wrapDegrees(withinTheTick - turn)));
+			if (++ticks[0] == ticksToMeasure) {
+				check(helper, pilot.getVehicle() == vessel.entity, "the pilot left the helm");
+				check(helper, turned[1] > 2.0, String.format(Locale.ROOT, "the vessel turned at most %.3f degrees in a tick: too little to tell", turned[1]));
+				double facing = Mth.wrapDegrees(facingAtFirst[0] - pilot.getYRot() - turned[0]);
+				check(helper, Math.abs(facing) < 0.05,
+					String.format(Locale.ROOT, "the vessel turned %.2f degrees and the pilot's facing is %.3f degrees off it", turned[0], facing));
+				check(helper, turned[2] < 0.01, String.format(Locale.ROOT,
+					"the pilot's facing at the start of a tick and at its end differ by up to %.3f degrees more or less than the vessel turned in that tick "
+						+ "(it turned up to %.3f): the turn is not made within the pilot's tick, so a frame's view does not turn with the vessel", turned[2], turned[1]));
+				helper.succeed();
+			}
+		});
+		helper.runAfterDelay(190, () -> check(helper, false, "only " + ticks[0] + " of " + ticksToMeasure + " ticks with the pilot at the helm were measured in 190 ticks"));
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 200)

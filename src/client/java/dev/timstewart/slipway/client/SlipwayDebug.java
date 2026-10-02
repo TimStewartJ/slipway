@@ -393,4 +393,75 @@ public final class SlipwayDebug {
 
 	/** A gap between rendered frames longer than this many ticks is a client stall. */
 	private static final double STALL_TICKS = 3.0;
+
+	private static long viewTraceId = -1;
+	private static final List<ViewSample> VIEW_TRACE = new ArrayList<>();
+
+	private record ViewSample(double time, float partialTicks, float cameraYaw, VesselPose pose, double tickTurn) {
+	}
+
+	/**
+	 * What a view trace found, angles in degrees: the frames recorded and how many of them were drawn in the first
+	 * half of a tick, how far the vessel turned about the vertical as it was drawn, its largest turn in one tick, and
+	 * {@code slip}: how far, at the most, the camera's yaw and the drawn vessel turned apart between any two frames.
+	 * For a view that keeps its place on the vessel in every frame the slip is 0; for a view that is turned once a
+	 * tick it is a tick's turn of the vessel.
+	 */
+	public record ViewTrace(int frames, int earlyFrames, double turned, double largestTickTurn, double slip) {
+	}
+
+	/** Starts recording, in every frame a vessel is drawn in, the camera's yaw and the pose the vessel is drawn with. */
+	public static String viewTraceStart(long id) {
+		VIEW_TRACE.clear();
+		viewTraceId = id;
+		return "tracing the view of " + id;
+	}
+
+	/** Called by the renderer with the pose it draws; records one sample per distinct frame time. */
+	public static void viewFrame(ClientVessel vessel, VesselPose pose, float partialTicks) {
+		if (vessel.id != viewTraceId || VIEW_TRACE.size() >= TRACE_LIMIT) {
+			return;
+		}
+		double time = ClientVessels.clientTicks() + partialTicks;
+		if (!VIEW_TRACE.isEmpty() && VIEW_TRACE.getLast().time() == time) {
+			return;
+		}
+		VesselPose from = vessel.previousTickPose();
+		VesselPose to = vessel.tickPose();
+		double tickTurn = from == null || to == null ? 0.0 : to.yawTurnSinceDegrees(from);
+		VIEW_TRACE.add(new ViewSample(time, partialTicks, Minecraft.getInstance().gameRenderer.mainCamera().yRot(), pose, tickTurn));
+	}
+
+	/**
+	 * Stops the view trace. A view that keeps its place on a vessel (the pilot's, or that of someone standing on the
+	 * deck) turns as far as the vessel does, the other way round in Minecraft's yaw: from frame to frame the two
+	 * changes cancel. What is left over is summed, and the slip is the span of that sum.
+	 */
+	public static ViewTrace viewTraceStop() {
+		viewTraceId = -1;
+		int early = 0;
+		double turned = 0.0;
+		double largest = 0.0;
+		double apart = 0.0;
+		double least = 0.0;
+		double most = 0.0;
+		for (int i = 0; i < VIEW_TRACE.size(); i++) {
+			ViewSample sample = VIEW_TRACE.get(i);
+			if (sample.partialTicks() < 0.5F) {
+				early++;
+			}
+			largest = Math.max(largest, Math.abs(sample.tickTurn()));
+			if (i > 0) {
+				ViewSample before = VIEW_TRACE.get(i - 1);
+				double turn = sample.pose().yawTurnSinceDegrees(before.pose());
+				turned += turn;
+				apart += net.minecraft.util.Mth.wrapDegrees((double)sample.cameraYaw() - before.cameraYaw() + turn);
+				least = Math.min(least, apart);
+				most = Math.max(most, apart);
+			}
+		}
+		ViewTrace result = new ViewTrace(VIEW_TRACE.size(), early, turned, largest, most - least);
+		VIEW_TRACE.clear();
+		return result;
+	}
 }

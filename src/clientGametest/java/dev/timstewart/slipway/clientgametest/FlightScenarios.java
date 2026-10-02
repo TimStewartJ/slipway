@@ -1,5 +1,6 @@
 package dev.timstewart.slipway.clientgametest;
 
+import dev.timstewart.slipway.client.SlipwayDebug;
 import dev.timstewart.slipway.math.VesselPose;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,8 @@ import net.minecraft.world.phys.Vec3;
  * flight-rotation: from the helm, with the pilot's own keys, a small ship climbs and turns level, then (level mode off)
  * pitches, rolls fully inverted and holds it, rolls back, loops through vertical, levels itself again and is
  * disassembled. Every tick is sampled: the pose stays finite and continuous (no snapping), rotation keeps to the
- * commanded axis through vertical (no gimbal lock), and the ship's blocks and chest survive.
+ * commanded axis through vertical (no gimbal lock), and the ship's blocks and chest survive. During the level turn
+ * every frame is sampled too: the pilot's view turns with the ship as it is drawn in that frame.
  */
 final class FlightScenarios {
 	private FlightScenarios() {
@@ -49,14 +51,29 @@ final class FlightScenarios {
 			Flight.checkContinuous("climb", climb);
 			r.metric("climb.blocks", climb.getLast().pose().y() - start.pose().y());
 			Check.atLeast("height gained climbing for 30 ticks", climb.getLast().pose().y() - start.pose().y(), 1.0);
+			ctx.runOnClient(mc -> SlipwayDebug.viewTraceStart(id));
 			List<Flight.Sample> turn = Flight.hold(ctx, server, id, 40, "key.right");
 			turn.addAll(Flight.run(ctx, server, id, 20));
+			SlipwayDebug.ViewTrace pilotView = ctx.computeOnClient(mc -> SlipwayDebug.viewTraceStop());
 			Flight.checkContinuous("level turn", turn);
 			double turned = Math.abs(Flight.yawChange(climb.getLast(), turn.getLast()));
 			r.metric("levelTurn.yawDegrees", turned);
 			r.metric("levelTurn.maxTiltDegrees", Flight.maxTilt(turn));
 			Check.atLeast("yaw turned in 40 ticks of full yaw", turned, 45.0);
 			Check.atMost("tilt during a level turn", Flight.maxTilt(turn), 5.0);
+			// The pilot's view keeps its place on the ship in every frame. Turned once a tick, it stands still between
+			// ticks and then jumps a tick's turn, which shows most in the frames early in a tick.
+			r.metric("levelTurn.view.frames", pilotView.frames());
+			r.metric("levelTurn.view.framesEarlyInATick", pilotView.earlyFrames());
+			r.metric("levelTurn.view.drawnYawDegrees", Math.abs(pilotView.turned()));
+			r.metric("levelTurn.view.largestTickTurnDegrees", pilotView.largestTickTurn());
+			r.metric("levelTurn.view.slipDegrees", pilotView.slip());
+			r.note("level turn: the pilot's view and the ship drawn in the same frame turned at most %.4f degrees apart over %d frames; the ship turned up to %.4f degrees a tick",
+				pilotView.slip(), pilotView.frames(), pilotView.largestTickTurn());
+			Check.atLeast("frames drawn during the level turn", pilotView.frames(), 100);
+			Check.atLeast("frames drawn in the first half of a tick during the level turn", pilotView.earlyFrames(), pilotView.frames() / 5.0);
+			Check.atLeast("the ship's largest turn in one tick while it was drawn (degrees)", pilotView.largestTickTurn(), 2.0);
+			Check.atMost("how far the pilot's view and the ship drawn in the same frame turn apart (degrees)", pilotView.slip(), 0.1);
 			Shots.take(ctx, r, "01-after-yaw");
 
 			// Level mode off (the pilot's toggle key).
