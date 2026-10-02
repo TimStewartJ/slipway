@@ -419,6 +419,24 @@ viewers (next section). `VesselCollisions` (via `EntityMixin`)
 collides entities with vessel blocks in the vessel's frame, carries them with the vessel, lets them walk on decks
 tilted up to 50 degrees and slide off steeper ones.
 
+**The pilot's view turns in the pilot's own tick (after 0.1.3).** The pilot rides the vessel's entity.
+`VesselEntity.positionRider` puts their eyes where a standing pilot's would be and keeps their facing relative to the
+vessel: it turns them as far as the vessel has turned about the vertical (`VesselPose.yawTurnSinceDegrees`). Up to
+0.1.3 that turn was made in `updateFrom`, where the vessel's pose arrives, which is before the pilot's tick (a vehicle
+ticks before its passengers, and the server sets the pose at the start of the level tick). An entity's tick begins by
+keeping its rotation as the old one, and the camera's yaw in a frame is interpolated from the old rotation to the new
+one (`LocalPlayer.getViewYRot`). Turned before the tick, old and new were the same: the view stood still between
+ticks and jumped at each one, by up to 2.6 degrees at the full turn rate (0.9 rad/s over 20 ticks), while the vessel
+was drawn turning in every frame. At the helm every turn juddered. Vanilla places a rider at the end of the rider's
+tick (`Entity.rideTick`), so the turn is made there now, and the frames between two ticks show the turn in between. The
+pilot's position was always set there and was never affected. An entity standing on a deck is turned in its own
+`move` (`VesselCollisions.carry`), which is inside its tick as well.
+No test had looked at the pilot's view: the smoothness trace of `multiplayer` records the vessel as drawn, not the
+camera. `flight-rotation` now records the camera's yaw and the vessel as drawn in every frame of its level turn
+(`SlipwayDebug.viewTraceStart`) and allows them to turn 0.1 degrees apart, and the server GameTest
+`InteractionGameTests#thePilotTurnsWithTheVesselWithinTheTick` checks on a headless server that a pilot's facing at
+the start and at the end of a tick differ by the vessel's turn in that tick.
+
 ### Block events, effects and pistons (0.1.2)
 
 **What was wrong.** Vanilla tells clients about three kinds of things at a block by distance to the block's position:
@@ -938,7 +956,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 54 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 55 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

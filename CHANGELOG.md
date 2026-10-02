@@ -3,6 +3,16 @@
 What changed for people who play or run Slipway. The development history, with every test run, is in `WORKLOG.md`
 and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
+## Unreleased
+
+### Fixed
+
+- **The pilot's view turns smoothly with the ship.** At the helm, every turn (A/D) made the picture judder: the view
+  was turned once a game tick, twenty times a second, while the ship was drawn turning in every frame. Between ticks
+  the ship swung against the view, by up to 2.6 degrees at the full turn rate, and the world turned in steps. The
+  view now turns in every frame. This was in every version so far. Pitch and roll were not affected: the pilot's view
+  does not follow them.
+
 ## 0.1.3 (2026-10-01)
 
 Fixes only; flying, building and the controls are as in 0.1.2.

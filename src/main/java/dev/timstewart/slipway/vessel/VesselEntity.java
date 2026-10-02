@@ -32,6 +32,9 @@ public class VesselEntity extends Entity {
 	/** Pose used for riders this tick; set by the side that owns the vessel state. */
 	@Nullable
 	private VesselPose pose;
+	/** The pose the rider's facing was last turned to (a vessel has at most one rider); see {@link #turnRider}. */
+	@Nullable
+	private VesselPose riderPose;
 	private BlockPos helmLocal = BlockPos.ZERO;
 	private Direction helmFacing = Direction.NORTH;
 	/** Its vessel is gone (disassembled or removed); the manager discards it a few ticks later. Not saved. */
@@ -61,24 +64,15 @@ public class VesselEntity extends Entity {
 		this.retired = true;
 	}
 
-	/** Called every tick by the vessel's owner (server manager or client state). */
+	/**
+	 * Called every tick by the vessel's owner (server manager or client state). Riders are placed, and turned with
+	 * the vessel, by {@link #positionRider} in their own tick.
+	 */
 	public void updateFrom(VesselPose pose, BlockPos helmLocal, Direction helmFacing, Vec3 worldCenter) {
-		VesselPose previous = this.pose;
 		this.pose = pose;
 		this.helmLocal = helmLocal;
 		this.helmFacing = helmFacing;
 		this.setPos(worldCenter);
-		if (previous != null) {
-			// Keep riders facing the same way relative to the vessel while it turns.
-			double delta = pose.yawTurnSinceDegrees(previous);
-			if (Math.abs(delta) > 1.0e-6) {
-				for (Entity passenger : this.getPassengers()) {
-					float yaw = (float)(passenger.getYRot() - delta);
-					passenger.setYRot(yaw);
-					passenger.setYHeadRot(yaw);
-				}
-			}
-		}
 	}
 
 	@Override
@@ -138,6 +132,13 @@ public class VesselEntity extends Entity {
 	}
 
 	@Override
+	protected void addPassenger(Entity passenger) {
+		super.addPassenger(passenger);
+		// The new rider turns with the vessel from the pose it has now.
+		this.riderPose = this.pose;
+	}
+
+	@Override
 	@Nullable
 	public LivingEntity getControllingPassenger() {
 		return null;
@@ -160,10 +161,38 @@ public class VesselEntity extends Entity {
 			super.positionRider(passenger, moveFunction);
 			return;
 		}
+		this.turnRider(passenger);
 		Vec3 local = this.pilotLocalPosition();
 		double eye = passenger.getEyeHeight();
 		Vector3d world = this.pose.localToWorld(local.x, local.y + eye, local.z, new Vector3d());
 		moveFunction.accept(passenger, world.x, world.y - eye, world.z);
+	}
+
+	/**
+	 * Keeps the rider facing the same way relative to the vessel while it turns: turns the rider as far as the vessel
+	 * has turned about the vertical since the rider was last turned.
+	 *
+	 * <p>This is done where the rider is placed, which vanilla does at the end of the rider's own tick
+	 * ({@code Entity.rideTick}), and not where the vessel's pose arrives ({@link #updateFrom}), which is before the
+	 * rider's tick. A tick begins by keeping the entity's rotation as its old one, and the view of a frame is
+	 * interpolated from the old rotation to the new one. A turn made before the tick is in both: up to 0.1.3 the
+	 * pilot's view stood still between ticks and jumped at each of them, twenty times a second, while the vessel was
+	 * drawn turning in every frame. The place needs nothing like it: the rider's old position is the one of the
+	 * tick before either way.
+	 */
+	private void turnRider(Entity passenger) {
+		VesselPose from = this.riderPose;
+		if (from == null) {
+			this.riderPose = this.pose;
+			return;
+		}
+		double delta = this.pose.yawTurnSinceDegrees(from);
+		if (Math.abs(delta) > 1.0e-6) {
+			float yaw = (float)(passenger.getYRot() - delta);
+			passenger.setYRot(yaw);
+			passenger.setYHeadRot(yaw);
+			this.riderPose = this.pose;
+		}
 	}
 
 	@Override
