@@ -216,7 +216,7 @@ public class BuoyancyGameTests {
 		ActiveVessel vessel = TestShips.active(helper, record);
 		record.hover = false;
 		ServerLevel level = helper.getLevel();
-		ArmorStand inside = InteractionGameTests.pig(helper, Vec3.atBottomCenterOf(helper.absolutePos(helm.north())));
+		ArmorStand inside = InteractionGameTests.pig(helper, Vec3.atBottomCenterOf(helper.absolutePos(helm.north())).add(0, 0.3, 0));
 		ArmorStand outside = InteractionGameTests.pig(helper, Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 7, 3))));
 		helper.startSequence()
 			.thenWaitUntil(() -> {

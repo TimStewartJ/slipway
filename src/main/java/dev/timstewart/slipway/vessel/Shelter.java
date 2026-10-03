@@ -21,6 +21,15 @@ import org.joml.Vector3d;
  * submerged one, stands in water blocks. The game asks here before it treats them as in the water (swimming, slowed,
  * drowning, pushed by a current) or draws the view from there as under water. The same on server and client, and
  * the same rule for where the water stands as the physics thread uses ({@link FluidField#submerged}).
+ *
+ * <p>A vessel under way is somewhere else every tick, and a place belongs to the pose it was reached with. An
+ * entity this side moves itself is carried along once a tick (see {@link VesselCollisions#carry}), so it stands by
+ * the previous pose until then and by the current one after: it is dry if either keeps it dry. A player on the
+ * server stands where the player's client put it, which follows the vessel some ticks late (so does everything a
+ * client is only told about): it is dry if any pose of the last half second keeps it dry. The camera of a frame is
+ * asked with the pose that frame is drawn with. Without this, someone standing by the aft wall of a hull under way
+ * would count as in the sea behind it. The price is the reverse: a swimmer right behind a moving hull, where its
+ * hold was a moment ago, counts as dry for that moment.
  */
 public final class Shelter {
 	/** How far above an entity's feet the point lies that decides: clear of the block it stands on. */
@@ -29,30 +38,87 @@ public final class Shelter {
 	private Shelter() {
 	}
 
+	/** How far around a place vessels are looked for whose earlier poses may have held it: what one covers in half a second. */
+	private static final double REACH = 8.0;
+
+	/** Whether a vessel keeps the entity out of the water it stands in. */
 	public static boolean isDry(Entity entity) {
-		return isDry(entity.level(), entity.getX(), entity.getY() + FEET, entity.getZ());
+		double x = entity.getX(), y = entity.getY() + FEET, z = entity.getZ();
+		Level level = entity.level();
+		List<VesselLookup.View> near = VesselLookup.near(level, new AABB(x, y, z, x, y, z).inflate(REACH));
+		if (near.isEmpty()) {
+			return false;
+		}
+		return isDry(fluids(level), near, x, y, z, VesselCollisions.simulates(entity));
 	}
 
+	/** Whether a vessel keeps a place dry as the vessels are at this tick. */
 	public static boolean isDry(Level level, double x, double y, double z) {
 		List<VesselLookup.View> near = VesselLookup.near(level, new AABB(x, y, z, x, y, z).inflate(1.0e-3));
 		return !near.isEmpty() && isDry(fluids(level), near, x, y, z);
 	}
 
-	/** Whether one of the given vessels keeps a point dry, with the fluids as {@code fluids} tells them. */
-	public static boolean isDry(FluidCells fluids, Iterable<VesselLookup.View> vessels, double x, double y, double z) {
-		for (VesselLookup.View view : vessels) {
-			Hull hull = view.hull();
-			VesselPose pose = view.pose();
-			if (pose == null || hull.elementCount() == 0 || !hull.hasCavities()) {
-				continue;
-			}
-			Vector3d local = pose.worldToLocal(x, y, z, new Vector3d());
-			int shelter = hull.shelterClass(local.x, local.y, local.z);
-			if (shelter == Hull.SEALED || shelter >= 0 && !flooded(fluids, hull, pose, shelter)) {
+	/** Whether a vessel keeps a place dry as the vessels are drawn in a frame (for the camera). */
+	public static boolean isDryInFrame(Level level, double x, double y, double z, float partialTick) {
+		List<VesselLookup.View> near = VesselLookup.near(level, new AABB(x, y, z, x, y, z).inflate(REACH));
+		if (near.isEmpty()) {
+			return false;
+		}
+		FluidCells fluids = fluids(level);
+		for (VesselLookup.View view : near) {
+			if (isDry(fluids, view.hull(), view.framePose(partialTick), x, y, z)) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** Whether one of the given vessels keeps a point dry at its current pose, with the fluids as {@code fluids} tells them. */
+	public static boolean isDry(FluidCells fluids, Iterable<VesselLookup.View> vessels, double x, double y, double z) {
+		for (VesselLookup.View view : vessels) {
+			if (isDry(fluids, view.hull(), view.pose(), x, y, z)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether one of the given vessels keeps dry the place of something that moves with it.
+	 *
+	 * @param carriedHere whether this side moves it (then it stands by the current or the previous pose), or it is
+	 *        only told where it is (then by any of the vessel's recent poses)
+	 */
+	public static boolean isDry(FluidCells fluids, Iterable<VesselLookup.View> vessels, double x, double y, double z, boolean carriedHere) {
+		for (VesselLookup.View view : vessels) {
+			Hull hull = view.hull();
+			if (hull.elementCount() == 0 || !hull.hasCavities()) {
+				continue;
+			}
+			if (carriedHere) {
+				VesselPose pose = view.pose(), previous = view.previousPose();
+				if (isDry(fluids, hull, pose, x, y, z) || previous != null && !previous.equals(pose) && isDry(fluids, hull, previous, x, y, z)) {
+					return true;
+				}
+			} else {
+				for (VesselPose pose : view.recentPoses()) {
+					if (isDry(fluids, hull, pose, x, y, z)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	/** Whether a hull at a pose keeps a point dry. */
+	public static boolean isDry(FluidCells fluids, Hull hull, VesselPose pose, double x, double y, double z) {
+		if (pose == null || hull.elementCount() == 0 || !hull.hasCavities()) {
+			return false;
+		}
+		Vector3d local = pose.worldToLocal(x, y, z, new Vector3d());
+		int shelter = hull.shelterClass(local.x, local.y, local.z);
+		return shelter == Hull.SEALED || shelter >= 0 && !flooded(fluids, hull, pose, shelter);
 	}
 
 	/** The level's fluids, block by block, in the form the physics thread keeps its copy of them. */

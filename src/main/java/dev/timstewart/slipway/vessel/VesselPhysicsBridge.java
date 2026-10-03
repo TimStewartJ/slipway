@@ -82,7 +82,7 @@ public final class VesselPhysicsBridge {
 		if (this.world != null) {
 			this.world.await();
 			for (ActiveVessel vessel : this.manager.activeVessels()) {
-				vessel.previousPose = vessel.record.pose;
+				vessel.rememberPose();
 				if (vessel.hasBody) {
 					this.applyResult(vessel, this.world.result(vessel.record.id));
 					vessel.buoyancy.copyFrom(vessel.buoyancyStep);
@@ -92,7 +92,7 @@ public final class VesselPhysicsBridge {
 			}
 		} else {
 			for (ActiveVessel vessel : this.manager.activeVessels()) {
-				vessel.previousPose = vessel.record.pose;
+				vessel.rememberPose();
 			}
 		}
 		boolean anyBody = false;

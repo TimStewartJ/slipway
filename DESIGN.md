@@ -289,8 +289,9 @@ and around the hull. Everything about water is therefore something Slipway adds 
 of the vessel: the lift, the resistance, who counts as in the water, and what is drawn.
 
 **What a vessel displaces (`Hull`).** Built with the collision shape, from the same pass over the plot
-(`SectionShapes` reports every block with a collision shape: its cell, the volume of its shape, and whether it keeps
-water out, which every such block does unless it is in the tag `slipway:not_watertight`). Each cell of the vessel's
+(`SectionShapes` reports every block with a collision shape: its cell, the volume of its shape, where the shape
+begins and ends in height, and whether it keeps water out, which every such block does unless it is in the tag
+`slipway:not_watertight`). Each cell of the vessel's
 bounds is then one of: *watertight*; *open* (the water outside reaches it as soon as it stands that high);
 *sheltered* (air below a rim: pour water into the upright vessel and it is a cell that fills, so water from outside
 gets there only over that rim); *sealed* (air with no way out). The rim is found by a priority flood from outside
@@ -299,10 +300,13 @@ lowest level the outside water must reach to run into it, and the cell on the wa
 its *pour point*. A cell whose level is above itself is sheltered. A watertight block that does not fill its cell (a
 carpet, a chest, a slab) leaves the rest of the cell as dry as the air around it when all of that air is sheltered.
 The flood runs on the bounds plus one cell, up to 2^20 cells; a vessel with larger bounds gets no sheltered air
-(4,096 blocks cannot enclose much in such a box). The cells are listed as elements (centre, volume, edge, pour
-point); above 8,192 elements they are merged cube by cube of 2, 4, 8 cells. The same code builds the same hull on
+(4,096 blocks cannot enclose much in such a box). What displaces is listed as elements (centre, volume, height,
+pour point): one for each block, where its shape is and as high as its shape (a raft of bottom slabs floats 0.35
+deep, not 0.7), and one for the dry air of each cell. A block with open space beside it is marked as the vessel's
+outside. Above 8,192 elements they are merged cube by cube of 2, 4, 8 cells (outside blocks, everything else that
+always displaces, and sheltered air each on their own). The same code builds the same hull on
 the client from its copy of the plot. A hull is rebuilt only when the blocks that matter change (a fingerprint of
-cells, volumes and tightness), not for a lever or a chest lid.
+cells, volumes, heights and tightness), not for a lever or a chest lid.
 
 This is the design decision the feature stands on. Lift from the blocks alone is simple and lets wood float, but
 then no hull carries anything and a stone ship is impossible. A hull's air is what carries a real ship, and a player
@@ -346,6 +350,21 @@ as vanilla leaves an entity in the air (no swimming, slowing, current, drowning;
 so nothing is predicted differently). `CameraMixin` does the same for the fluid the camera is in (water fog, and a
 shader pack's eye-in-water).
 
+A vessel under way is somewhere else every tick, and a place belongs to the pose it was reached with. Asked with
+the current pose only, someone standing by the aft wall of a hull at speed is in that wall, or in the sea behind it:
+the fluids are looked at in `baseTick`, before the entity's move carries it from the previous pose to the current
+one; a player's place on the server is what the player's client sent, and the client plays the vessel back two
+ticks late on top of the way there; the camera is between two ticks. So `Shelter` asks with the pose that fits:
+
+| Who | Poses | Why |
+|---|---|---|
+| An entity this side moves (`VesselCollisions.simulates`) | current or previous | carried once a tick, the look at the fluids comes before or after it |
+| Anything else: a player on the server, a passenger, everything a client is only told about | any of `View.recentPoses()`: the server keeps ten ticks (`ActiveVessel.POSE_HISTORY`), a client its two playback poses and up to six newer snapshots | its place follows the vessel by a delay nobody here knows |
+| The camera | `View.framePose(partial tick)` | it is interpolated like the vessel it is drawn in |
+
+The price is the reverse case: a swimmer right behind a moving hull, where its hold was up to half a second ago, is
+not in the water for that moment. That costs a stroke; the other way round a crew would drown below deck.
+
 **The water mask (`WaterMask`).** The water's surface would be drawn across the inside of a floating hull. Vanilla's
 boats have the same problem and solve it with a patch drawn into the depth buffer only, just before the water
 (`RenderTypes.waterMask()`); Slipway draws such patches for any hull. Once a client tick the dry cells near a
@@ -358,12 +377,14 @@ transparency modes; through another mod's collector they go as custom geometry.
 **Docking.** `VesselManager.disassemble` takes the fluid blocks out of the cells the hull kept dry (at the pose it
 had), after its blocks are in the world: they keep the water out themselves from then on.
 
-**Effects.** The step reports up to eight places where the surface cuts an element; `WaterEffects` makes the splash
+**Effects.** The step reports up to eight places where the surface cuts a block of the vessel's outside (not the
+dry air of the hold, which the surface cuts as well, nor a chest in it); `WaterEffects` makes the splash
 (particles and a sound, when a vessel goes in at more than 1.5 blocks a second) and the spray along the waterline of
 a moving vessel there.
 
-Tests: `FluidFieldTest`, `HullTest` (rims, holes, sealed air, railings, furniture, merging), `BuoyancyTest` on the
-real engine (draught of a plank, of a stone hull of 1,334 t, terminal speed, flooding over the rim, a swamped wooden
+Tests: `FluidFieldTest`, `HullTest` (rims, holes, sealed air, railings, furniture, slabs, the outside, merging),
+`ShelterTest` (dry and wet places, flooding over the rim, a heeled hull, a vessel under way), `CubeCutTest`,
+`BuoyancyTest` on the real engine (draught of a plank, of a raft of slabs, of a stone hull of 1,334 t, terminal speed, flooding over the rim, a swamped wooden
 hull coming back up, righting from 12 degrees, a sealed cabin rising from 20 blocks down, hover, a boat's speed,
 straight run and turn, sleeping and waking, lava); server GameTests `BuoyancyGameTests` in a pool (the level's water
 reaching the step, cargo until it is too much, an armour stand dry in a hull and wet when it floods, a docked hull
@@ -1076,9 +1097,9 @@ a block on either side, which leaves the middle where it is).
 A check that fails inside a step of a test sequence does not end the test at once: the sequence runs for one more
 tick, and the failure that is reported is the last one.
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs seventeen
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs eighteen
 scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and
-`disassembly`); each starts
+`disassembly`; `afloat` came with the water, see "Water: floating, sinking and dry hulls"); each starts
 at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and

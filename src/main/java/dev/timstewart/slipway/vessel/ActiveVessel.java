@@ -83,6 +83,25 @@ public final class ActiveVessel {
 	public long lastProxyBuild = -1_000_000L;
 	/** Pose at the start of the previous tick; entities standing on the vessel are carried from it to the current pose. */
 	public dev.timstewart.slipway.math.VesselPose previousPose;
+	/** How many poses before the current one are kept: half a second, for players, whom their clients move (see {@link Shelter}). */
+	public static final int POSE_HISTORY = 10;
+	/** The poses before the current one, newest first. */
+	private final java.util.ArrayDeque<dev.timstewart.slipway.math.VesselPose> earlierPoses = new java.util.ArrayDeque<>(POSE_HISTORY + 1);
+
+	/** Tick boundary: the pose of the tick that ends becomes the previous one. */
+	void rememberPose() {
+		this.previousPose = this.record.pose;
+		this.earlierPoses.addFirst(this.record.pose);
+		while (this.earlierPoses.size() > POSE_HISTORY) {
+			this.earlierPoses.pollLast();
+		}
+	}
+
+	/** The vessel was put somewhere else: where it was says nothing about who is aboard now. */
+	void forgetPoses() {
+		this.previousPose = this.record.pose;
+		this.earlierPoses.clear();
+	}
 	private final VesselLookup.View view = new VesselLookup.View() {
 		@Override
 		public long id() {
@@ -118,6 +137,20 @@ public final class ActiveVessel {
 		@Override
 		public dev.timstewart.slipway.physics.Hull hull() {
 			return ActiveVessel.this.hull;
+		}
+
+		@Override
+		public java.util.List<dev.timstewart.slipway.math.VesselPose> recentPoses() {
+			java.util.List<dev.timstewart.slipway.math.VesselPose> poses = new java.util.ArrayList<>(POSE_HISTORY + 1);
+			dev.timstewart.slipway.math.VesselPose last = ActiveVessel.this.record.pose;
+			poses.add(last);
+			for (dev.timstewart.slipway.math.VesselPose pose : ActiveVessel.this.earlierPoses) {
+				if (!pose.equals(last)) {
+					poses.add(pose);
+					last = pose;
+				}
+			}
+			return poses;
 		}
 	};
 

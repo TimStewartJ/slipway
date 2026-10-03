@@ -32,6 +32,8 @@ public final class ClientVessel {
 	/** Playback further off the target delay than this jumps to it. */
 	static final double SNAP_TICKS = 10.0;
 	private static final int MAX_SNAPSHOTS = 40;
+	/** How many of the newest snapshots count among the poses something aboard may stand by (see {@code Shelter}). */
+	private static final int RECENT_SNAPSHOTS = 6;
 
 	public final long id;
 	public int entityId = -1;
@@ -392,6 +394,35 @@ public final class ClientVessel {
 		@Override
 		public dev.timstewart.slipway.physics.Hull hull() {
 			return ClientVessel.this.hull;
+		}
+
+		@Override
+		public java.util.List<VesselPose> recentPoses() {
+			// The poses this client plays back and the newer ones it already has: what the server tells about other
+			// entities is ahead of the playback.
+			java.util.List<VesselPose> poses = new java.util.ArrayList<>(4);
+			VesselPose last = ClientVessel.this.tickPose;
+			poses.add(last);
+			if (ClientVessel.this.previousTickPose != null && !ClientVessel.this.previousTickPose.equals(last)) {
+				poses.add(ClientVessel.this.previousTickPose);
+			}
+			int newer = 0;
+			for (java.util.Iterator<Snapshot> it = ClientVessel.this.snapshots.descendingIterator(); it.hasNext() && newer < RECENT_SNAPSHOTS; newer++) {
+				Snapshot snapshot = it.next();
+				if (snapshot.tick <= ClientVessel.this.playbackTick) {
+					break;
+				}
+				if (!snapshot.pose.equals(last)) {
+					poses.add(snapshot.pose);
+					last = snapshot.pose;
+				}
+			}
+			return poses;
+		}
+
+		@Override
+		public VesselPose framePose(float partialTick) {
+			return ClientVessels.poseMatchingEntities(ClientVessel.this, partialTick);
 		}
 	};
 

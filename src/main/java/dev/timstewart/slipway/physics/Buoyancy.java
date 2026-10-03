@@ -71,7 +71,7 @@ public final class Buoyancy {
 		public int fluid;
 		/** Whether lift and resistance were applied (not to a hovering vessel). */
 		public boolean applied;
-		/** World x, surface y and z of up to {@link #WATERLINE_SAMPLES} elements the surface cuts. */
+		/** World x, surface y and z of up to {@link #WATERLINE_SAMPLES} of the vessel's outside blocks that the surface cuts. */
 		public final float[] waterline = new float[3 * WATERLINE_SAMPLES];
 		public int waterlineCount;
 
@@ -192,8 +192,9 @@ public final class Buoyancy {
 			displaced += volume;
 			displacedMass += density * volume;
 			fluidSeen = Math.max(fluidSeen, fluid);
-			if (under < 1) {
-				// Reservoir sampling: every cut element is as likely to be among the few kept.
+			if (under < 1 && hull.elementIsOutside(i)) {
+				// An outside block the surface cuts: where the hull meets the water (the air it keeps dry is cut by the
+				// surface too, but nothing splashes in there). Reservoir sampling: each is as likely to be among the few kept.
 				int slot = cut < WATERLINE_SAMPLES ? cut : -1;
 				if (slot < 0) {
 					seed = seed * 6364136223846793005L + 1442695040888963407L;

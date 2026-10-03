@@ -8,8 +8,8 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 ### Added
 
 - **Vessels float.** Water (and lava) now acts on every vessel that does not hover: it lifts what the vessel
-  displaces and resists its movement. A raft of planks floats with seven tenths of its thickness under water, a
-  block of stone sinks, and a vessel comes to rest where it displaces its own weight, bobbing a few times first.
+  displaces and resists its movement. A raft of planks floats with seven tenths of its thickness under water (one
+  of slabs half as deep), a block of stone sinks, and a vessel comes to rest where it displaces its own weight, bobbing a few times first.
   What counts is the whole hull, not only its blocks: **the air inside an open hull is kept dry by its walls and
   displaces water too**, so a hull of planks carries far more than a raft of the same planks, and a hull of stone or
   iron floats if it is large enough. A hull that heels is pushed back upright by the water (with level off, too).
@@ -26,7 +26,8 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 - **Dry inside.** In air that a hull keeps the water out of, below the waterline of a floating hull or in the cabin
   of a submerged one, players, mobs and items are not in the water: no swimming, no slowing, no drowning, no water
   fog, although the world still has its water blocks there. The water's surface is not drawn across the inside of
-  the hull either. When the hull floods, all of that ends.
+  the hull either. That holds at any speed: who stands by the aft wall of a hull under way is not left in the sea
+  behind it. When the hull floods, all of that ends.
 - **Docking stays dry.** Disassembling a vessel in the water puts its blocks into the world and takes the water out
   of the air its hull kept dry, so a docked boat's hold and a submarine's cabin are not full of water.
 - The pilot's display has a line for the hull: how much of its weight it can displace (above 100% it floats), and

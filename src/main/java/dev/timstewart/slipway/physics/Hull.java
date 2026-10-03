@@ -41,11 +41,12 @@ public final class Hull {
 	public static final int MAX_ELEMENTS = 8192;
 	/** Largest box of cells (the vessel's bounds and one cell around) the flood is run on; larger hulls get no sheltered air. */
 	public static final int MAX_GRID_CELLS = 1 << 20;
+	/** The least height a block's shape is taken to have (a carpet is a sixteenth). */
+	public static final float MIN_HEIGHT = 1f / 16f;
 	/** A sheltered cell is fully flooded once this much of its pour point's cell is under water. */
 	public static final double FLOOD_DEPTH = 0.5;
 
-	public static final Hull EMPTY = new Hull(0, 0, 0, 0, 0, 0, null, new float[0], new float[0], new float[0], new float[0], new float[0], new int[0],
-		new float[0], 0, 0, 0, true);
+	public static final Hull EMPTY = new Hull(0, 0, 0, 0, 0, 0, null, new Elements(), new float[0], 0, 0, 0, true);
 
 	private final int minX, minY, minZ;
 	private final int sizeX, sizeY, sizeZ;
@@ -53,13 +54,14 @@ public final class Hull {
 	private final int[] cells;
 	private final float[] ex, ey, ez, volume, edge;
 	private final int[] pour;
+	private final boolean[] outside;
 	/** Pour points: local x, y, z of the centre of each pour cell. */
 	private final float[] pours;
 	private final double blockVolume, shelteredVolume, sealedVolume;
 	private final boolean flooded;
 
-	private Hull(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, int[] cells, float[] ex, float[] ey, float[] ez, float[] volume, float[] edge,
-		int[] pour, float[] pours, double blockVolume, double shelteredVolume, double sealedVolume, boolean flooded) {
+	private Hull(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, int[] cells, Elements elements, float[] pours, double blockVolume,
+		double shelteredVolume, double sealedVolume, boolean flooded) {
 		this.minX = minX;
 		this.minY = minY;
 		this.minZ = minZ;
@@ -67,12 +69,13 @@ public final class Hull {
 		this.sizeY = sizeY;
 		this.sizeZ = sizeZ;
 		this.cells = cells;
-		this.ex = ex;
-		this.ey = ey;
-		this.ez = ez;
-		this.volume = volume;
-		this.edge = edge;
-		this.pour = pour;
+		this.ex = elements.x.toFloatArray();
+		this.ey = elements.y.toFloatArray();
+		this.ez = elements.z.toFloatArray();
+		this.volume = elements.volume.toFloatArray();
+		this.edge = elements.edge.toFloatArray();
+		this.pour = elements.pour.toIntArray();
+		this.outside = elements.outside.toBooleanArray();
 		this.pours = pours;
 		this.blockVolume = blockVolume;
 		this.shelteredVolume = shelteredVolume;
@@ -97,8 +100,13 @@ public final class Hull {
 	public float elementZ(int i) { return this.ez[i]; }
 	/** Cubic metres the element displaces when all of it is under water and dry. */
 	public float elementVolume(int i) { return this.volume[i]; }
-	/** Edge of the cube the element stands for, in blocks. */
+	/** How high the element stands, in blocks: the edge of the cube it is taken for (less than 1 for a slab or a carpet). */
 	public float elementEdge(int i) { return this.edge[i]; }
+	/**
+	 * Whether the element is blocks on the outside of the vessel, with open water or air beside them: where a
+	 * waterline shows. Not so for the air a hull keeps dry, nor for the blocks inside it.
+	 */
+	public boolean elementIsOutside(int i) { return this.outside[i]; }
 	/** Index of the pour point that floods the element, or {@link #SEALED} when it always displaces. */
 	public int elementPour(int i) { return this.pour[i]; }
 
@@ -205,24 +213,37 @@ public final class Hull {
 		private final IntArrayList xs = new IntArrayList(), ys = new IntArrayList(), zs = new IntArrayList();
 		private final it.unimi.dsi.fastutil.floats.FloatArrayList volumes = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 		private final it.unimi.dsi.fastutil.booleans.BooleanArrayList watertight = new it.unimi.dsi.fastutil.booleans.BooleanArrayList();
+		private final it.unimi.dsi.fastutil.floats.FloatArrayList bottoms = new it.unimi.dsi.fastutil.floats.FloatArrayList();
+		private final it.unimi.dsi.fastutil.floats.FloatArrayList tops = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 		private int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
 		private int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+
+		/** A block of the vessel that stands as high as its cell (a full cube, stairs, a fence post). */
+		public void block(int x, int y, int z, float volume, boolean watertight) {
+			this.block(x, y, z, volume, watertight, 0f, 1f);
+		}
 
 		/**
 		 * A block of the vessel at a local position.
 		 *
 		 * @param volume the volume of its collision shape, m^3 (1 for a full cube)
-		 * @param watertight whether water passes it
+		 * @param watertight whether it keeps water out
+		 * @param bottom where its collision shape begins above the bottom of its cell, 0 to 1
+		 * @param top where it ends (0.5 for a bottom slab): it is lifted by as much of that height as is under water
 		 */
-		public void block(int x, int y, int z, float volume, boolean watertight) {
+		public void block(int x, int y, int z, float volume, boolean watertight, float bottom, float top) {
 			if (!(volume > 0)) {
 				return;
 			}
+			float low = Math.max(0f, Math.min(1f, bottom));
+			float high = Math.max(low + MIN_HEIGHT, Math.min(1f, top));
 			this.xs.add(x);
 			this.ys.add(y);
 			this.zs.add(z);
 			this.volumes.add(Math.min(1f, volume));
 			this.watertight.add(watertight);
+			this.bottoms.add(low);
+			this.tops.add(high);
 			this.minX = Math.min(this.minX, x);
 			this.minY = Math.min(this.minY, y);
 			this.minZ = Math.min(this.minZ, z);
@@ -244,6 +265,8 @@ public final class Hull {
 				h = 31 * h + this.zs.getInt(i);
 				h = 31 * h + Float.floatToIntBits(this.volumes.getFloat(i));
 				h = 31 * h + (this.watertight.getBoolean(i) ? 1 : 0);
+				h = 31 * h + Float.floatToIntBits(this.bottoms.getFloat(i));
+				h = 31 * h + Float.floatToIntBits(this.tops.getFloat(i));
 			}
 			return h;
 		}
@@ -262,15 +285,14 @@ public final class Hull {
 			Elements out = new Elements();
 			double blockVolume = 0;
 			for (int i = 0; i < n; i++) {
+				// The block itself: where its shape is in its cell, as high as its shape (the first n elements, in order).
+				float bottom = this.bottoms.getFloat(i), top = this.tops.getFloat(i);
+				out.add(this.xs.getInt(i) + 0.5f, this.ys.getInt(i) + (bottom + top) * 0.5f, this.zs.getInt(i) + 0.5f, this.volumes.getFloat(i), top - bottom, SEALED, true);
 				blockVolume += this.volumes.getFloat(i);
 			}
 			if (gridCells > maxGridCells) {
-				for (int i = 0; i < n; i++) {
-					out.add(this.xs.getInt(i) + 0.5f, this.ys.getInt(i) + 0.5f, this.zs.getInt(i) + 0.5f, this.volumes.getFloat(i), 1f, SEALED);
-				}
 				out.coarsen(maxElements, this.minX, this.minY, this.minZ);
-				return new Hull(this.minX, this.minY, this.minZ, sx, sy, sz, null, out.x.toFloatArray(), out.y.toFloatArray(), out.z.toFloatArray(),
-					out.volume.toFloatArray(), out.edge.toFloatArray(), out.pour.toIntArray(), new float[0], blockVolume, 0, 0, false);
+				return new Hull(this.minX, this.minY, this.minZ, sx, sy, sz, null, out, new float[0], blockVolume, 0, 0, false);
 			}
 
 			// The grid: the bounds and one cell of open space around them, so the flood can start all around.
@@ -333,6 +355,18 @@ public final class Hull {
 				}
 			}
 
+			// The blocks with open space beside them are the outside of the vessel.
+			for (int i = 0; i < n; i++) {
+				int x = this.xs.getInt(i) - this.minX + 1, y = this.ys.getInt(i) - this.minY + 1, z = this.zs.getInt(i) - this.minZ + 1;
+				int index = (y * gz + z) * gx + x;
+				boolean open = !barrier[index] && level[index] <= y;
+				for (int d = 0; d < 6 && !open; d++) {
+					int nIndex = index + step[d];
+					open = !barrier[nIndex] && level[nIndex] <= (d == 4 ? y + 1 : d == 5 ? y - 1 : y);
+				}
+				out.outside.set(i, open);
+			}
+
 			// Classes and elements.
 			int[] cells = new int[sx * sy * sz];
 			Int2IntOpenHashMap pourIndex = new Int2IntOpenHashMap();
@@ -380,11 +414,8 @@ public final class Hull {
 							}
 							cls = !any || around == SEALED ? SEALED : around == OPEN ? OPEN : pourOf(around, pourIndex, pours, gx, gz, this.minX, this.minY, this.minZ);
 						}
-						if (own > 0f) {
-							out.add(cx, cy, cz, own, 1f, SEALED);
-						}
 						if (air > 0f && cls != OPEN) {
-							out.add(cx, cy, cz, air, 1f, cls);
+							out.add(cx, cy, cz, air, 1f, cls, false);
 							if (cls == SEALED) {
 								sealed += air;
 							} else {
@@ -396,8 +427,7 @@ public final class Hull {
 				}
 			}
 			out.coarsen(maxElements, this.minX, this.minY, this.minZ);
-			return new Hull(this.minX, this.minY, this.minZ, sx, sy, sz, cells, out.x.toFloatArray(), out.y.toFloatArray(), out.z.toFloatArray(),
-				out.volume.toFloatArray(), out.edge.toFloatArray(), out.pour.toIntArray(), pours.toFloatArray(), blockVolume, sheltered, sealed, true);
+			return new Hull(this.minX, this.minY, this.minZ, sx, sy, sz, cells, out, pours.toFloatArray(), blockVolume, sheltered, sealed, true);
 		}
 
 		private static int pourOf(int gridIndex, Int2IntOpenHashMap pourIndex, it.unimi.dsi.fastutil.floats.FloatArrayList pours, int gx, int gz, int minX, int minY,
@@ -422,19 +452,22 @@ public final class Hull {
 		it.unimi.dsi.fastutil.floats.FloatArrayList volume = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 		it.unimi.dsi.fastutil.floats.FloatArrayList edge = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 		IntArrayList pour = new IntArrayList();
+		it.unimi.dsi.fastutil.booleans.BooleanArrayList outside = new it.unimi.dsi.fastutil.booleans.BooleanArrayList();
 
-		void add(float ex, float ey, float ez, float v, float e, int p) {
+		void add(float ex, float ey, float ez, float v, float e, int p, boolean isOutside) {
 			this.x.add(ex);
 			this.y.add(ey);
 			this.z.add(ez);
 			this.volume.add(v);
 			this.edge.add(e);
 			this.pour.add(p);
+			this.outside.add(isOutside);
 		}
 
 		/**
-		 * Merges elements cube by cube of 2, 4, 8, ... cells until there are at most {@code max}: those that always
-		 * displace into one element per cube, sheltered ones into another, which keeps the pour point of its first.
+		 * Merges elements cube by cube of 2, 4, 8, ... cells until there are at most {@code max}: the outside blocks of
+		 * a cube into one element, all else of it that always displaces into another, its sheltered air into a third,
+		 * which keeps the pour point of its first.
 		 */
 		void coarsen(int max, int minX, int minY, int minZ) {
 			for (int k = 2; this.volume.size() > max && k <= 64; k *= 2) {
@@ -445,12 +478,12 @@ public final class Hull {
 					long cx = (long)Math.floor((this.x.getFloat(i) - minX) / k);
 					long cy = (long)Math.floor((this.y.getFloat(i) - minY) / k);
 					long cz = (long)Math.floor((this.z.getFloat(i) - minZ) / k);
-					long key = ((cx & 0xFFFFF) << 41 | (cy & 0xFFFFF) << 21 | (cz & 0xFFFFF) << 1) | (this.pour.getInt(i) == SEALED ? 0 : 1);
+					long key = (cx & 0xFFFFF) << 42 | (cy & 0xFFFFF) << 22 | (cz & 0xFFFFF) << 2 | (this.outside.getBoolean(i) ? 0 : this.pour.getInt(i) == SEALED ? 1 : 2);
 					float v = this.volume.getFloat(i);
 					int at = where.get(key);
 					if (at < 0) {
 						where.put(key, merged.volume.size());
-						merged.add(this.x.getFloat(i) * v, this.y.getFloat(i) * v, this.z.getFloat(i) * v, v, k, this.pour.getInt(i));
+						merged.add(this.x.getFloat(i) * v, this.y.getFloat(i) * v, this.z.getFloat(i) * v, v, k, this.pour.getInt(i), this.outside.getBoolean(i));
 					} else {
 						merged.x.set(at, merged.x.getFloat(at) + this.x.getFloat(i) * v);
 						merged.y.set(at, merged.y.getFloat(at) + this.y.getFloat(i) * v);
@@ -471,6 +504,7 @@ public final class Hull {
 				this.volume = merged.volume;
 				this.edge = merged.edge;
 				this.pour = merged.pour;
+				this.outside = merged.outside;
 			}
 		}
 	}

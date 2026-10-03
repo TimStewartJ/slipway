@@ -3,6 +3,7 @@ package dev.timstewart.slipway.client.mixin;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import dev.timstewart.slipway.vessel.Shelter;
 import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
@@ -27,6 +28,8 @@ public abstract class CameraMixin {
 		if (fluid != FogType.WATER && fluid != FogType.LAVA || this.level == null) {
 			return fluid;
 		}
-		return Shelter.isDry(this.level, this.position.x, this.position.y, this.position.z) ? FogType.NONE : fluid;
+		// With the pose this frame is drawn with: the camera moves with its entity, between the ticks as the vessel does.
+		float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+		return Shelter.isDryInFrame(this.level, this.position.x, this.position.y, this.position.z, partialTick) ? FogType.NONE : fluid;
 	}
 }

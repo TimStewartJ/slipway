@@ -39,6 +39,13 @@ class ShelterTest {
 	}
 
 	private static List<VesselLookup.View> vessel(Hull hull, VesselPose pose) {
+		return vessel(hull, List.of(pose));
+	}
+
+	/** A vessel that had the given poses, the newest first. */
+	private static List<VesselLookup.View> vessel(Hull hull, List<VesselPose> poses) {
+		VesselPose pose = poses.get(0);
+		VesselPose previous = poses.size() > 1 ? poses.get(1) : pose;
 		return List.of(new VesselLookup.View() {
 			@Override
 			public long id() {
@@ -57,7 +64,12 @@ class ShelterTest {
 
 			@Override
 			public VesselPose previousPose() {
-				return pose;
+				return previous;
+			}
+
+			@Override
+			public List<VesselPose> recentPoses() {
+				return poses;
 			}
 
 			@Override
@@ -138,6 +150,48 @@ class ShelterTest {
 		assertTrue(dry(hull, VesselPose.at(0, 20, 0), 2.5, 1.1, 2.5));
 		assertTrue(dry(hull, VesselPose.fromYawPitchRoll(0, 20, 0, 50, 70, 160), 2.5, 2.5, 2.5));
 		assertFalse(dry(hull, VesselPose.at(0, 20, 0), 2.5, 5.5, 2.5), "on its roof");
+	}
+
+	@Test
+	void aPlaceBelongsToThePoseItWasReachedWithOnAVesselUnderWay() {
+		Hull hull = openBox(5, 3, 5).build();
+		// Half a block a tick towards +x, with a draught of 1.6; the newest pose first.
+		List<VesselPose> poses = new java.util.ArrayList<>();
+		for (int ticksAgo = 0; ticksAgo <= 10; ticksAgo++) {
+			poses.add(VesselPose.at(20 - 0.5 * ticksAgo, SURFACE - 1.6, 0));
+		}
+		List<VesselLookup.View> vessel = vessel(hull, poses);
+		// Someone standing 0.2 from the inside of the aft wall (local x = 1.2).
+		Vec3 now = poses.get(0).localToWorld(new Vec3(1.2, 1.1, 2.5));
+		Vec3 beforeTheCarry = poses.get(1).localToWorld(new Vec3(1.2, 1.1, 2.5));
+		Vec3 asAClientSaid = poses.get(4).localToWorld(new Vec3(1.2, 1.1, 2.5));
+		assertTrue(Shelter.isDry(SEA, vessel, now.x, now.y, now.z));
+		assertFalse(Shelter.isDry(SEA, vessel, beforeTheCarry.x, beforeTheCarry.y, beforeTheCarry.z), "by the current pose alone that place is in the aft wall");
+		assertFalse(Shelter.isDry(SEA, vessel, asAClientSaid.x, asAClientSaid.y, asAClientSaid.z), "and that one in the sea behind it");
+		// Moved on this side: carried once a tick, so by the current pose or the one before.
+		assertTrue(Shelter.isDry(SEA, vessel, now.x, now.y, now.z, true));
+		assertTrue(Shelter.isDry(SEA, vessel, beforeTheCarry.x, beforeTheCarry.y, beforeTheCarry.z, true));
+		assertFalse(Shelter.isDry(SEA, vessel, asAClientSaid.x, asAClientSaid.y, asAClientSaid.z, true), "four ticks behind is not where the carry leaves anyone");
+		// Told by a client that follows the vessel some ticks late: by any pose of the last half second.
+		assertTrue(Shelter.isDry(SEA, vessel, asAClientSaid.x, asAClientSaid.y, asAClientSaid.z, false));
+		assertTrue(Shelter.isDry(SEA, vessel, now.x, now.y, now.z, false));
+		// The sea stays the sea: ahead of the bow, beside the hull, under it, and far enough behind it.
+		Vec3 ahead = poses.get(0).localToWorld(new Vec3(5.5, 1.1, 2.5));
+		Vec3 beside = poses.get(0).localToWorld(new Vec3(2.5, 1.1, -0.5));
+		Vec3 under = poses.get(0).localToWorld(new Vec3(2.5, -0.5, 2.5));
+		Vec3 farBehind = poses.get(0).localToWorld(new Vec3(1.2 - 7.0, 1.1, 2.5));
+		for (boolean carriedHere : new boolean[] {true, false}) {
+			assertFalse(Shelter.isDry(SEA, vessel, ahead.x, ahead.y, ahead.z, carriedHere));
+			assertFalse(Shelter.isDry(SEA, vessel, beside.x, beside.y, beside.z, carriedHere));
+			assertFalse(Shelter.isDry(SEA, vessel, under.x, under.y, under.z, carriedHere));
+			assertFalse(Shelter.isDry(SEA, vessel, farBehind.x, farBehind.y, farBehind.z, carriedHere));
+		}
+		// A vessel at rest has one pose, and a hull that has gone under is not dry by where it was either.
+		List<VesselLookup.View> still = vessel(hull, VesselPose.at(0, SURFACE - 1.6, 0));
+		assertEquals(1, still.get(0).recentPoses().size());
+		List<VesselLookup.View> sinking = vessel(hull, List.of(VesselPose.at(0, SURFACE - 3.6, 0), VesselPose.at(0, SURFACE - 3.4, 0)));
+		assertFalse(Shelter.isDry(SEA, sinking, 2.5, SURFACE - 3.6 + 1.1, 2.5, true));
+		assertFalse(Shelter.isDry(SEA, sinking, 2.5, SURFACE - 3.6 + 1.1, 2.5, false));
 	}
 
 	@Test

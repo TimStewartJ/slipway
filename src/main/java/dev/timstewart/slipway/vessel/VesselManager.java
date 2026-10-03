@@ -841,7 +841,7 @@ public final class VesselManager {
 	/** Sets a vessel's pose directly (commands and tests); physics picks it up at the next exchange. */
 	public void teleport(ActiveVessel vessel, VesselPose pose) {
 		vessel.record.pose = pose;
-		vessel.previousPose = pose;
+		vessel.forgetPoses();
 		vessel.record.linearVelocity = Vec3.ZERO;
 		vessel.record.angularVelocity = Vec3.ZERO;
 		this.physics.teleport(vessel);

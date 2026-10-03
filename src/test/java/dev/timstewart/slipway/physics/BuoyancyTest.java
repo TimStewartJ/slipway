@@ -210,6 +210,40 @@ class BuoyancyTest {
 			assertTrue(hull.tilt() < 0.5, "it lists " + hull.tilt() + " degrees");
 			assertEquals(0.0, hull.water.floodedVolume, 1e-6);
 			assertEquals(556 * 2.4, hull.water.displacedVolume, 15.0);
+			// Where spray rises: on the walls the surface cuts, not in the dry air of the hold, which it cuts as well.
+			assertEquals(Buoyancy.WATERLINE_SAMPLES, hull.water.waterlineCount);
+			for (int i = 0; i < hull.water.waterlineCount; i++) {
+				Vector3d local = hull.state.pose().worldToLocal(hull.water.waterline[i * 3], hull.water.waterline[i * 3 + 1], hull.water.waterline[i * 3 + 2], new Vector3d());
+				assertTrue(local.x < 1 || local.x > 15 || local.z < 1 || local.z > 15, "a waterline sample inside the hold: " + local);
+				assertEquals(SURFACE, hull.water.waterline[i * 3 + 1], 0.02);
+			}
+		}
+	}
+
+	@Test
+	void aRaftOfSlabsFloatsAsDeepAsSlabsDo() {
+		try (Sea sea = new Sea(0, 0, 15, 15)) {
+			// Three by three bottom slabs of wood: half a block high, so 0.35 of it under water (as a full block has 0.7).
+			Shape bottom = new Shape();
+			bottom.boxes.add(0, 0, 0, 3, 0.5f, 3, WOOD);
+			Shape top = new Shape();
+			top.boxes.add(0, 0.5f, 0, 3, 1, 3, WOOD);
+			for (int x = 0; x < 3; x++) {
+				for (int z = 0; z < 3; z++) {
+					bottom.hull.block(x, 0, z, 0.5f, true, 0f, 0.5f);
+					top.hull.block(x, 0, z, 0.5f, true, 0.5f, 1f);
+				}
+			}
+			Vessel low = sea.add(bottom, VesselPose.at(2.0, SURFACE - 0.2, 2.0));
+			Vessel high = sea.add(top, VesselPose.at(9.0, SURFACE - 0.7, 9.0));
+			sea.step(300);
+			assertEquals(SURFACE - 0.35, low.state.y, 0.02);
+			// Top slabs: the same raft half a block up in its cells.
+			assertEquals(SURFACE - 0.35 - 0.5, high.state.y, 0.02);
+			assertEquals(9 * 0.35, low.water.displacedVolume, 0.05);
+			assertEquals(9 * 0.35, high.water.displacedVolume, 0.05);
+			assertEquals(0.0, low.speed() + high.speed(), 0.03);
+			assertEquals(SURFACE, low.water.waterline[1], 0.02);
 		}
 	}
 

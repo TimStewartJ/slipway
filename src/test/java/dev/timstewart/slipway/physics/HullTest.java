@@ -193,6 +193,80 @@ class HullTest {
 	}
 
 	@Test
+	void aBlockStandsWhereItsShapeIsAndAsHighAsItsShape() {
+		Hull.Builder b = new Hull.Builder();
+		b.block(0, 0, 0, 1f, true);
+		b.block(1, 0, 0, 0.5f, true, 0f, 0.5f);
+		b.block(2, 0, 0, 0.5f, true, 0.5f, 1f);
+		b.block(3, 0, 0, 0.0625f, true, 0f, 0.0625f);
+		b.block(4, 0, 0, 0.3f, true, 0f, 0f);
+		Hull hull = b.build();
+		assertEquals(5, hull.elementCount());
+		float[][] expected = {{0.5f, 1f}, {0.25f, 0.5f}, {0.75f, 0.5f}, {0.03125f, 0.0625f}, {0.03125f, 0.0625f}};
+		for (int i = 0; i < 5; i++) {
+			assertEquals(i + 0.5f, hull.elementX(i), 1e-6f);
+			assertEquals(expected[i][0], hull.elementY(i), 1e-6f, "centre height of block " + i);
+			assertEquals(expected[i][1], hull.elementEdge(i), 1e-6f, "height of block " + i);
+			assertEquals(Hull.SEALED, hull.elementPour(i));
+		}
+		assertEquals(0.5f, hull.elementVolume(1), 1e-6f);
+
+		Hull.Builder bottom = new Hull.Builder(), top = new Hull.Builder();
+		bottom.block(0, 0, 0, 0.5f, true, 0f, 0.5f);
+		top.block(0, 0, 0, 0.5f, true, 0.5f, 1f);
+		assertNotEquals(bottom.fingerprint(), top.fingerprint());
+	}
+
+	@Test
+	void onlyBlocksWithOpenSpaceBesideThemAreTheOutside() {
+		Hull.Builder b = openBox(5, 3, 5);
+		// A chest on the floor inside.
+		b.block(2, 1, 2, 0.67f, true);
+		Hull hull = b.build();
+		int outside = 0, inside = 0, air = 0;
+		for (int i = 0; i < hull.elementCount(); i++) {
+			if (hull.elementPour(i) >= 0) {
+				air++;
+				assertFalse(hull.elementIsOutside(i), "sheltered air is not where a waterline shows");
+			} else if (hull.elementIsOutside(i)) {
+				outside++;
+			} else {
+				inside++;
+				assertEquals(2.5f, hull.elementX(i), 1e-6f);
+				assertEquals(2.5f, hull.elementZ(i), 1e-6f);
+			}
+		}
+		assertEquals(57, outside, "the floor and the walls");
+		assertEquals(1, inside, "the chest");
+		assertEquals(18, air);
+
+		// A solid cube: its core is inside.
+		Hull.Builder cube = new Hull.Builder();
+		for (int x = 0; x < 3; x++) {
+			for (int y = 0; y < 3; y++) {
+				for (int z = 0; z < 3; z++) {
+					cube.block(x, y, z, 1f, true);
+				}
+			}
+		}
+		Hull solid = cube.build();
+		int core = 0;
+		for (int i = 0; i < solid.elementCount(); i++) {
+			core += solid.elementIsOutside(i) ? 0 : 1;
+		}
+		assertEquals(1, core);
+		// A fence post stands in open water itself.
+		Hull.Builder post = new Hull.Builder();
+		post.block(0, 0, 0, 0.125f, false);
+		assertTrue(post.build().elementIsOutside(0));
+		// Without the flood nothing is known of an inside: every block counts as outside.
+		Hull unknown = openBox(5, 3, 5).build(Hull.MAX_ELEMENTS, 100);
+		for (int i = 0; i < unknown.elementCount(); i++) {
+			assertTrue(unknown.elementIsOutside(i));
+		}
+	}
+
+	@Test
 	void floodingGrowsFromTheRimToHalfABlockAboveIt() {
 		assertEquals(0.0, Hull.flooding(0.0));
 		assertEquals(0.5, Hull.flooding(0.25), 1e-9);

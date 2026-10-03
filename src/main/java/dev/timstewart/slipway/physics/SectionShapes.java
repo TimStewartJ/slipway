@@ -2,6 +2,7 @@ package dev.timstewart.slipway.physics;
 
 import java.util.Arrays;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.FluidTags;
@@ -92,7 +93,8 @@ public final class SectionShapes {
 							(float)(dx + x + box.maxX), (float)(dy + y + box.maxY), (float)(dz + z + box.maxZ), density);
 					}
 					if (hull != null) {
-						hull.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, volume, !state.is(NOT_WATERTIGHT));
+						hull.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, volume, !state.is(NOT_WATERTIGHT), (float)shape.min(Direction.Axis.Y),
+							(float)shape.max(Direction.Axis.Y));
 					}
 				}
 			}

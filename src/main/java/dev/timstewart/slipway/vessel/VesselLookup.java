@@ -41,6 +41,21 @@ public final class VesselLookup {
 			return Hull.EMPTY;
 		}
 
+		/**
+		 * The poses of the last few ticks, newest first and beginning with {@link #pose()}: something whose position
+		 * this side does not move itself (a player on the server, anyone else on a client) stands where one of these
+		 * put it, and which one is not known.
+		 */
+		default List<VesselPose> recentPoses() {
+			VesselPose pose = this.pose(), previous = this.previousPose();
+			return previous == null || previous.equals(pose) ? List.of(pose) : List.of(pose, previous);
+		}
+
+		/** The pose a frame is drawn with, between the previous tick and this one (the same as {@link #pose()} on a server). */
+		default VesselPose framePose(float partialTick) {
+			return this.pose();
+		}
+
 		default Vec3 plotToWorld(Vec3 plot) {
 			Vector3d w = this.pose().localToWorld(plot.x - this.anchor().getX(), plot.y - this.anchor().getY(), plot.z - this.anchor().getZ(), new Vector3d());
 			return new Vec3(w.x, w.y, w.z);
