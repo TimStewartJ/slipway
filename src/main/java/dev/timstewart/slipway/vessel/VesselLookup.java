@@ -1,6 +1,7 @@
 package dev.timstewart.slipway.vessel;
 
 import dev.timstewart.slipway.math.VesselPose;
+import dev.timstewart.slipway.physics.Hull;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -34,6 +35,11 @@ public final class VesselLookup {
 
 		/** Linear velocity in blocks per second. */
 		Vec3 velocity();
+
+		/** What the vessel keeps the water out of (see {@link Shelter}); empty while it is not known. */
+		default Hull hull() {
+			return Hull.EMPTY;
+		}
 
 		default Vec3 plotToWorld(Vec3 plot) {
 			Vector3d w = this.pose().localToWorld(plot.x - this.anchor().getX(), plot.y - this.anchor().getY(), plot.z - this.anchor().getZ(), new Vector3d());

@@ -197,8 +197,9 @@ pose packet's flags) makes a vessel a plain rigid body: `VesselController.drive`
 whatever the helm, hover and level say, so only gravity, contacts and friction move it. Hover and level keep their
 values and apply again when loose ends. It is switched by `/slipway mode <id> loose true|false` and by the pilot's
 "Toggle loose" key. The key's default is U: G, the neighbour of H, is vanilla 26.3's quick-actions key, and Iris
-takes K, O and R. There is no buoyancy: vessels collide with blocks that have a collision shape, water has none, so
-a loose vessel sinks through water to the bottom, wooden or not (`aLooseWoodenVesselSinksThroughWater`). Entities do
+takes K, O and R. Up to 0.1.3 there was no buoyancy: vessels collide with blocks that have a collision shape, water
+has none, so a loose vessel sank through water to the bottom, wooden or not. Since then water lifts it (next
+section; `aLooseWoodenVesselFloatsOnWater`). Entities do
 not push vessels.
 
 **Holding.** Until 0.1.1 a hovering vessel only had its weight cancelled and its speed braked, and with level off only
@@ -280,6 +281,93 @@ Cost, client GameTest `loose-cargo` (Release natives; 10 loose vessels of 2 to 3
 at rest on the deck, 0.18 ms while the carrier flies, 0.16 ms while they slide off and fall, 0.08 ms once all ten
 sleep on the ground; Slipway's part of the server tick (the exchange) 0.1 ms or less; server tick 0.8 to 2.0 ms mean,
 4.5 ms worst. The client's poses are the server's (offset 0.0 blocks over 748 compared poses).
+
+### Water: floating, sinking and dry hulls (unreleased)
+
+A vessel's blocks are stored in its plot, so where the vessel is, the world is as it was: the sea is still there, in
+and around the hull. Everything about water is therefore something Slipway adds on top of a world that knows nothing
+of the vessel: the lift, the resistance, who counts as in the water, and what is drawn.
+
+**What a vessel displaces (`Hull`).** Built with the collision shape, from the same pass over the plot
+(`SectionShapes` reports every block with a collision shape: its cell, the volume of its shape, and whether it keeps
+water out, which every such block does unless it is in the tag `slipway:not_watertight`). Each cell of the vessel's
+bounds is then one of: *watertight*; *open* (the water outside reaches it as soon as it stands that high);
+*sheltered* (air below a rim: pour water into the upright vessel and it is a cell that fills, so water from outside
+gets there only over that rim); *sealed* (air with no way out). The rim is found by a priority flood from outside
+(Barnes, Lehman and Mulla 2014, in three dimensions with a cell's height as its elevation): every open cell gets the
+lowest level the outside water must reach to run into it, and the cell on the way in where that level is reached,
+its *pour point*. A cell whose level is above itself is sheltered. A watertight block that does not fill its cell (a
+carpet, a chest, a slab) leaves the rest of the cell as dry as the air around it when all of that air is sheltered.
+The flood runs on the bounds plus one cell, up to 2^20 cells; a vessel with larger bounds gets no sheltered air
+(4,096 blocks cannot enclose much in such a box). The cells are listed as elements (centre, volume, edge, pour
+point); above 8,192 elements they are merged cube by cube of 2, 4, 8 cells. The same code builds the same hull on
+the client from its copy of the plot. A hull is rebuilt only when the blocks that matter change (a fingerprint of
+cells, volumes and tightness), not for a lever or a chest lid.
+
+This is the design decision the feature stands on. Lift from the blocks alone is simple and lets wood float, but
+then no hull carries anything and a stone ship is impossible. A hull's air is what carries a real ship, and a player
+expects walls to keep water out. Deciding it per cell by a pour point keeps it stateless (nothing to save, nothing
+to pump) and still gives the events that make water interesting: overloading, a rim that dips when the hull heels,
+a hole below the waterline.
+
+**Where the water is (`FluidField`).** The physics thread may not read the level. With each terrain section it
+builds for a vessel's surroundings, `VesselPhysicsBridge` also copies the section's fluids, one byte per block
+(amount 1 to 8, lava or water; waterlogged blocks count), and hands them over with a physics command; a change to a
+block of a built section rebuilds both. `FluidField.submerged` tells how much of an upright cube lies below the
+surface of the column through its centre (a source's surface is 8/9 up, or the block's top when fluid stands above;
+continuous as the cube rises through the surface and across sections).
+
+**Lift and resistance (`Buoyancy`, in the step, after the controller).** Each element under the surface is pushed up
+by `density g volume` (water 1,000, lava 3,100 kg/m³) at its place; a sheltered element counts by how far its pour
+point's cell is still out of the water (flooded from the rim to half a block above it, so nothing jumps). The sum is
+a force and a torque about the centre of mass: the draught where the vessel displaces its weight, the righting
+moment of a heeled hull, and the loss of lift on the side whose rim dips all come out of it. Resistance is on the
+centre of mass and the turn rate, scaled by the ratio of displaced weight to the vessel's own (1 afloat):
+`a = -ratio (c v + q |v| v)` along the vessel's own forward, right and up axes with c = 0.7, 2.5, 2.5 per second and
+q = 0.02, 0.15, 0.15 per block (a keel: a boat runs straight and does not slide), and `alpha = -1.5 ratio w`. The
+numbers are chosen for feel: a hull with a draught of one to two blocks bobs two or three times after a drop, a
+block of stone sinks at 4.35 blocks a second, and a boat under full thrust (12 m/s² against 0.5 per second in the
+air and 0.7 + 0.02 v in the water) runs 8.7 blocks a second. Never more than 80% of a speed is taken in one step.
+
+A hovering vessel gets none of it (`forces = loose || !hover`): hover cancels the vessel's weight, and lift without
+weight would throw it out of the water against the hold. So hover is "no gravity" consistently: the ship is a
+submarine. What it displaces is still recorded, for the display and the splash.
+
+**Sleeping.** A loose vessel afloat must be able to fall asleep, and Jolt's body interface restarts a body's sleep
+timer with every force it is given. `JoltEngine.applyForceAndTorque` therefore adds to the body itself while it is
+awake. Asleep, a vessel gets no lift (it rests where the last step left it) and keeps what was recorded. Water is
+no body, so a section whose fluids changed wakes the loose vessels in and around it
+(`PhysicsEngine.wakeLooseVessels`): a raft asleep in a pool falls when the pool is drained.
+
+**Dry inside (`Shelter`).** A point is dry when it lies in a sealed cell, or in a sheltered cell whose pour point is
+not yet half flooded (the level's fluid there, at the vessel's pose). `EntityMixin` asks after vanilla has found an
+entity in fluid: the entity's look at the fluids around it is then repeated with no box to look in, which leaves it
+as vanilla leaves an entity in the air (no swimming, slowing, current, drowning; the same code on server and client,
+so nothing is predicted differently). `CameraMixin` does the same for the fluid the camera is in (water fog, and a
+shader pack's eye-in-water).
+
+**The water mask (`WaterMask`).** The water's surface would be drawn across the inside of a floating hull. Vanilla's
+boats have the same problem and solve it with a patch drawn into the depth buffer only, just before the water
+(`RenderTypes.waterMask()`); Slipway draws such patches for any hull. Once a client tick the dry cells near a
+surface are picked; every frame each one's cut with the surface is computed for the frame's pose (a cube against a
+horizontal plane: three to six corners) and drawn 0.03 above the surface, for the view from above, and 0.03 below,
+for the view from inside the hull under the waterline, each facing both ways. They are submitted into the frame's
+water-mask phase directly (`SubmitNodeCollection.waterMask`), where vanilla draws it before the water in both of its
+transparency modes; through another mod's collector they go as custom geometry.
+
+**Docking.** `VesselManager.disassemble` takes the fluid blocks out of the cells the hull kept dry (at the pose it
+had), after its blocks are in the world: they keep the water out themselves from then on.
+
+**Effects.** The step reports up to eight places where the surface cuts an element; `WaterEffects` makes the splash
+(particles and a sound, when a vessel goes in at more than 1.5 blocks a second) and the spray along the waterline of
+a moving vessel there.
+
+Tests: `FluidFieldTest`, `HullTest` (rims, holes, sealed air, railings, furniture, merging), `BuoyancyTest` on the
+real engine (draught of a plank, of a stone hull of 1,334 t, terminal speed, flooding over the rim, a swamped wooden
+hull coming back up, righting from 12 degrees, a sealed cabin rising from 20 blocks down, hover, a boat's speed,
+straight run and turn, sleeping and waking, lava); server GameTests `BuoyancyGameTests` in a pool (the level's water
+reaching the step, cargo until it is too much, an armour stand dry in a hull and wet when it floods, a docked hull
+dry); client GameTest `afloat`.
 
 ### Networking
 
@@ -638,6 +726,10 @@ the real ship until it moved). No DH fork change was needed.
 | Swing-twist decomposition (rider yaw) | `VesselPose.yawTurnSinceDegrees` | Standard quaternion swing-twist decomposition |
 | Quaternion slerp | `VesselPose.interpolate` (JOML) | K. Shoemake, "Animating rotation with quaternion curves", 1985 |
 | Adaptive playout of poses | `ClientVessel.nextPlaybackTick` | Jitter-buffer playout adaptation (Ramjee et al., 1994), simplified to a rate-limited clock |
+| Which air a hull keeps dry, and where water runs in | `Hull` | Priority flood with a bucket per level (R. Barnes, C. Lehman, D. Mulla, "Priority-flood: An optimal depression-filling and watershed-labeling algorithm for digital elevation models", 2014), in three dimensions, keeping each cell's pour point |
+| Lift, element by element | `Buoyancy` | Archimedes' principle; linear and quadratic drag (textbook) |
+| A few places of many, each as likely | `Buoyancy` (waterline places) | Reservoir sampling (J. Vitter, "Random sampling with a reservoir", 1985, algorithm R) |
+| Depth-only patch that keeps water out of a hull | `WaterMask` | The technique of vanilla's boat (its water patch and `RenderTypes.waterMask()`), with our own geometry |
 
 ## Other deviations and decisions made while building
 

@@ -29,6 +29,13 @@ public interface PhysicsEngine extends AutoCloseable {
 	 */
 	void setVesselLoose(long vesselId, boolean loose);
 
+	/**
+	 * Wakes the sleeping loose vessels in and around a box of world coordinates: something that is not a body changed
+	 * there (the water a vessel floats in was taken away or let in).
+	 */
+	default void wakeLooseVessels(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+	}
+
 	/** Creates, replaces or (with empty boxes) removes the static body of a terrain section. */
 	void setStaticSection(long sectionKey, BoxList boxes, int originX, int originY, int originZ);
 

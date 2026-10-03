@@ -6,7 +6,9 @@ Moving physics block structures for Minecraft 26.3 (Fabric). Build a structure f
 Helm on it, assemble it into a vessel and fly it with full pitch, yaw and roll. The blocks stay real blocks: chests,
 furnaces, doors, levers, pistons, redstone clocks and farms keep working while the vessel moves, and you can walk on
 the deck and build on it at any angle. A vessel can also be let loose as a plain rigid body: cargo that tumbles, lies
-on another vessel's deck and slides off when it rolls. Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+on another vessel's deck and slides off when it rolls. With hover off a vessel floats on water by what its hull
+displaces, sails as a boat, sinks when it is too heavy or its rim goes under, and whoever is inside a hull that
+keeps the water out stays dry (unreleased; see the changelog). Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
 through [jolt-jni](https://github.com/stephengold/jolt-jni). Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ![A three-masted galleon built from blocks, flying as a Slipway vessel over a bay with snowy mountains behind](docs/images/galleon-over-the-bay.jpg)
@@ -69,7 +71,7 @@ Install it on both the client and the server for multiplayer.
 | Pitch nose up / down | Up / down arrow |
 | Roll left / right | Left / right arrow |
 | Strafe left / right | N / M |
-| Hover on/off | **Toggle hover** (H): on, the ship holds its position, also under cargo; off, gravity applies |
+| Hover on/off | **Toggle hover** (H): on, the ship holds its position, also under cargo and in water; off, gravity applies and water carries what the hull displaces |
 | Level on/off | **Toggle level** (B): on, the ship rights itself; off, it holds any attitude, even inverted |
 | Loose on/off | **Toggle loose** (U): on, the ship is a plain rigid body: no hover, no levelling, no drag, the helm does nothing; it falls, tumbles and lies where it lands. Off, hover and level apply again as they were set |
 | Disassemble | Level the ship (within 20° of level), leave the helm, then sneak and use the helm |
@@ -84,6 +86,30 @@ list of things to try.
 Loose vessels are for cargo: build a few small things over a ship's deck, give each a helm, assemble them and set
 them loose (`/slipway mode <id> loose true`, or the key at their helm). They land on the deck, ride along while the
 ship flies gently, and slide off when it rolls past about 31 degrees.
+
+### On the water (unreleased)
+
+Turn hover off over water and the vessel floats, sinks or anything between, by its weight and its hull:
+
+- Every block under water is pushed up by the weight of the water it displaces. Wood (700 kg per block) floats,
+  earth, stone, glass and metal (1,600 to 7,800 kg) sink, wool and leaves (200 kg) float high.
+- **Air that the hull keeps dry displaces water too.** Pour water into the vessel standing upright: every cell that
+  would fill is air below a rim, and until the water outside runs over that rim it counts. An open hull of planks, 5
+  by 5 with two rows of wall, weighs 40 t and can displace 75 m³, so it carries 35 t of cargo; a hull of stone needs
+  to be about 16 blocks square and six high before its air carries its walls. A closed cabin always counts.
+- Every block with a collision shape keeps water out (slabs, stairs, glass, doors and trapdoors, open or shut),
+  except fences, walls, bars, chains, ladders, banners and lanterns (the block tag `slipway:not_watertight`), which
+  make a railing, not a wall.
+- When the rim goes under, by overloading or by heeling, the water runs in there and that air stops counting: the
+  vessel goes down. The pilot's display shows "Hull displaces 180% of its weight: afloat" (above 100% it floats) and
+  warns when water is coming in.
+- The helm drives a boat as it flies a ship, slower (about 9 blocks a second) and with a keel: it runs straight and
+  does not slide sideways. Level on keeps it upright against any load; with level off the hull's own stability does.
+- With hover on, water does nothing to the vessel: it holds its place and flies under water as above it. A closed
+  hull with hover off is a submarine that wants to come up: dive with the descend key, or ballast it with iron until
+  it displaces little more than its weight.
+- Inside a hull that keeps the water out you are dry: you walk, breathe and see as in air, below the waterline and
+  under water. Disassembling in the water leaves that air dry, so a docked boat is not full of water.
 
 What is tested on a moving vessel, block by block, is listed in [DESIGN.md](DESIGN.md), "What is proven to work on a
 moving vessel".
@@ -107,9 +133,17 @@ moving vessel".
 - Right after assembly the vessel can be drawn incomplete for a tick or two. Right after joining a world, a side of a
   vessel that lies on a chunk border of its storage area (often the west or north side of a small build) can be dark
   for a moment, until the chunk columns around it have arrived; this was not seen in forty world loads in testing.
-- Loose vessels: no buoyancy (a vessel falls through water); players and mobs do not push them; a deck passes on at
+- Loose vessels: players and mobs do not push them; a deck passes on at
   most 0.6 g, so cargo slides when the carrier stops hard or turns sharply and tall thin pieces fall over; a piece
   sliding fast across a deck can catch on a seam of the deck's collision boxes and tumble.
+- On the water (unreleased): the water is flat and still for a vessel (no waves, and a river's current does not carry
+  it); a vessel leaves the water as it is (no wake in the blocks, no hole where it floats). Water that has run into
+  a hull is not remembered: it is out again as soon as the rim is above the water. Seen from inside a submerged cabin
+  the sea outside looks like clear air (the world's water has no faces where the vessel's glass is). The water mask
+  that keeps the surface from being drawn inside a hull hides everything translucent behind it, as vanilla's boat
+  does: stained glass or particles inside the hull, seen through the waterline from outside. A hovering vessel takes
+  no part in any of this. Entities do not weigh a vessel down. In lava a vessel floats higher (and its crew is in
+  trouble: only the fluid's push is kept from them, not its heat).
 - Pistons do not push entities standing on a vessel. Particles appear at the vessel but do not follow it afterwards. A
   jukebox's music stays where the vessel was when the disc started. Torches, furnaces and other blocks show no
   ambient particles on a vessel.
@@ -143,12 +177,15 @@ All levels run in `gradlew check` (and `build`); CI runs the unit tests, server 
 check on every push. Details are in [DESIGN.md](DESIGN.md), "Testing".
 
 - `gradlew test`: unit tests (math, controller, shapes, mass properties, collisions, records, Jolt engine including a
-  native leak test with the Debug natives, loose cargo on a carrier in the real engine).
+  native leak test with the Debug natives, loose cargo on a carrier in the real engine, hulls and vessels in water
+  in the real engine).
 - `gradlew runGametest`: Fabric GameTests in a headless server (assembly round trips, deny list, physics, packets,
-  interaction, loose vessels, block events and pistons, a repeater clock, a farm, hoppers, observers and droppers).
+  interaction, loose vessels, block events and pistons, a repeater clock, a farm, hoppers, observers and droppers,
+  floating, sinking, dry hulls and docking in a pool).
 - `gradlew runClientGametest`: Fabric client GameTests on a real client with Sodium, Iris (Bliss shaders) and
   Distant Horizons: assembly of a mixed ship, flight through every rotation, deck walking, interaction, collision,
-  loose cargo on a carrier, block events (chest lid, piston strokes, note block, mining), a bone meal farm, the
+  loose cargo on a carrier, a ballasted hull afloat (the water mask, the player dry below the waterline, thrust on
+  the water, flooding), block events (chest lid, piston strokes, note block, mining), a bone meal farm, the
   picture kept at disassembly, forged packets, save and reload, rendering (shadows, reference images, Distant
   Horizons far view), multiplayer with a second client, performance, world-retention leaks and a flight soak.
   Reports in `build/client-gametest`. Needs a

@@ -251,6 +251,13 @@ public final class JoltEngine implements PhysicsEngine {
 		}
 	}
 
+	@Override
+	public void wakeLooseVessels(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+		if (!this.looseVessels.isEmpty()) {
+			this.wakeLooseVesselsIn(minX, minY, minZ, maxX, maxY, maxZ);
+		}
+	}
+
 	private void wakeLooseVesselsIn(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 		AaBox box = new AaBox(new RVec3(minX - WAKE_MARGIN, minY - WAKE_MARGIN, minZ - WAKE_MARGIN),
 			new RVec3(maxX + WAKE_MARGIN, maxY + WAKE_MARGIN, maxZ + WAKE_MARGIN));
@@ -266,6 +273,19 @@ public final class JoltEngine implements PhysicsEngine {
 		int bodyId = this.vesselBodies.get(vesselId);
 		if (bodyId == Jolt.cInvalidBodyId || !force.isFinite() || !torque.isFinite()) {
 			return;
+		}
+		// Through the body itself while it is awake: the body interface restarts the body's sleep timer with every
+		// force, and a loose vessel that floats (lift against weight, every step) would never fall asleep.
+		BodyLockWrite lock = new BodyLockWrite(this.system.getBodyLockInterface(), bodyId);
+		try {
+			if (lock.succeeded() && lock.getBody().isActive()) {
+				lock.getBody().addForce((float)force.x, (float)force.y, (float)force.z);
+				lock.getBody().addTorque((float)torque.x, (float)torque.y, (float)torque.z);
+				return;
+			}
+		} finally {
+			lock.releaseLock();
+			lock.close();
 		}
 		this.bodies.addForce(bodyId, (float)force.x, (float)force.y, (float)force.z);
 		this.bodies.addTorque(bodyId, (float)torque.x, (float)torque.y, (float)torque.z);

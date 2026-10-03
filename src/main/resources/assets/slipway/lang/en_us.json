@@ -15,7 +15,7 @@
   "slipway.place.too_far": "The vessel cannot grow this far: a vessel is at most %s blocks across",
   "slipway.helm.taken": "At the helm: %s/%s thrust, %s/%s turn, %s/%s up/down, %s/%s pitch, %s/%s roll, %s/%s strafe, %s hover, %s level, %s loose; sneak (%s) to leave, sneak + use the helm to disassemble",
   "slipway.helm.hover_on": "Hover on: the vessel holds its position",
-  "slipway.helm.hover_off": "Hover off: gravity applies",
+  "slipway.helm.hover_off": "Hover off: gravity applies, and water carries what the hull displaces",
   "slipway.helm.level_on": "Level on: the vessel rights itself",
   "slipway.helm.level_off": "Level off: the vessel holds its attitude",
   "slipway.helm.loose_on": "Loose on: the vessel is a free body, helm controls are off",
@@ -34,5 +34,12 @@
   "slipway.hud.speed": "Speed %s m/s",
   "slipway.hud.altitude": "Altitude %s",
   "slipway.hud.attitude": "Pitch %s°  Roll %s°  Heading %s°",
-  "slipway.hud.modes": "Hover %s  Level %s  Loose %s  Mass %s t"
+  "slipway.hud.modes": "Hover %s  Level %s  Loose %s  Mass %s t",
+  "slipway.hud.hull": "Hull displaces %s%% of its weight: %s",
+  "slipway.hud.hull.floats": "it will float",
+  "slipway.hud.hull.sinks": "it will sink",
+  "slipway.hud.hull.afloat": "afloat",
+  "slipway.hud.hull.sinking": "sinking",
+  "slipway.hud.hull.flooding": "TAKING ON WATER",
+  "slipway.hud.hull.hover": "in water, held by hover"
 }

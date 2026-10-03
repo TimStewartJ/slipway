@@ -38,6 +38,29 @@ public final class ActiveVessel {
 	public boolean hasBody;
 	/** Mass properties of the current collision shape, local frame. */
 	public BoxList.@Nullable MassProperties mass;
+	/** What the vessel displaces when it lies in water, built with the collision shape. */
+	public dev.timstewart.slipway.physics.Hull hull = dev.timstewart.slipway.physics.Hull.EMPTY;
+	/** Which blocks {@link #hull} was built from (see {@code Hull.Builder.fingerprint}). */
+	long hullFingerprint;
+	/** What the step in flight finds in the water; only the physics thread reads and writes it. */
+	final dev.timstewart.slipway.physics.Buoyancy.State buoyancyStep = new dev.timstewart.slipway.physics.Buoyancy.State();
+	/** What the last finished step found in the water: copied at the exchange, for the server thread. */
+	public final dev.timstewart.slipway.physics.Buoyancy.State buoyancy = new dev.timstewart.slipway.physics.Buoyancy.State();
+	/** Whether the vessel was in a fluid at the last tick, to notice it going in. */
+	boolean wasInFluid;
+
+	/** Whether water is running over a rim into air the hull kept dry: more than a splash, a twentieth of a block or of that air. */
+	public boolean flooding() {
+		return this.buoyancy.floodedVolume > Math.max(0.05, 0.02 * this.hull.shelteredVolume());
+	}
+
+	/**
+	 * How much of its own weight the vessel can displace at most: above 1 it floats, with everything under water and
+	 * nothing flooded it would be pushed up this many times as hard as it is pulled down. 0 while its mass is unknown.
+	 */
+	public double buoyancyReserve() {
+		return this.mass == null || this.mass.mass() <= 0 ? 0.0 : this.hull.capacity() * 1000.0 / this.mass.mass();
+	}
 	/** Where the hovering vessel holds its position; only the physics thread reads and writes it. */
 	final dev.timstewart.slipway.physics.VesselController.Hold hold = new dev.timstewart.slipway.physics.VesselController.Hold();
 	/** The hold point is stale (the vessel was teleported): the next step takes a new one. */
@@ -90,6 +113,11 @@ public final class ActiveVessel {
 		@Override
 		public net.minecraft.world.phys.Vec3 velocity() {
 			return ActiveVessel.this.record.linearVelocity;
+		}
+
+		@Override
+		public dev.timstewart.slipway.physics.Hull hull() {
+			return ActiveVessel.this.hull;
 		}
 	};
 

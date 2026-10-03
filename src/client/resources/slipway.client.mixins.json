@@ -5,6 +5,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"AbstractSoundInstanceAccessor",
+		"CameraMixin",
 		"ClientChunkCacheMixin",
 		"ClientLevelMixin",
 		"GameRendererAccessor",

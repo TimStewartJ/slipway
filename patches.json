@@ -46,14 +46,16 @@
 			"side": "both",
 			"targetMod": "minecraft",
 			"targetClass": "net.minecraft.world.entity.Entity",
-			"methods": ["move", "collide"],
-			"feature": "deck riding and entity collision",
-			"reason": "Entities collide with vessel blocks in the vessel's frame, stand and walk on decks at any angle, slide off steep ones, and are carried by the moving vessel.",
+			"methods": ["move", "collide", "updateFluidInteraction", "getFluidInteractionBox"],
+			"feature": "deck riding, entity collision and dry hulls",
+			"reason": "Entities collide with vessel blocks in the vessel's frame, stand and walk on decks at any angle, slide off steep ones, and are carried by the moving vessel. An entity in air that a vessel's hull keeps the water out of (below the waterline of a floating hull, in the cabin of a submerged one) stands in water blocks of the world, which are still there: vanilla's look at the fluids around it is repeated with nothing to look at, so it does not swim, drown or get pushed by a current there.",
 			"tests": [
 				"dev.timstewart.slipway.gametest.InteractionGameTests#entitiesLandOnADeckAndRideAlong",
 				"dev.timstewart.slipway.gametest.InteractionGameTests#theDeckCarriesEntitiesWhenItRises",
 				"dev.timstewart.slipway.gametest.InteractionGameTests#steepDecksShedEntities",
-				"clientGametest:deck-walk"
+				"clientGametest:deck-walk",
+				"dev.timstewart.slipway.gametest.BuoyancyGameTests#whatStandsInAFloatingHullIsDryUntilTheHullFloods",
+				"clientGametest:afloat"
 			]
 		},
 		{
@@ -210,6 +212,16 @@
 			"feature": "sounds on vessels",
 			"reason": "A sound's position is set once in protected fields; moving it from a plot to its vessel needs to write them.",
 			"tests": ["clientGametest:block-events"]
+		},
+		{
+			"mixin": "dev.timstewart.slipway.client.mixin.CameraMixin",
+			"side": "client",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.client.Camera",
+			"methods": ["getFluidInCamera"],
+			"feature": "dry hulls",
+			"reason": "The view from inside a hull that keeps the water out must not be a view from under water (water fog, and whatever else asks the camera which fluid it is in, such as a shader pack's eye-in-water), although the world has water blocks there.",
+			"tests": ["clientGametest:afloat"]
 		},
 		{
 			"mixin": "dev.timstewart.slipway.client.mixin.GameRendererAccessor",

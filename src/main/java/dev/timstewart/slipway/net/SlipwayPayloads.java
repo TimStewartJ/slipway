@@ -27,6 +27,10 @@ public final class SlipwayPayloads {
 		/** The vessel has a physics body. */
 		public static final byte FLAG_BODY = 4;
 		public static final byte FLAG_LOOSE = 8;
+		/** The vessel lies in water or lava (it displaces some). */
+		public static final byte FLAG_IN_FLUID = 16;
+		/** Water is running over a rim of the hull into air it kept dry. */
+		public static final byte FLAG_FLOODING = 32;
 		public static final Type<PoseUpdate> TYPE = new Type<>(Slipway.id("vessel_pose"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, PoseUpdate> CODEC = CustomPacketPayload.codec(PoseUpdate::write, PoseUpdate::new);
 

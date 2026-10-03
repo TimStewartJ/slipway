@@ -64,6 +64,8 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		final List<BlockPos> breakingLocal = new ArrayList<>();
 		final List<BlockState> breakingStates = new ArrayList<>();
 		final List<Integer> breakingProgress = new ArrayList<>();
+		/** Patches that keep the water's surface out of the hull (see {@link WaterMask}), relative to the entity's position. */
+		float @Nullable [] waterMask;
 	}
 
 	@Override
@@ -91,6 +93,7 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		state.breakingProgress.clear();
 		state.outlineLocal = null;
 		state.outlineShape = null;
+		state.waterMask = null;
 		ClientVessel vessel = ClientVessels.drawn(entity.vesselId());
 		state.vessel = vessel;
 		if (vessel == null || !vessel.ready()) {
@@ -99,6 +102,9 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		}
 		VesselPose pose = vessel.renderPose(partialTicks);
 		state.pose = pose;
+		if (!vessel.gone()) {
+			state.waterMask = vessel.waterMask.quads(pose, state.x, state.y, state.z);
+		}
 		SlipwayDebug.traceFrame(vessel.id, pose, partialTicks);
 		SlipwayDebug.viewFrame(vessel, pose, partialTicks);
 		Minecraft mc = Minecraft.getInstance();
@@ -200,6 +206,12 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		if (vessel == null || pose == null) {
 			return;
 		}
+		// Breaking progress, the hovered block's outline and the water mask are main-pass only (not into shadows).
+		boolean shadowPass = IrisShadowPass.active();
+		if (!shadowPass && state.waterMask != null) {
+			// The pose stack still stands at the entity's position, which the patches are relative to.
+			WaterMask.submit(collector, poseStack, state.waterMask);
+		}
 		poseStack.pushPose();
 		// The pose stack stands at the entity's interpolated position; move to the vessel's local origin.
 		poseStack.translate((float)(pose.x() - state.x), (float)(pose.y() - state.y), (float)(pose.z() - state.z));
@@ -220,8 +232,6 @@ public final class VesselRenderer extends EntityRenderer<VesselEntity, VesselRen
 		}
 
 		var models = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
-		// Breaking progress and the hovered block's outline are main-pass only, like vanilla's (not into shadows).
-		boolean shadowPass = IrisShadowPass.active();
 		for (int i = 0; !shadowPass && i < state.breakingLocal.size(); i++) {
 			BlockPos local = state.breakingLocal.get(i);
 			BlockState blockState = state.breakingStates.get(i);

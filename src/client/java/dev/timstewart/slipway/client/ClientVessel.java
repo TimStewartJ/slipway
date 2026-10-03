@@ -46,10 +46,25 @@ public final class ClientVessel {
 	public boolean level;
 	public boolean loose;
 	public boolean hasBody;
+	/** The vessel lies in water or lava, as the server's last step found it. */
+	public boolean inFluid;
+	/** Water is running over a rim of the hull, as the server's last step found it. */
+	public boolean flooding;
 	public boolean hasInfo;
 	public Vec3 velocity = Vec3.ZERO;
 	public Vec3 angularVelocity = Vec3.ZERO;
 	public final VesselMesh mesh = new VesselMesh(this);
+	/**
+	 * What the vessel keeps the water out of, built from the plot's blocks as the server builds its own: for
+	 * entities and the camera inside the hull (see {@code Shelter}), the water mask and the pilot's display.
+	 */
+	public dev.timstewart.slipway.physics.Hull hull = dev.timstewart.slipway.physics.Hull.EMPTY;
+	private long hullFingerprint;
+	/** The plot's blocks changed (or arrived) since {@link #hull} was built. */
+	boolean hullDirty = true;
+	public final dev.timstewart.slipway.client.render.WaterMask waterMask = new dev.timstewart.slipway.client.render.WaterMask(this);
+	/** One per thread that builds hulls; this is the client thread's. */
+	private static final dev.timstewart.slipway.physics.SectionShapes SHAPES = new dev.timstewart.slipway.physics.SectionShapes();
 	/**
 	 * Set when the vessel is gone on the server but still drawn (see {@link ClientVessels#onGone}): the client tick
 	 * it went at, and its block entities as they were, kept because its plot chunks are dropped.
@@ -86,6 +101,7 @@ public final class ClientVessel {
 		this.blocks = info.blocks();
 		this.mass = info.mass();
 		this.hasInfo = true;
+		this.hullDirty = true;
 		if (boundsChanged) {
 			this.mesh.markAllDirty();
 		}
@@ -103,6 +119,8 @@ public final class ClientVessel {
 		this.level = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_LEVEL) != 0;
 		this.hasBody = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_BODY) != 0;
 		this.loose = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_LOOSE) != 0;
+		this.inFluid = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_IN_FLUID) != 0;
+		this.flooding = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_FLOODING) != 0;
 		Snapshot last = this.snapshots.peekLast();
 		if (last != null && update.gameTime() <= last.tick) {
 			if (update.gameTime() == last.tick) {
@@ -140,6 +158,53 @@ public final class ClientVessel {
 				break;
 			}
 		}
+	}
+
+	/**
+	 * After {@link #tick()}: builds the hull anew when the plot's blocks changed (at most once a tick, and only once
+	 * all of the plot's chunks are here), and picks the cells the water mask covers until the next tick.
+	 */
+	void tickWater(net.minecraft.client.multiplayer.ClientLevel level) {
+		if (this.gone() || !this.ready()) {
+			return;
+		}
+		if (this.hullDirty) {
+			this.rebuildHull(level);
+		}
+		this.waterMask.prepare(level);
+	}
+
+	private void rebuildHull(net.minecraft.client.multiplayer.ClientLevel level) {
+		dev.timstewart.slipway.physics.Hull.Builder builder = new dev.timstewart.slipway.physics.Hull.Builder();
+		dev.timstewart.slipway.physics.BoxList unused = new dev.timstewart.slipway.physics.BoxList();
+		BlockPos min = this.anchor.offset(this.localMin);
+		BlockPos max = this.anchor.offset(this.localMax);
+		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
+			for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
+				net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkSource().getChunk(cx, cz, false);
+				if (chunk == null) {
+					return;
+				}
+				for (int sy = min.getY() >> 4; sy <= max.getY() >> 4; sy++) {
+					unused.clear();
+					SHAPES.build(level, chunk, sy, this.anchor.getX(), this.anchor.getY(), this.anchor.getZ(), unused, builder);
+				}
+			}
+		}
+		this.hullDirty = false;
+		long fingerprint = builder.fingerprint();
+		if (fingerprint != this.hullFingerprint || this.hull == dev.timstewart.slipway.physics.Hull.EMPTY) {
+			this.hull = builder.build();
+			this.hullFingerprint = fingerprint;
+		}
+	}
+
+	/**
+	 * How much of its own weight the vessel can displace at most (above 1 it floats), from the hull as this client
+	 * built it and the mass the server told; 0 while either is unknown.
+	 */
+	public double buoyancyReserve() {
+		return this.mass <= 0 ? 0.0 : this.hull.capacity() * 1000.0 / this.mass;
 	}
 
 	/**
@@ -267,6 +332,7 @@ public final class ClientVessel {
 	/** Keeps the vessel's picture as it is now: the mesh and the block entities of its plot. */
 	void keepPicture(net.minecraft.client.multiplayer.ClientLevel level, long clientTick) {
 		this.mesh.freeze(level);
+		this.waterMask.clear();
 		java.util.List<net.minecraft.world.level.block.entity.BlockEntity> kept = new java.util.ArrayList<>();
 		BlockPos min = this.anchor.offset(this.localMin);
 		BlockPos max = this.anchor.offset(this.localMax);
@@ -286,6 +352,8 @@ public final class ClientVessel {
 
 	void close() {
 		this.mesh.clear();
+		this.waterMask.clear();
+		this.hull = dev.timstewart.slipway.physics.Hull.EMPTY;
 		this.keptBlockEntities = java.util.List.of();
 		this.keptBlockEntityLight = new int[0];
 	}
@@ -319,6 +387,11 @@ public final class ClientVessel {
 		@Override
 		public Vec3 velocity() {
 			return ClientVessel.this.velocity;
+		}
+
+		@Override
+		public dev.timstewart.slipway.physics.Hull hull() {
+			return ClientVessel.this.hull;
 		}
 	};
 

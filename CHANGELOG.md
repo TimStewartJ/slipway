@@ -5,6 +5,44 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 ## Unreleased
 
+### Added
+
+- **Vessels float.** Water (and lava) now acts on every vessel that does not hover: it lifts what the vessel
+  displaces and resists its movement. A raft of planks floats with seven tenths of its thickness under water, a
+  block of stone sinks, and a vessel comes to rest where it displaces its own weight, bobbing a few times first.
+  What counts is the whole hull, not only its blocks: **the air inside an open hull is kept dry by its walls and
+  displaces water too**, so a hull of planks carries far more than a raft of the same planks, and a hull of stone or
+  iron floats if it is large enough. A hull that heels is pushed back upright by the water (with level off, too).
+- **Sinking.** Load a hull beyond what it can displace, or heel it until its rim dips, and the water runs in over
+  the rim: the air inside stops counting and the vessel goes down. A hull of wood comes back up when its rim is clear
+  again; one of stone stays on the bottom. Nothing is remembered about water taken in: a hull whose rim is above the
+  water is dry.
+- **Boats.** With hover off the helm drives a floating vessel as it flies one: thrust, turn, and the water gives the
+  boat a keel, so it runs straight and turns instead of sliding, about 9 blocks a second flat out. Turn hover off
+  over the sea and the ship drops in with a splash and floats; moving, it throws spray along its waterline.
+- **Submarines.** Air with no way out (a closed cabin) is always dry and always displaces. A hovering vessel is left
+  alone by the water, as by gravity, and flies under water as it does above it; without hover a closed hull is as
+  buoyant as its air makes it, and dives against that with the descend key.
+- **Dry inside.** In air that a hull keeps the water out of, below the waterline of a floating hull or in the cabin
+  of a submerged one, players, mobs and items are not in the water: no swimming, no slowing, no drowning, no water
+  fog, although the world still has its water blocks there. The water's surface is not drawn across the inside of
+  the hull either. When the hull floods, all of that ends.
+- **Docking stays dry.** Disassembling a vessel in the water puts its blocks into the world and takes the water out
+  of the air its hull kept dry, so a docked boat's hold and a submarine's cabin are not full of water.
+- The pilot's display has a line for the hull: how much of its weight it can displace (above 100% it floats), and
+  whether it floats, sinks, takes in water or is held by hover. `/slipway info` shows the same numbers.
+- Settings (`config/slipway.json`): `buoyancy` (off, water is nothing to a vessel, as before) and `waterDrag`.
+  Which blocks let water through although one can stand on them is the block tag `slipway:not_watertight` (fences,
+  walls, bars, chains, ladders, banners, lanterns); every other block with a collision shape keeps water out, doors
+  and trapdoors too, open or shut.
+
+### Changed
+
+- A vessel without hover no longer falls through water, and a loose one neither: both float or sink by their weight.
+  A hovering vessel behaves as before.
+- The pose packet carries two more flag bits (in the water, flooding); its format is unchanged. Use the same version
+  on client and server: an older client does not know which air a hull keeps dry.
+
 ### Fixed
 
 - **The pilot's view turns smoothly with the ship.** At the helm, every turn (A/D) made the picture judder: the view

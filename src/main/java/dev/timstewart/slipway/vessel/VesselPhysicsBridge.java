@@ -4,6 +4,9 @@ import dev.timstewart.slipway.Slipway;
 import dev.timstewart.slipway.config.SlipwayConfig;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.physics.BoxList;
+import dev.timstewart.slipway.physics.Buoyancy;
+import dev.timstewart.slipway.physics.FluidField;
+import dev.timstewart.slipway.physics.Hull;
 import dev.timstewart.slipway.physics.PhysicsEngine;
 import dev.timstewart.slipway.physics.PhysicsWorld;
 import dev.timstewart.slipway.physics.SectionShapes;
@@ -43,6 +46,12 @@ public final class VesselPhysicsBridge {
 	private final Long2LongOpenHashMap terrainLastNeeded = new Long2LongOpenHashMap();
 	private final LongOpenHashSet terrainBuilt = new LongOpenHashSet();
 	private final LongOpenHashSet terrainDirty = new LongOpenHashSet();
+	/**
+	 * The water and lava in the terrain sections around the vessels, for buoyancy. Built here with each section's
+	 * collision boxes and handed over with a physics command; only the physics thread reads and writes it.
+	 */
+	private final FluidField fluids = new FluidField();
+	private final Buoyancy.Scratch buoyancyScratch = new Buoyancy.Scratch();
 	private long ticks;
 	private long lastExchangeNanos;
 
@@ -76,6 +85,9 @@ public final class VesselPhysicsBridge {
 				vessel.previousPose = vessel.record.pose;
 				if (vessel.hasBody) {
 					this.applyResult(vessel, this.world.result(vessel.record.id));
+					vessel.buoyancy.copyFrom(vessel.buoyancyStep);
+				} else {
+					vessel.buoyancy.clear();
 				}
 			}
 		} else {
@@ -140,6 +152,7 @@ public final class VesselPhysicsBridge {
 		VesselRecord record = vessel.record;
 		ServerLevel level = this.manager.level();
 		BoxList boxes = new BoxList();
+		Hull.Builder hull = new Hull.Builder();
 		BlockPos min = record.plotMin();
 		BlockPos max = record.plotMax();
 		int blocks = 0;
@@ -150,7 +163,7 @@ public final class VesselPhysicsBridge {
 					return;
 				}
 				for (int sy = min.getY() >> 4; sy <= max.getY() >> 4; sy++) {
-					blocks += this.sectionShapes.build(level, chunk, sy, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(), boxes);
+					blocks += this.sectionShapes.build(level, chunk, sy, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(), boxes, hull);
 				}
 			}
 		}
@@ -159,6 +172,12 @@ public final class VesselPhysicsBridge {
 		record.blockCount = blocks;
 		BoxList.MassProperties mass = boxes.massProperties();
 		vessel.mass = mass;
+		// The same blocks displace the same water: a lever thrown or a chest opened builds no new hull.
+		long fingerprint = hull.fingerprint();
+		if (fingerprint != vessel.hullFingerprint || vessel.hull == Hull.EMPTY) {
+			vessel.hull = hull.build();
+			vessel.hullFingerprint = fingerprint;
+		}
 		if (boxes.isEmpty() || mass.mass() <= 0) {
 			if (vessel.hasBody) {
 				long id = record.id;
@@ -185,6 +204,7 @@ public final class VesselPhysicsBridge {
 		VesselController.Params params = new VesselController.Params(config.thrustAcceleration, config.maxSpeed, config.angularAcceleration,
 			config.maxTurnRate, config.levelStrength);
 		List<VesselController.Drive> drives = new ArrayList<>();
+		List<Afloat> floats = new ArrayList<>();
 		LongArrayList ids = new LongArrayList();
 		for (ActiveVessel vessel : this.manager.activeVessels()) {
 			if (!vessel.hasBody || vessel.mass == null) {
@@ -197,13 +217,24 @@ public final class VesselPhysicsBridge {
 			drives.add(new VesselController.Drive(record.id, new VesselController.Axes(in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll),
 				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.brakeOnly ? null : vessel.hold));
 			vessel.holdReset = false;
+			// Hover cancels gravity, and with it what makes things float: a hovering vessel is left alone in water too.
+			floats.add(new Afloat(record.id, vessel.hull, vessel.mass, forward, record.loose || !record.hover, vessel.buoyancyStep));
 		}
+		Buoyancy.Params water = new Buoyancy.Params(config.buoyancy, config.waterDrag);
 		PhysicsEngine.BodyState scratch = new PhysicsEngine.BodyState();
 		this.world().startStep(ids.toLongArray(), engine -> {
 			for (VesselController.Drive drive : drives) {
 				VesselController.drive(engine, params, PhysicsWorld.STEP, drive, scratch);
 			}
+			for (Afloat afloat : floats) {
+				Buoyancy.apply(engine, this.fluids, water, PhysicsWorld.STEP, afloat.id(), afloat.hull(), afloat.mass(), afloat.forward(), afloat.forces(),
+					afloat.state(), this.buoyancyScratch);
+			}
 		});
+	}
+
+	/** What the physics thread needs to float one vessel for one step. */
+	private record Afloat(long id, Hull hull, BoxList.MassProperties mass, Vector3d forward, boolean forces, Buoyancy.State state) {
 	}
 
 	// ---------------------------------------------------------------------------------------------------------
@@ -256,6 +287,7 @@ public final class VesselPhysicsBridge {
 			}
 			BoxList boxes = new BoxList();
 			this.sectionShapes.build(level, chunk, sy, sx << 4, sy << 4, sz << 4, boxes);
+			byte[] fluid = SectionShapes.fluids(chunk, sy);
 			this.terrainBuilt.add(key);
 			builds++;
 			if (boxes.isEmpty()) {
@@ -263,6 +295,13 @@ public final class VesselPhysicsBridge {
 			} else {
 				this.world().submit(engine -> engine.setStaticSection(key, boxes, sx << 4, sy << 4, sz << 4));
 			}
+			this.world().submit(engine -> {
+				// Jolt wakes a sleeping body when a body near it changes; water is no body, so a vessel asleep on water
+				// that is drained (or on a floor that is flooded) is woken here.
+				if (this.fluids.put(key, fluid)) {
+					engine.wakeLooseVessels(sx << 4, sy << 4, sz << 4, (sx << 4) + 16, (sy << 4) + 16, (sz << 4) + 16);
+				}
+			});
 		}
 		LongArrayList release = new LongArrayList();
 		for (long key : this.terrainBuilt) {
@@ -273,7 +312,10 @@ public final class VesselPhysicsBridge {
 		for (long key : release) {
 			this.terrainBuilt.remove(key);
 			this.terrainLastNeeded.remove(key);
-			this.world().submit(engine -> engine.removeStaticSection(key));
+			this.world().submit(engine -> {
+				engine.removeStaticSection(key);
+				this.fluids.remove(key);
+			});
 		}
 	}
 
@@ -281,6 +323,7 @@ public final class VesselPhysicsBridge {
 		for (long key : this.terrainBuilt) {
 			this.world().submit(engine -> engine.removeStaticSection(key));
 		}
+		this.world().submit(engine -> this.fluids.clear());
 		this.terrainBuilt.clear();
 		this.terrainLastNeeded.clear();
 		this.terrainDirty.clear();
@@ -323,6 +366,7 @@ public final class VesselPhysicsBridge {
 			this.world.submit(engine -> engine.removeVessel(id));
 		}
 		vessel.hasBody = false;
+		vessel.buoyancy.clear();
 		vessel.bodyLoose = false;
 		vessel.bodyAwake = true;
 		vessel.shapeDirty = true;
@@ -353,6 +397,8 @@ public final class VesselPhysicsBridge {
 		if (this.world != null) {
 			this.world.close();
 			this.world = null;
+			// The physics thread has ended: nothing else touches the fluids now.
+			this.fluids.clear();
 		}
 		this.terrainBuilt.clear();
 		this.terrainLastNeeded.clear();

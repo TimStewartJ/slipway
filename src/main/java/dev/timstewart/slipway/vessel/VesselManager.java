@@ -301,7 +301,17 @@ public final class VesselManager {
 			vessel.entity.ejectPassengers();
 		}
 		List<Relocation> aboard = this.entitiesAboard(record, placement);
+		List<BlockPos> dry = vessel == null ? List.of() : this.dryCells(vessel.hull, record.pose);
 		int count = VesselAssembly.disassemble(this.level, record, placement);
+		// What the hull kept the water out of stays dry: its blocks are in the world now and keep the water out
+		// themselves, but the world's water was there all along, and would stand in the hold of a docked boat and in
+		// the cabin of a submarine.
+		for (BlockPos local : dry) {
+			BlockPos target = VesselAssembly.worldTarget(placement.worldAnchor(), local, placement.quarterTurns());
+			if (this.level.getBlockState(target).getBlock() instanceof net.minecraft.world.level.block.LiquidBlock) {
+				this.level.setBlock(target, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+			}
+		}
 		// The blocks moved by up to half a block and a few degrees to the snapped placement; move everything that was
 		// on board with them. Server-simulated entities move now (the world blocks are there now). Players move their
 		// own bodies: their teleport goes out next tick, after the new blocks have reached them and before the vessel
@@ -334,6 +344,27 @@ public final class VesselManager {
 
 	/** Where an entity that was on a vessel goes when the vessel snaps into the world. */
 	private record Relocation(Entity entity, Vec3 target, float yRot) {
+	}
+
+	/** The local positions of the cells a hull keeps dry at a pose: sealed, or sheltered and not flooded there. */
+	private List<BlockPos> dryCells(dev.timstewart.slipway.physics.Hull hull, VesselPose pose) {
+		int[] cells = hull.dryCells();
+		byte[] flooded = new byte[hull.pourCount()];
+		dev.timstewart.slipway.physics.FluidCells fluids = Shelter.fluids(this.level);
+		List<BlockPos> dry = new ArrayList<>(cells.length / 4);
+		for (int i = 0; i < cells.length; i += 4) {
+			int pour = cells[i + 3];
+			if (pour >= 0) {
+				if (flooded[pour] == 0) {
+					flooded[pour] = (byte)(Shelter.flooded(fluids, hull, pose, pour) ? 2 : 1);
+				}
+				if (flooded[pour] == 2) {
+					continue;
+				}
+			}
+			dry.add(new BlockPos(cells[i], cells[i + 1], cells[i + 2]));
+		}
+		return dry;
 	}
 
 	/**
@@ -542,6 +573,7 @@ public final class VesselManager {
 				vessel.entity.updateFrom(record.pose, record.helm, record.helmFacing, worldCentre(record));
 				this.broadcastPose(vessel, gameTime);
 			}
+			WaterEffects.tick(this.level, vessel);
 			if (!vessel.unsentChunks.isEmpty()) {
 				this.sendNewChunks(vessel);
 			}
@@ -583,7 +615,8 @@ public final class VesselManager {
 	private SlipwayPayloads.PoseUpdate posePayload(ActiveVessel vessel, long gameTime) {
 		VesselRecord record = vessel.record;
 		byte flags = (byte)((record.hover ? SlipwayPayloads.PoseUpdate.FLAG_HOVER : 0) | (record.level ? SlipwayPayloads.PoseUpdate.FLAG_LEVEL : 0)
-			| (vessel.hasBody ? SlipwayPayloads.PoseUpdate.FLAG_BODY : 0) | (record.loose ? SlipwayPayloads.PoseUpdate.FLAG_LOOSE : 0));
+			| (vessel.hasBody ? SlipwayPayloads.PoseUpdate.FLAG_BODY : 0) | (record.loose ? SlipwayPayloads.PoseUpdate.FLAG_LOOSE : 0)
+			| (vessel.buoyancy.displacedVolume > 0 ? SlipwayPayloads.PoseUpdate.FLAG_IN_FLUID : 0) | (vessel.flooding() ? SlipwayPayloads.PoseUpdate.FLAG_FLOODING : 0));
 		return new SlipwayPayloads.PoseUpdate(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), gameTime,
 			SlipwayPayloads.VesselPoseData.of(record.pose), record.linearVelocity, record.angularVelocity, flags);
 	}

@@ -38,6 +38,13 @@ final class HelmHud {
 			String.format(Locale.ROOT, "%03.0f", heading)));
 		lines.add(Component.translatable("slipway.hud.modes", Component.literal(vessel.hover ? "ON" : "off"), Component.literal(vessel.level ? "ON" : "off"),
 			Component.literal(vessel.loose ? "ON" : "off"), String.format(Locale.ROOT, "%.1f", vessel.mass / 1000.0)));
+		double reserve = vessel.buoyancyReserve();
+		if (reserve > 0) {
+			// What the hull can carry, and what it is doing in the water now.
+			String state = !vessel.inFluid ? reserve > 1.0 ? "floats" : "sinks"
+				: vessel.hover && !vessel.loose ? "hover" : vessel.flooding ? "flooding" : reserve > 1.0 ? "afloat" : "sinking";
+			lines.add(Component.translatable("slipway.hud.hull", String.format(Locale.ROOT, "%.0f", reserve * 100.0), Component.translatable("slipway.hud.hull." + state)));
+		}
 		int width = 0;
 		for (Component line : lines) {
 			width = Math.max(width, mc.font.width(line));

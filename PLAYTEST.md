@@ -18,6 +18,20 @@ on other vessels.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
 
+## What's new in this test build: water
+
+Not released; built from the branch `buoyancy`. With hover off (or loose) a vessel now floats, sinks or sails by its
+weight and its hull. The short version:
+
+- **Hover off over water**: the ship drops in with a splash, bobs and floats where it displaces its own weight. A
+  raft of planks floats low; an open hull floats high, because the air its walls keep dry counts too.
+- **The HUD's last line** tells what the hull can do: "Hull displaces 180% of its weight: afloat". Above 100% it
+  floats. Load it past that, or heel it until the rim dips, and it reads "TAKING ON WATER" and the ship goes down.
+- **Sail it**: W/S and A/D as in the air, slower (about 9 blocks a second), and it does not slide sideways.
+- **Inside the hull you are dry**, also below the waterline, and the sea is not drawn inside the hull.
+- **Hover on**: water does nothing to the ship. That is your submarine: a closed cabin stays dry under water.
+- **Disassemble in the water**: the hold stays dry.
+
 ## What's new in 0.1.3
 
 Fixes only (the play instance has not been updated by this work: it still runs 0.1.1 until the new jar is installed).
@@ -144,6 +158,22 @@ you remove, not touching the ground.
     contraption; watch the stroke while the ship flies. Open a chest and watch its lid.
 13. **A farm** (fixed): farmland with a waterlogged slab or stair next to it, wheat, a dispenser with bone meal
     facing a crop and a lever or a clock. The sparkle should be on the crop, and crops also grow by themselves.
+14. **A boat** (new): the sandbox has no sea, so make one (`/fill ~-20 ~-8 ~-20 ~20 ~-2 ~20 water` over a pit, or fly
+    to an ocean in another world). Build an open hull of planks over the water, floor and two or three rows of
+    wall, with the helm inside; assemble it, take the helm, press **Toggle hover**. Things to look for: how it goes
+    in (a splash, two or three bobs, then still), whether the waterline looks right for the build, whether the
+    inside of the hull is free of water from above and from inside, and whether you can walk in it below the
+    waterline without swimming. Then sail: W, A/D, stop.
+15. **Sink it** (new): put blocks of iron in the hull and watch the HUD's hull line fall towards 100%. Past it the
+    ship settles until the rim is under and goes down; you are in the water then. With level off, roll a floating
+    hull (arrow keys) until a rim dips. A hull of stone needs to be large to float at all (about 16 by 16 and six
+    high); a raft of stone sinks at once.
+16. **A submarine** (new): a closed box with you and the helm inside. With hover on it flies under water like
+    anywhere; look for water fog or swimming inside (there should be none). With hover off it comes up like a cork
+    unless you ballast it with iron to a little over 100%; then **Descend** takes it down and letting go brings it
+    back up.
+17. **Dock** (new): float a hull, level, leave the helm, sneak and use the helm. The blocks land in the water and the
+    hold should be dry.
 
 ## Known limitations of this build
 

@@ -1,0 +1,16 @@
+{
+  "values": [
+    { "id": "#minecraft:fences", "required": false },
+    { "id": "#minecraft:fence_gates", "required": false },
+    { "id": "#minecraft:walls", "required": false },
+    { "id": "#minecraft:bars", "required": false },
+    { "id": "#minecraft:chains", "required": false },
+    { "id": "#minecraft:climbable", "required": false },
+    { "id": "#minecraft:banners", "required": false },
+    { "id": "#minecraft:lanterns", "required": false },
+    { "id": "minecraft:lightning_rod", "required": false },
+    { "id": "minecraft:end_rod", "required": false },
+    { "id": "minecraft:grindstone", "required": false },
+    { "id": "minecraft:bell", "required": false }
+  ]
+}

@@ -140,7 +140,7 @@ public final class SlipwayCommands {
 		String text = String.format(Locale.ROOT,
 			"vessel %d: blocks=%d plot=%d anchor=%s bounds=%s..%s pos=%.3f,%.3f,%.3f centre=%.2f,%.2f,%.2f pitch=%.2f yaw=%.2f roll=%.2f tilt=%.2f "
 				+ "speed=%.3f spin=%.3f hover=%s level=%s loose=%s active=%s body=%s awake=%s mass=%.1f q=%.6f,%.6f,%.6f,%.6f vel=%.3f,%.3f,%.3f "
-				+ "plotAnchor=%d,%d,%d input=%s",
+				+ "plotAnchor=%d,%d,%d input=%s fluid=%s displaced=%.2f flooded=%.2f capacity=%.2f sheltered=%.2f sealed=%.2f floats=%s",
 			id, record.blockCount, record.plot, record.anchor.toShortString(), record.localMin.toShortString(), record.localMax.toShortString(),
 			pose.x(), pose.y(), pose.z(), centre.x, centre.y, centre.z, attitude[0], attitude[1], attitude[2], pose.tiltDegrees(),
 			record.linearVelocity.length(), record.angularVelocity.length(), record.hover, record.level, record.loose, active != null,
@@ -149,9 +149,14 @@ public final class SlipwayCommands {
 			pose.qx(), pose.qy(), pose.qz(), pose.qw(), record.linearVelocity.x, record.linearVelocity.y, record.linearVelocity.z,
 			record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(),
 			active == null ? "none" : String.format(Locale.ROOT, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f", active.input.forward, active.input.strafe,
-				active.input.vertical, active.input.pitch, active.input.yaw, active.input.roll));
+				active.input.vertical, active.input.pitch, active.input.yaw, active.input.roll),
+			active == null ? "none" : FLUID_NAMES[active.buoyancy.fluid], active == null ? 0.0 : active.buoyancy.displacedVolume,
+			active == null ? 0.0 : active.buoyancy.floodedVolume, active == null ? 0.0 : active.hull.capacity(), active == null ? 0.0 : active.hull.shelteredVolume(),
+			active == null ? 0.0 : active.hull.sealedVolume(), active != null && active.buoyancyReserve() > 1.0);
 		return reply(ctx, true, text);
 	}
+
+	private static final String[] FLUID_NAMES = {"none", "water", "lava"};
 
 	private static int stats(CommandContext<CommandSourceStack> ctx) {
 		VesselManager manager = manager(ctx);

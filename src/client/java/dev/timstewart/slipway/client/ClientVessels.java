@@ -166,6 +166,9 @@ public final class ClientVessels {
 		clientTicks++;
 		for (ClientVessel vessel : VESSELS.values()) {
 			vessel.tick();
+			if (level != null) {
+				vessel.tickWater(level);
+			}
 		}
 		if (!GONE.isEmpty()) {
 			var gone = GONE.values().iterator();
@@ -225,6 +228,7 @@ public final class ClientVessels {
 		ClientVessel vessel = atPlot(VesselRegion.plotAtChunk(chunkX, chunkZ));
 		if (vessel != null) {
 			vessel.mesh.markColumnDirty(chunkX, chunkZ);
+			vessel.hullDirty = true;
 		}
 	}
 
@@ -238,6 +242,7 @@ public final class ClientVessels {
 	static void onPlotBlockChanged(BlockPos pos) {
 		ClientVessel vessel = atPlotPos(pos);
 		if (vessel != null) {
+			vessel.hullDirty = true;
 			vessel.mesh.markSectionAndNeighboursDirty(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getY()),
 				SectionPos.blockToSectionCoord(pos.getZ()));
 		}

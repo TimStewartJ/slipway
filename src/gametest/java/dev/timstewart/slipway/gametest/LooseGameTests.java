@@ -5,6 +5,7 @@ import static dev.timstewart.slipway.gametest.TestShips.check;
 import dev.timstewart.slipway.registry.SlipwayRegistry;
 import dev.timstewart.slipway.vessel.ActiveVessel;
 import dev.timstewart.slipway.vessel.HelmBlock;
+import dev.timstewart.slipway.vessel.VesselManager;
 import dev.timstewart.slipway.vessel.VesselRecord;
 import java.util.ArrayList;
 import java.util.List;
@@ -319,10 +320,10 @@ public class LooseGameTests {
 			.thenSucceed();
 	}
 
-	@GameTest(structure = ARENA, maxTicks = 200)
-	public void aLooseWoodenVesselSinksThroughWater(GameTestHelper helper) {
-		// A stone basin with three blocks of water in it. Vessels collide with blocks that have a collision shape; water
-		// has none and there is no buoyancy, so even a wooden crate goes to the bottom.
+	@GameTest(structure = ARENA, maxTicks = 300)
+	public void aLooseWoodenVesselFloatsOnWater(GameTestHelper helper) {
+		// A stone basin with three blocks of water in it. Up to 0.1.3 water was nothing to a vessel and even a wooden
+		// crate went to the bottom; now it floats where it displaces its weight (more in BuoyancyGameTests).
 		for (int x = 4; x <= 10; x++) {
 			for (int z = 4; z <= 10; z++) {
 				helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);
@@ -337,8 +338,15 @@ public class LooseGameTests {
 		double floorTop = helper.absolutePos(new BlockPos(0, 2, 0)).getY();
 		crate.loose = true;
 		helper.startSequence()
-			.thenWaitUntil(() -> check(helper, vessel.hasBody && Math.abs(crate.pose.y() - 1.0 - floorTop) < 0.06 && crate.linearVelocity.length() < 0.05,
-				String.format(Locale.ROOT, "the crate's bottom is %.2f blocks above the basin's floor, moving at %.2f", crate.pose.y() - 1.0 - floorTop, crate.linearVelocity.length())))
+			.thenWaitUntil(() -> {
+				check(helper, TestShips.settled(vessel) && crate.linearVelocity.length() < 0.05 && crate.angularVelocity.length() < 0.05, "the crate still moves at "
+					+ crate.linearVelocity.length());
+				check(helper, Math.abs(vessel.buoyancy.displacedVolume - vessel.mass.mass() / 1000.0) < 0.1, String.format(Locale.ROOT,
+					"the crate displaces %.2f m^3 and weighs %.2f t", vessel.buoyancy.displacedVolume, vessel.mass.mass() / 1000.0));
+				// Two blocks of wood, plank and helm: however it lies, its lowest point is well clear of the floor.
+				check(helper, VesselManager.worldCentre(crate).y > floorTop + 1.2, "the crate's centre is " + (VesselManager.worldCentre(crate).y - floorTop)
+					+ " above the basin's floor");
+			})
 			.thenExecute(() -> check(helper, helper.getBlockState(new BlockPos(7, 4, 7)).is(Blocks.WATER) && helper.getBlockState(new BlockPos(6, 2, 6)).is(Blocks.WATER),
 				"the water is gone from the basin"))
 			.thenSucceed();

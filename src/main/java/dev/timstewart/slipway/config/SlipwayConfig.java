@@ -37,6 +37,13 @@ public final class SlipwayConfig {
 	public double maxTurnRate = 0.9;
 	/** How strongly level mode rights the vessel, 1/s. */
 	public double levelStrength = 1.5;
+	/**
+	 * Whether water and lava act on vessels: lift by what the hull displaces, and resistance. Off, vessels pass through
+	 * fluids as through air, as up to 0.1.3.
+	 */
+	public boolean buoyancy = true;
+	/** Scale of the resistance of water and lava to a vessel's movement and turning; 1 is the default, 0 none. */
+	public double waterDrag = 1.0;
 	/** Blocks beyond which vessels are shown to clients only as Distant Horizons proxies. */
 	public int proxyRange = 4096;
 	/** Extra block ids (namespace:path) that never become part of a vessel, on top of the slipway:assembly_deny tag. */
@@ -85,6 +92,8 @@ public final class SlipwayConfig {
 		c.angularAcceleration = clamp(this.angularAcceleration, 0.0, 20.0, 1.6);
 		c.maxTurnRate = clamp(this.maxTurnRate, 0.05, 6.0, 0.9);
 		c.levelStrength = clamp(this.levelStrength, 0.0, 20.0, 1.5);
+		c.buoyancy = this.buoyancy;
+		c.waterDrag = clamp(this.waterDrag, 0.0, 10.0, 1.0);
 		c.proxyRange = clamp(this.proxyRange, 0, 65536);
 		c.extraDeniedBlocks = this.extraDeniedBlocks == null ? new ArrayList<>() : new ArrayList<>(this.extraDeniedBlocks.stream()
 			.filter(s -> s != null && s.matches("[a-z0-9_.-]+:[a-z0-9_./-]+"))
