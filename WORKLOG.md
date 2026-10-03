@@ -178,6 +178,35 @@ fork.7; cleanup (heap dumps and trial clones now, jars/branches after publishing
 DONE. Open: the Bliss section-count comparison (E:\slipway-e2e\tools\tellus-dh-ab.ps1, not run); the Tellus test
 instance jar swap when that instance is free; Slipway's full client GameTest suite has not run with fork.7.
 
+## 2026-10-02 to 10-03: water (branch `buoyancy`, local)
+
+Floating, sinking and dry hulls; design in DESIGN.md, "Water: floating, sinking and dry hulls". Evidence, pictures
+and what is not done: `E:\slipway-e2e\runs\buoyancy-20261002\README.txt`.
+
+- 10-02 afternoon and evening: written and checked without the game (the go for game runs was asked for and not
+  there): `4c54945`, then `fc748b7` after a code review (131 unit tests).
+- 10-02 22:47, with the go: server GameTests "all 55 passed", which was wrong by six: `BuoyancyGameTests` was not in
+  the gametest entrypoints. Registered: 61 of 61 at the first try. `afloat` passed at the first try; a phase with
+  Bliss added (`ac03e13`).
+- A world to play in, made by a diagnostic scenario (`make-harbour`): normal worldgen, a pier in a deep sea, a raft,
+  a boat, a submarine and a stone barge moored as blocks, each assembled, tried with DH and Bliss, moored again.
+  Writing and running it found: helms face the pilot (the boat backed into the pier); the stone barge sank into the
+  hole its own assembly left in the sea (fix: `closeTheWater`); kelp ties a hull to the sea's floor (fix: tag
+  `slipway:sea_plants`); specks of water in dry holds (fix: `WaterFluidMixin`); spray inside the wall (fix: the way
+  out of an outside block); a body made in a busy tick got its water a tick late (fix: `surroundingsUrgent`).
+  All in `5b84040`.
+- At `5b84040`: 131 unit tests, 64 server GameTests (twice), make-harbour, packaged-jar check, the play instance to
+  the title screen. Full client suite twice: 16 of 18 and 17 of 18, never 18 of 18 in one run; the three scenarios
+  that failed once each (assemble-mixed, leak, disassembly) passed when run again. Two were Distant Horizons
+  finishing far terrain between two pictures (a line or a slab on the horizon, see the diff pictures). The leak
+  failure: MAT `path2gc` on the dump gives IntegratedServer <- ServerLevel <- DH `GlobalWorldGenParams` <-
+  `DhChunkGenerator` <- `DhChunkGenerator$1` (timer task) <- thread `DH-ChunkSaveIgnoreTimer`: DH's timer thread
+  still held the closed world when the test looked. The machine was at 100% CPU from other sessions' work.
+  If these three keep failing on a quiet machine: the picture comparisons need the far terrain to be done first
+  (wait for DH's queue to be empty, not only for a still view), and the leak check needs to wait for DH's timer.
+- 10-03 00:17: play instance: Slipway `0.2.0-pre.1` (SHA256 `A679C6B2...50FB`) in place of `0.1.4-pre.1`, world
+  "Slipway Harbor" added; backup `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.0-pre.1-20261003-001745`.
+
 ## Previous goal (shader blotches)
 
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
