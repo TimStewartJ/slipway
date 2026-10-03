@@ -71,6 +71,28 @@ class VesselRecordTest {
 		assertFalse(VesselRecord.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow().loose);
 	}
 
+	@Test
+	void freeIsSavedAndSavesFromBeforeTheSurvivalRulesLoadAsFree() {
+		VesselRecord record = sample(42, 1025);
+		record.free = false;
+		record.loose = true;
+		for (var ops : new com.mojang.serialization.DynamicOps<?>[] {NbtOps.INSTANCE, JsonOps.INSTANCE}) {
+			VesselRecord back = reload(record, ops);
+			assertFalse(back.free, "a vessel under the survival rules came back free in " + ops);
+			assertTrue(back.loose, "loose was lost in " + ops);
+		}
+		record.free = true;
+		assertTrue(reload(record, JsonOps.INSTANCE).free);
+		// What every version before 0.2.0 wrote: no such field. Those vessels flew by the old rules and keep them.
+		record.free = false;
+		com.google.gson.JsonObject json = VesselRecord.CODEC.encodeStart(JsonOps.INSTANCE, record).getOrThrow().getAsJsonObject();
+		assertTrue(json.has("free") && json.has("loose"), "both modes are fields of the record itself: " + json);
+		json.remove("free");
+		VesselRecord old = VesselRecord.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+		assertTrue(old.free, "a save without the field must load as free");
+		assertTrue(old.loose);
+	}
+
 	private static <T> VesselRecord reload(VesselRecord record, com.mojang.serialization.DynamicOps<T> ops) {
 		return VesselRecord.CODEC.parse(ops, VesselRecord.CODEC.encodeStart(ops, record).getOrThrow()).getOrThrow();
 	}

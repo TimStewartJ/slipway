@@ -9,6 +9,7 @@ import dev.timstewart.slipway.physics.FluidField;
 import dev.timstewart.slipway.physics.Hull;
 import dev.timstewart.slipway.physics.PhysicsEngine;
 import dev.timstewart.slipway.physics.PhysicsWorld;
+import dev.timstewart.slipway.physics.Rig;
 import dev.timstewart.slipway.physics.SectionShapes;
 import dev.timstewart.slipway.physics.VesselController;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
@@ -178,6 +179,7 @@ public final class VesselPhysicsBridge {
 		ServerLevel level = this.manager.level();
 		BoxList boxes = new BoxList();
 		Hull.Builder hull = new Hull.Builder();
+		Rig.Builder rig = new Rig.Builder();
 		BlockPos min = record.plotMin();
 		BlockPos max = record.plotMax();
 		int blocks = 0;
@@ -188,7 +190,7 @@ public final class VesselPhysicsBridge {
 					return;
 				}
 				for (int sy = min.getY() >> 4; sy <= max.getY() >> 4; sy++) {
-					blocks += this.sectionShapes.build(level, chunk, sy, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(), boxes, hull);
+					blocks += this.sectionShapes.build(level, chunk, sy, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(), boxes, hull, rig);
 				}
 			}
 		}
@@ -203,6 +205,14 @@ public final class VesselPhysicsBridge {
 			vessel.hull = hull.build();
 			vessel.hullFingerprint = fingerprint;
 		}
+		// The air it holds from rising away matters only over a burner; the flood for it is run for the same blocks once.
+		if (!rig.hasBurners()) {
+			vessel.envelope = null;
+		} else if (vessel.envelope == null || rig.fingerprint() != vessel.envelopeFingerprint) {
+			vessel.envelope = rig.envelope();
+			vessel.envelopeFingerprint = rig.fingerprint();
+		}
+		vessel.rig = rig.build(vessel.hull, vessel.envelope);
 		if (boxes.isEmpty() || mass.mass() <= 0) {
 			if (vessel.hasBody) {
 				long id = record.id;
@@ -229,6 +239,7 @@ public final class VesselPhysicsBridge {
 		SlipwayConfig config = SlipwayConfig.get();
 		VesselController.Params params = new VesselController.Params(config.thrustAcceleration, config.maxSpeed, config.angularAcceleration,
 			config.maxTurnRate, config.levelStrength);
+		Rig.Rules rules = config.rigRules();
 		List<VesselController.Drive> drives = new ArrayList<>();
 		List<Afloat> floats = new ArrayList<>();
 		LongArrayList ids = new LongArrayList();
@@ -240,11 +251,15 @@ public final class VesselPhysicsBridge {
 			ids.add(record.id);
 			Vector3d forward = new Vector3d(record.helmFacing.getOpposite().getStepX(), 0, record.helmFacing.getOpposite().getStepZ());
 			HelmInput in = vessel.input;
-			drives.add(new VesselController.Drive(record.id, new VesselController.Axes(in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll),
-				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.brakeOnly ? null : vessel.hold));
+			VesselController.Rating rating = record.free ? null
+				: vessel.rig.rating(rules, vessel.mass.mass(), config.thrustAcceleration, vessel.buoyancy.applied ? vessel.buoyancy.displacedMass : 0.0);
+			VesselController.Drive drive = new VesselController.Drive(record.id, new VesselController.Axes(in.forward, in.strafe, in.vertical, in.pitch, in.yaw, in.roll),
+				record.hover, record.level, record.loose, vessel.holdReset, vessel.mass, forward, vessel.brakeOnly ? null : vessel.hold, rating);
+			drives.add(drive);
 			vessel.holdReset = false;
-			// Hover cancels gravity, and with it what makes things float: a hovering vessel is left alone in water too.
-			floats.add(new Afloat(record.id, vessel.hull, vessel.mass, forward, record.loose || !record.hover, vessel.buoyancyStep));
+			// Hover cancels gravity, and with it what makes things float: a vessel that hover holds up is left alone in
+			// water too. One that asks for hover without the lift for its weight floats or sinks like any other.
+			floats.add(new Afloat(record.id, vessel.hull, vessel.mass, forward, record.loose || !drive.hovering(), vessel.buoyancyStep));
 		}
 		Buoyancy.Params water = new Buoyancy.Params(config.buoyancy, config.waterDrag);
 		PhysicsEngine.BodyState scratch = new PhysicsEngine.BodyState();

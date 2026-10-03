@@ -61,6 +61,21 @@ public final class VesselController {
 		}
 	}
 
+	/**
+	 * What a vessel that follows the survival rules can do in one step (see {@link Rig#rating}); where one is taken,
+	 * null means a free vessel: full thrust on every axis and a hover that holds whatever it weighs.
+	 *
+	 * @param thrust acceleration at full input along the deck (forward and sideways), m/s^2
+	 * @param climb acceleration at full input upward while hovering, m/s^2
+	 * @param sink acceleration at full input downward while hovering, m/s^2
+	 * @param turn share of the full turn rate
+	 * @param airworthy whether the vessel's lift carries its weight: only then does hover hold it up
+	 * @param lift upward acceleration its lift gives a vessel that is not airworthy while hover is on, m/s^2
+	 * @param trim acceleration at full input up or down for a vessel in water that is not hovering, m/s^2
+	 */
+	public record Rating(double thrust, double climb, double sink, double turn, boolean airworthy, double lift, double trim) {
+	}
+
 	/** The helm's six axes for one step, each in [-1, 1]. */
 	public record Axes(double forward, double strafe, double vertical, double pitch, double yaw, double roll) {
 		public static final Axes IDLE = new Axes(0, 0, 0, 0, 0, 0);
@@ -149,7 +164,16 @@ public final class VesselController {
 	 * Without a hold ({@code null}) a hovering vessel is only braked, as before 0.1.2.
 	 */
 	public record Drive(long vesselId, Axes axes, boolean hover, boolean level, boolean loose, boolean resetHold, BoxList.MassProperties mass,
-		Vector3d forwardLocal, @Nullable Hold hold) {
+		Vector3d forwardLocal, @Nullable Hold hold, @Nullable Rating rating) {
+		public Drive(long vesselId, Axes axes, boolean hover, boolean level, boolean loose, boolean resetHold, BoxList.MassProperties mass, Vector3d forwardLocal,
+			@Nullable Hold hold) {
+			this(vesselId, axes, hover, level, loose, resetHold, mass, forwardLocal, hold, null);
+		}
+
+		/** Whether hover holds the vessel up: it is on, and the vessel is free or has the lift for its weight. */
+		public boolean hovering() {
+			return this.hover && (this.rating == null || this.rating.airworthy());
+		}
 	}
 
 	/**
@@ -181,7 +205,7 @@ public final class VesselController {
 		Vector3d centre = rotation.transform(centreLocal).add(scratch.x, scratch.y, scratch.z);
 		Command command = compute(params, in.forward(), in.strafe(), in.vertical(), in.pitch(), in.yaw(), in.roll(), drive.hover(), drive.level(),
 			rotation, centre, new Vector3d(scratch.vx, scratch.vy, scratch.vz), new Vector3d(scratch.wx, scratch.wy, scratch.wz),
-			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), hold, step);
+			drive.mass().mass(), drive.mass().inertia(), drive.forwardLocal(), hold, step, drive.rating());
 		if (hold != null && !(command.isFinite() && hold.isFinite())) {
 			hold.reset();
 		}
@@ -210,9 +234,22 @@ public final class VesselController {
 	public static Command compute(Params p, double forward, double strafe, double vertical, double pitch, double yaw, double roll,
 		boolean hover, boolean level, Quaterniond rotation, Vector3d position, Vector3d velocity, Vector3d angularVelocity,
 		double mass, double[] inertiaLocal, Vector3d forwardLocal, @Nullable Hold hold, @Nullable Step step) {
+		return compute(p, forward, strafe, vertical, pitch, yaw, roll, hover, level, rotation, position, velocity, angularVelocity, mass, inertiaLocal, forwardLocal,
+			hold, step, null);
+	}
+
+	/**
+	 * As above for a vessel that follows the survival rules: {@code rating} limits its thrust, climb and turn, and
+	 * decides whether hover holds it up at all. Asked to hover without the lift for its weight, it is driven as a
+	 * vessel that is not hovering, made lighter by the lift it has.
+	 */
+	public static Command compute(Params p, double forward, double strafe, double vertical, double pitch, double yaw, double roll,
+		boolean hoverAsked, boolean level, Quaterniond rotation, Vector3d position, Vector3d velocity, Vector3d angularVelocity,
+		double mass, double[] inertiaLocal, Vector3d forwardLocal, @Nullable Hold hold, @Nullable Step step, @Nullable Rating rating) {
 		if (hold != null && step == null) {
 			throw new IllegalArgumentException("holding needs the step");
 		}
+		boolean hover = hoverAsked && (rating == null || rating.airworthy());
 		Vector3d upLocal = new Vector3d(0, 1, 0);
 		Vector3d rightLocal = new Vector3d(forwardLocal).cross(upLocal).normalize();
 		Vector3d f = rotation.transform(new Vector3d(forwardLocal));
@@ -245,7 +282,11 @@ public final class VesselController {
 			double a;
 			double b;
 			if (inputs[i] != 0) {
-				b = p.thrustAcceleration() * inputs[i] - drag * along;
+				double thrust = p.thrustAcceleration();
+				if (rating != null) {
+					thrust = i < 2 ? rating.thrust() : !hover ? rating.trim() : inputs[i] > 0 ? rating.climb() : rating.sink();
+				}
+				b = thrust * inputs[i] - drag * along;
 				a = b;
 				if (error != null) {
 					hold.target.fma(error.dot(axes[i]) + stopping * along, axes[i]);
@@ -269,6 +310,8 @@ public final class VesselController {
 		double maxAccel = 3.0 * p.thrustAcceleration() + GRAVITY;
 		if (hover) {
 			accel.y += GRAVITY;
+		} else if (hoverAsked && rating != null) {
+			accel.y += Math.min(GRAVITY, rating.lift());
 		}
 		if (accel.length() > maxAccel) {
 			accel.normalize(maxAccel);
@@ -286,9 +329,10 @@ public final class VesselController {
 
 		// ---- angular ----
 		Vector3d target = new Vector3d();
-		target.fma(p.maxTurnRate() * pitch, r);
-		target.fma(-p.maxTurnRate() * yaw, u);
-		target.fma(p.maxTurnRate() * roll, f);
+		double turnRate = p.maxTurnRate() * (rating == null ? 1.0 : rating.turn());
+		target.fma(turnRate * pitch, r);
+		target.fma(-turnRate * yaw, u);
+		target.fma(turnRate * roll, f);
 		if (level && pitch == 0 && roll == 0) {
 			// Rotate u towards world up about the axis u x up; the magnitude sin(angle) fades near level.
 			Vector3d correction = new Vector3d(u).cross(0, 1, 0);

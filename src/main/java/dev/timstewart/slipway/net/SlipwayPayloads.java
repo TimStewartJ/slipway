@@ -31,6 +31,8 @@ public final class SlipwayPayloads {
 		public static final byte FLAG_IN_FLUID = 16;
 		/** Water is running over a rim of the hull into air it kept dry. */
 		public static final byte FLAG_FLOODING = 32;
+		/** Hover is on but does not hold the vessel up: under the survival rules it has not the lift for its weight. */
+		public static final byte FLAG_NO_LIFT = 64;
 		public static final Type<PoseUpdate> TYPE = new Type<>(Slipway.id("vessel_pose"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, PoseUpdate> CODEC = CustomPacketPayload.codec(PoseUpdate::write, PoseUpdate::new);
 
@@ -59,13 +61,13 @@ public final class SlipwayPayloads {
 	 * {@code assembled} is set on the one sent as the vessel is assembled (its blocks just left the world there).
 	 */
 	public record VesselInfo(long vesselId, int entityId, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
-		int blocks, float mass, boolean assembled) implements CustomPacketPayload {
+		int blocks, float mass, boolean assembled, RigInfo rig) implements CustomPacketPayload {
 		public static final Type<VesselInfo> TYPE = new Type<>(Slipway.id("vessel_info"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, VesselInfo> CODEC = CustomPacketPayload.codec(VesselInfo::write, VesselInfo::new);
 
 		private VesselInfo(RegistryFriendlyByteBuf buf) {
 			this(buf.readVarLong(), buf.readVarInt(), buf.readBlockPos(), buf.readBlockPos(), buf.readBlockPos(), buf.readBlockPos(),
-				buf.readEnum(Direction.class), buf.readVarInt(), buf.readFloat(), buf.readBoolean());
+				buf.readEnum(Direction.class), buf.readVarInt(), buf.readFloat(), buf.readBoolean(), RigInfo.read(buf));
 		}
 
 		private void write(RegistryFriendlyByteBuf buf) {
@@ -79,11 +81,37 @@ public final class SlipwayPayloads {
 			buf.writeVarInt(this.blocks);
 			buf.writeFloat(this.mass);
 			buf.writeBoolean(this.assembled);
+			this.rig.write(buf);
 		}
 
 		@Override
 		public Type<VesselInfo> type() {
 			return TYPE;
+		}
+	}
+
+	/**
+	 * What a vessel has to move and lift itself with, for the pilot's display.
+	 *
+	 * @param free the vessel does not follow the survival rules; the other numbers are then only what it would have
+	 * @param sails sail blocks that count
+	 * @param burners burners with air held above them
+	 * @param topSpeed the speed its thrust reaches in the air, m/s
+	 * @param liftRatio its lift as a share of its weight; from 1 on it flies
+	 */
+	public record RigInfo(boolean free, int sails, int burners, float topSpeed, float liftRatio) {
+		public static final RigInfo FREE = new RigInfo(true, 0, 0, 0f, 0f);
+
+		static RigInfo read(RegistryFriendlyByteBuf buf) {
+			return new RigInfo(buf.readBoolean(), buf.readVarInt(), buf.readVarInt(), buf.readFloat(), buf.readFloat());
+		}
+
+		void write(RegistryFriendlyByteBuf buf) {
+			buf.writeBoolean(this.free);
+			buf.writeVarInt(this.sails);
+			buf.writeVarInt(this.burners);
+			buf.writeFloat(this.topSpeed);
+			buf.writeFloat(this.liftRatio);
 		}
 	}
 

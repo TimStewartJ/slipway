@@ -105,6 +105,7 @@ public final class VesselAssembly {
 			VesselPose.at(helmPos.getX(), helmPos.getY(), helmPos.getZ()), Vec3.ZERO, Vec3.ZERO,
 			true, true, snapshots.size()
 		);
+		record.free = !SlipwayConfig.get().survivalRules;
 		registry.add(record);
 		Slipway.LOGGER.info("Assembled vessel {} from {} blocks at {} into plot {} (anchor {})", id, snapshots.size(), helmPos.toShortString(), plot, anchor.toShortString());
 		return new Outcome(true, Component.translatable("slipway.assemble.done", snapshots.size()), record);

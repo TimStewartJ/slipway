@@ -695,7 +695,8 @@ public final class VesselManager {
 		VesselRecord record = vessel.record;
 		byte flags = (byte)((record.hover ? SlipwayPayloads.PoseUpdate.FLAG_HOVER : 0) | (record.level ? SlipwayPayloads.PoseUpdate.FLAG_LEVEL : 0)
 			| (vessel.hasBody ? SlipwayPayloads.PoseUpdate.FLAG_BODY : 0) | (record.loose ? SlipwayPayloads.PoseUpdate.FLAG_LOOSE : 0)
-			| (vessel.buoyancy.displacedVolume > 0 ? SlipwayPayloads.PoseUpdate.FLAG_IN_FLUID : 0) | (vessel.flooding() ? SlipwayPayloads.PoseUpdate.FLAG_FLOODING : 0));
+			| (vessel.buoyancy.displacedVolume > 0 ? SlipwayPayloads.PoseUpdate.FLAG_IN_FLUID : 0) | (vessel.flooding() ? SlipwayPayloads.PoseUpdate.FLAG_FLOODING : 0)
+			| (record.hover && !vessel.hovering() ? SlipwayPayloads.PoseUpdate.FLAG_NO_LIFT : 0));
 		return new SlipwayPayloads.PoseUpdate(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), gameTime,
 			SlipwayPayloads.VesselPoseData.of(record.pose), record.linearVelocity, record.angularVelocity, flags);
 	}
@@ -707,7 +708,16 @@ public final class VesselManager {
 	private SlipwayPayloads.VesselInfo info(ActiveVessel vessel, boolean assembled) {
 		VesselRecord record = vessel.record;
 		return new SlipwayPayloads.VesselInfo(record.id, vessel.entity == null ? -1 : vessel.entity.getId(), record.anchor, record.localMin, record.localMax,
-			record.helm, record.helmFacing, record.blockCount, vessel.mass == null ? 0F : (float)vessel.mass.mass(), assembled);
+			record.helm, record.helmFacing, record.blockCount, vessel.mass == null ? 0F : (float)vessel.mass.mass(), assembled, rigInfo(vessel));
+	}
+
+	/** What the vessel's rig gives it under the server's settings, for its pilot's display and {@code /slipway info}. */
+	public static SlipwayPayloads.RigInfo rigInfo(ActiveVessel vessel) {
+		SlipwayConfig config = SlipwayConfig.get();
+		double mass = vessel.mass == null ? 0.0 : vessel.mass.mass();
+		dev.timstewart.slipway.physics.Rig.Rules rules = config.rigRules();
+		return new SlipwayPayloads.RigInfo(vessel.record.free, vessel.rig.sails(), vessel.rig.burners(),
+			(float)vessel.rig.topSpeed(rules, mass, config.thrustAcceleration, config.maxSpeed), (float)vessel.rig.liftRatio(rules, mass));
 	}
 
 	/**

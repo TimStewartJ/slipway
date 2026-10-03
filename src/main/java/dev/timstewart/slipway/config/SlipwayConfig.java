@@ -44,6 +44,23 @@ public final class SlipwayConfig {
 	public boolean buoyancy = true;
 	/** Scale of the resistance of water and lava to a vessel's movement and turning; 1 is the default, 0 none. */
 	public double waterDrag = 1.0;
+	/**
+	 * Whether newly assembled vessels follow the survival rules: thrust from the helm and the sails instead of the same
+	 * acceleration for every weight, and hover only with enough hot air to carry the vessel. Off, every new vessel is
+	 * free, as all were up to 0.1.3. Vessels keep what they were assembled with; an operator changes one with
+	 * {@code /slipway mode <id> free true|false}.
+	 */
+	public boolean survivalRules = true;
+	/** What every helm gives a vessel under the survival rules, in newtons: oars and sweeps, as much as one sail. */
+	public double helmThrust = 20000.0;
+	/** What one sail block adds, in newtons. */
+	public double sailThrust = 20000.0;
+	/** What a cubic metre of heated air lifts, in kilograms. */
+	public double hotAirLift = 500.0;
+	/** How much air one burner heats, in cubic metres. */
+	public double burnerVolume = 100.0;
+	/** How hard a vessel in water can push itself up or down with its ballast, as a share of its weight. */
+	public double ballastTrim = 0.3;
 	/** Blocks beyond which vessels are shown to clients only as Distant Horizons proxies. */
 	public int proxyRange = 4096;
 	/** Extra block ids (namespace:path) that never become part of a vessel, on top of the slipway:assembly_deny tag. */
@@ -51,6 +68,12 @@ public final class SlipwayConfig {
 
 	public static SlipwayConfig get() {
 		return current;
+	}
+
+	/** The survival rules' numbers in the units the physics uses. */
+	public dev.timstewart.slipway.physics.Rig.Rules rigRules() {
+		return new dev.timstewart.slipway.physics.Rig.Rules(this.helmThrust, this.sailThrust, this.hotAirLift * dev.timstewart.slipway.physics.VesselController.GRAVITY,
+			this.burnerVolume, this.ballastTrim);
 	}
 
 	public static void set(SlipwayConfig config) {
@@ -94,6 +117,12 @@ public final class SlipwayConfig {
 		c.levelStrength = clamp(this.levelStrength, 0.0, 20.0, 1.5);
 		c.buoyancy = this.buoyancy;
 		c.waterDrag = clamp(this.waterDrag, 0.0, 10.0, 1.0);
+		c.survivalRules = this.survivalRules;
+		c.helmThrust = clamp(this.helmThrust, 0.0, 1.0e9, 20000.0);
+		c.sailThrust = clamp(this.sailThrust, 0.0, 1.0e9, 20000.0);
+		c.hotAirLift = clamp(this.hotAirLift, 0.0, 1.0e6, 500.0);
+		c.burnerVolume = clamp(this.burnerVolume, 0.0, 1.0e6, 100.0);
+		c.ballastTrim = clamp(this.ballastTrim, 0.0, 1.0, 0.3);
 		c.proxyRange = clamp(this.proxyRange, 0, 65536);
 		c.extraDeniedBlocks = this.extraDeniedBlocks == null ? new ArrayList<>() : new ArrayList<>(this.extraDeniedBlocks.stream()
 			.filter(s -> s != null && s.matches("[a-z0-9_.-]+:[a-z0-9_./-]+"))

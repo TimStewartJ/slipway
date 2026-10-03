@@ -387,7 +387,7 @@ public class LooseGameTests {
 		server.getCommands().performPrefixedCommand(source, "slipway mode " + record.id + " loose false");
 		check(helper, !record.loose, "/slipway mode <id> loose false did not end loose: " + output);
 		server.getCommands().performPrefixedCommand(source, "slipway mode " + record.id + " sideways true");
-		check(helper, output.getLast().contains("hover, level or loose"), "an unknown mode is not refused with the list of modes: " + output.getLast());
+		check(helper, output.getLast().contains("hover, level, loose or free"), "an unknown mode is not refused with the list of modes: " + output.getLast());
 		helper.succeed();
 	}
 }

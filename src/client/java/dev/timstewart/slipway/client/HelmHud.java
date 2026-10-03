@@ -36,13 +36,20 @@ final class HelmHud {
 		lines.add(Component.translatable("slipway.hud.altitude", String.format(Locale.ROOT, "%.1f", centre.y)));
 		lines.add(Component.translatable("slipway.hud.attitude", String.format(Locale.ROOT, "%+.0f", attitude[0]), String.format(Locale.ROOT, "%+.0f", attitude[2]),
 			String.format(Locale.ROOT, "%03.0f", heading)));
-		lines.add(Component.translatable("slipway.hud.modes", Component.literal(vessel.hover ? "ON" : "off"), Component.literal(vessel.level ? "ON" : "off"),
+		lines.add(Component.translatable("slipway.hud.modes", Component.literal(!vessel.hover ? "off" : vessel.noLift ? "NO LIFT" : "ON"), Component.literal(vessel.level ? "ON" : "off"),
 			Component.literal(vessel.loose ? "ON" : "off"), String.format(Locale.ROOT, "%.1f", vessel.mass / 1000.0)));
+		if (!vessel.rig.free()) {
+			// What it has to move and lift itself with, under the survival rules.
+			lines.add(Component.translatable("slipway.hud.rig", vessel.rig.sails(), String.format(Locale.ROOT, "%.1f", vessel.rig.topSpeed())));
+			String lift = String.format(Locale.ROOT, "%.0f", vessel.rig.liftRatio() * 100.0);
+			lines.add(vessel.rig.burners() == 0 ? Component.translatable("slipway.hud.lift.none")
+				: Component.translatable(vessel.rig.liftRatio() >= 1f ? "slipway.hud.lift.flies" : "slipway.hud.lift.heavy", vessel.rig.burners(), lift));
+		}
 		double reserve = vessel.buoyancyReserve();
 		if (reserve > 0) {
 			// What the hull can carry, and what it is doing in the water now.
 			String state = !vessel.inFluid ? reserve > 1.0 ? "floats" : "sinks"
-				: vessel.hover && !vessel.loose ? "hover" : vessel.flooding ? "flooding" : reserve > 1.0 ? "afloat" : "sinking";
+				: vessel.hover && !vessel.noLift && !vessel.loose ? "hover" : vessel.flooding ? "flooding" : reserve > 1.0 ? "afloat" : "sinking";
 			lines.add(Component.translatable("slipway.hud.hull", String.format(Locale.ROOT, "%.0f", reserve * 100.0), Component.translatable("slipway.hud.hull." + state)));
 		}
 		int width = 0;

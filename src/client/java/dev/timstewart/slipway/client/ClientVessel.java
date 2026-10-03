@@ -52,6 +52,10 @@ public final class ClientVessel {
 	public boolean inFluid;
 	/** Water is running over a rim of the hull, as the server's last step found it. */
 	public boolean flooding;
+	/** Hover is on but the vessel has not the lift for its weight (survival rules). */
+	public boolean noLift;
+	/** What the vessel has to move and lift itself with, as the server works it out. */
+	public SlipwayPayloads.RigInfo rig = SlipwayPayloads.RigInfo.FREE;
 	public boolean hasInfo;
 	public Vec3 velocity = Vec3.ZERO;
 	public Vec3 angularVelocity = Vec3.ZERO;
@@ -102,6 +106,7 @@ public final class ClientVessel {
 		this.helmFacing = info.helmFacing();
 		this.blocks = info.blocks();
 		this.mass = info.mass();
+		this.rig = info.rig();
 		this.hasInfo = true;
 		this.hullDirty = true;
 		if (boundsChanged) {
@@ -123,6 +128,7 @@ public final class ClientVessel {
 		this.loose = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_LOOSE) != 0;
 		this.inFluid = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_IN_FLUID) != 0;
 		this.flooding = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_FLOODING) != 0;
+		this.noLift = (update.flags() & SlipwayPayloads.PoseUpdate.FLAG_NO_LIFT) != 0;
 		Snapshot last = this.snapshots.peekLast();
 		if (last != null && update.gameTime() <= last.tick) {
 			if (update.gameTime() == last.tick) {

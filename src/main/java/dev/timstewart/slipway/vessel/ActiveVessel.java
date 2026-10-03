@@ -42,6 +42,18 @@ public final class ActiveVessel {
 	public dev.timstewart.slipway.physics.Hull hull = dev.timstewart.slipway.physics.Hull.EMPTY;
 	/** Which blocks {@link #hull} was built from (see {@code Hull.Builder.fingerprint}). */
 	long hullFingerprint;
+	/** The vessel's sails, burners and the air it holds over them, read off its blocks with the collision shape. */
+	public dev.timstewart.slipway.physics.Rig rig = dev.timstewart.slipway.physics.Rig.NONE;
+	/** The air the vessel's blocks keep from rising away (its hull upside down); null until a vessel with a burner needs it. */
+	dev.timstewart.slipway.physics.@Nullable Hull envelope;
+	/** Which blocks {@link #envelope} was built from. */
+	long envelopeFingerprint;
+
+	/** Whether hover holds the vessel up: it is on, and the vessel is free or has the lift for its weight. */
+	public boolean hovering() {
+		return this.record.hover && (this.record.free || this.mass != null
+			&& this.rig.liftRatio(dev.timstewart.slipway.config.SlipwayConfig.get().rigRules(), this.mass.mass()) >= 1.0);
+	}
 	/** What the step in flight finds in the water; only the physics thread reads and writes it. */
 	final dev.timstewart.slipway.physics.Buoyancy.State buoyancyStep = new dev.timstewart.slipway.physics.Buoyancy.State();
 	/** What the last finished step found in the water: copied at the exchange, for the server thread. */

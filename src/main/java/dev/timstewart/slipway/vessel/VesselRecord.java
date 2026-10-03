@@ -29,9 +29,20 @@ public final class VesselRecord {
 		Codec.INT.fieldOf("blocks").forGetter(r -> r.blockCount),
 		Codec.INT.optionalFieldOf("proxy_revision", 0).forGetter(r -> r.proxyRevision),
 		Codec.INT_STREAM.xmap(java.util.stream.IntStream::toArray, java.util.Arrays::stream).optionalFieldOf("proxy", new int[0]).forGetter(r -> r.proxy),
-		// Since 0.1.2; absent in older saves, which load as not loose.
-		Codec.BOOL.optionalFieldOf("loose", false).forGetter(r -> r.loose)
+		Modes.CODEC.forGetter(r -> new Modes(r.loose, r.free))
 	).apply(i, VesselRecord::new));
+
+	/**
+	 * The modes added after the first release, as fields of the record itself. "loose" (since 0.1.2) is absent in
+	 * older saves, which load as not loose. "free" (since 0.2.0) is absent in saves from before the survival rules:
+	 * those vessels flew by the old rules and keep them.
+	 */
+	private record Modes(boolean loose, boolean free) {
+		static final com.mojang.serialization.MapCodec<Modes> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
+			Codec.BOOL.optionalFieldOf("loose", false).forGetter(Modes::loose),
+			Codec.BOOL.optionalFieldOf("free", true).forGetter(Modes::free)
+		).apply(i, Modes::new));
+	}
 
 	public final long id;
 	public final int plot;
@@ -55,6 +66,12 @@ public final class VesselRecord {
 	 * and apply again when this is turned off.
 	 */
 	public boolean loose;
+	/**
+	 * Free of the survival rules: the helm gives full thrust whatever the vessel weighs, and hover holds it up without
+	 * any lift of its own (see {@code Rig}). Set from the server's settings when a vessel is assembled; an operator can
+	 * change it.
+	 */
+	public boolean free;
 	public int blockCount;
 	/** Bumped whenever {@link #proxy} is recomputed. */
 	public int proxyRevision;
@@ -67,6 +84,13 @@ public final class VesselRecord {
 	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
 		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount) {
 		this(id, plot, anchor, localMin, localMax, helm, helmFacing, pose, linearVelocity, angularVelocity, hover, level, blockCount, 0, new int[0], false);
+	}
+
+	private VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
+		VesselPose pose, Vec3 linearVelocity, Vec3 angularVelocity, boolean hover, boolean level, int blockCount, int proxyRevision, int[] proxy,
+		Modes modes) {
+		this(id, plot, anchor, localMin, localMax, helm, helmFacing, pose, linearVelocity, angularVelocity, hover, level, blockCount, proxyRevision, proxy, modes.loose());
+		this.free = modes.free();
 	}
 
 	public VesselRecord(long id, int plot, BlockPos anchor, BlockPos localMin, BlockPos localMax, BlockPos helm, Direction helmFacing,
@@ -85,6 +109,7 @@ public final class VesselRecord {
 		this.hover = hover;
 		this.level = level;
 		this.loose = loose;
+		this.free = true;
 		this.blockCount = blockCount;
 		this.proxyRevision = proxyRevision;
 		this.proxy = proxy == null || proxy.length % 2 != 0 ? new int[0] : proxy;

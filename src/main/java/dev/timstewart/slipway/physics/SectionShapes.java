@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.piston.PistonMovingBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.material.FluidState;
@@ -27,6 +28,10 @@ import org.jspecify.annotations.Nullable;
 public final class SectionShapes {
 	/** Blocks with a collision shape that water passes all the same (see data/slipway/tags/block/not_watertight.json). */
 	public static final TagKey<Block> NOT_WATERTIGHT = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("slipway", "not_watertight"));
+	/** Blocks that are sails where the wind gets at them (see {@link Rig} and data/slipway/tags/block/sails.json). */
+	public static final TagKey<Block> SAILS = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("slipway", "sails"));
+	/** Blocks that heat the air above them while lit (see {@link Rig} and data/slipway/tags/block/burners.json). */
+	public static final TagKey<Block> BURNERS = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("slipway", "burners"));
 
 	private final boolean[] solid = new boolean[4096];
 	private final int[] material = new int[4096];
@@ -47,6 +52,11 @@ public final class SectionShapes {
 	 * (every such block does, except those in the {@code slipway:not_watertight} tag: fences, bars, ladders).
 	 */
 	public int build(Level level, LevelChunk chunk, int sectionY, int ox, int oy, int oz, BoxList out, Hull.@Nullable Builder hull) {
+		return this.build(level, chunk, sectionY, ox, oy, oz, out, hull, null);
+	}
+
+	/** As above, and tells {@code rig} the same blocks, and which of them are sails and lit burners. */
+	public int build(Level level, LevelChunk chunk, int sectionY, int ox, int oy, int oz, BoxList out, Hull.@Nullable Builder hull, Rig.@Nullable Builder rig) {
 		int index = chunk.getSectionIndexFromSectionY(sectionY);
 		if (index < 0 || index >= chunk.getSectionsCount()) {
 			return 0;
@@ -70,12 +80,22 @@ public final class SectionShapes {
 					}
 					blocks++;
 					this.cursor.set(baseX + x, baseY + y, baseZ + z);
+					if (rig != null) {
+						if (state.is(SAILS)) {
+							rig.sail(baseX - ox + x, baseY - oy + y, baseZ - oz + z);
+						} else if (state.is(BURNERS) && (!state.hasProperty(BlockStateProperties.LIT) || state.getValue(BlockStateProperties.LIT))) {
+							rig.burner(baseX - ox + x, baseY - oy + y, baseZ - oz + z);
+						}
+					}
 					if (state.isCollisionShapeFullBlock(level, this.cursor)) {
 						int i = (y * 16 + z) * 16 + x;
 						this.solid[i] = true;
 						this.material[i] = BlockDensity.classOf(state);
 						if (hull != null) {
 							hull.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, 1f, true);
+						}
+						if (rig != null) {
+							rig.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, 1f, true, 0f, 1f);
 						}
 						continue;
 					}
@@ -94,6 +114,10 @@ public final class SectionShapes {
 					}
 					if (hull != null) {
 						hull.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, volume, !state.is(NOT_WATERTIGHT), (float)shape.min(Direction.Axis.Y),
+							(float)shape.max(Direction.Axis.Y));
+					}
+					if (rig != null) {
+						rig.block(baseX - ox + x, baseY - oy + y, baseZ - oz + z, volume, !state.is(NOT_WATERTIGHT), (float)shape.min(Direction.Axis.Y),
 							(float)shape.max(Direction.Axis.Y));
 					}
 				}

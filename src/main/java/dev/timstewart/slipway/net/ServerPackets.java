@@ -82,7 +82,13 @@ public final class ServerPackets {
 		vessel.input.set(payload.forward(), payload.strafe(), payload.vertical(), payload.pitch(), payload.yaw(), payload.roll(), gameTime);
 		if ((payload.toggles() & SlipwayPayloads.HelmControl.TOGGLE_HOVER) != 0) {
 			vessel.record.hover = !vessel.record.hover;
-			player.sendOverlayMessage(Component.translatable(vessel.record.hover ? "slipway.helm.hover_on" : "slipway.helm.hover_off"));
+			if (vessel.record.hover && !vessel.hovering()) {
+				// Under the survival rules hover needs hot air for the vessel's weight: say how much it has.
+				player.sendOverlayMessage(Component.translatable("slipway.helm.hover_no_lift",
+					String.format(java.util.Locale.ROOT, "%.0f", dev.timstewart.slipway.vessel.VesselManager.rigInfo(vessel).liftRatio() * 100.0)));
+			} else {
+				player.sendOverlayMessage(Component.translatable(vessel.record.hover ? "slipway.helm.hover_on" : "slipway.helm.hover_off"));
+			}
 		}
 		if ((payload.toggles() & SlipwayPayloads.HelmControl.TOGGLE_LEVEL) != 0) {
 			vessel.record.level = !vessel.record.level;

@@ -509,11 +509,20 @@ tasks.register('checkPatches') {
 tasks.named('check').configure { dependsOn 'checkPatches' }
 
 tasks.named('check').configure { dependsOn 'runGametest' }
+// The tests and the film fly vessels built to test or show something else than their rig: in their run directories
+// newly assembled vessels are free of the survival rules (the settings' "survivalRules" is off; every other value is
+// the default). The tests of the rules put their own vessels under them.
+ext.freeVesselsConfig = { File runDir ->
+	def config = new File(runDir, 'config')
+	config.mkdirs()
+	new File(config, 'slipway.json').setText('{"survivalRules": false}\n', 'UTF-8')
+}
 // Every run of the server GameTests starts in a new world, as on CI. The world of an earlier run holds that run's
 // vessels and whatever the code it ran left in their plots, and its freed plots would be handed to this run's vessels.
 tasks.matching { it.name == 'runGametest' }.configureEach {
 	doFirst {
 		project.delete(file('build/gametest/world'))
+		freeVesselsConfig(file('build/gametest'))
 	}
 }
 
@@ -540,6 +549,7 @@ tasks.register('prepareClientGametestRun') {
 		}
 		def config = new File(runDir, 'config')
 		config.mkdirs()
+		freeVesselsConfig(runDir)
 		// Every run starts from the game's and Distant Horizons' defaults plus the tests' own options: Fabric's client
 		// GameTest takes its "default" options after options.txt is loaded, so a value saved by an earlier run (such as
 		// a diagnostic's field of view) would otherwise carry into every later run and change what the shots show.
@@ -607,6 +617,7 @@ tasks.register('prepareFilmRun') {
 		}
 		def config = new File(runDir, 'config')
 		config.mkdirs()
+		freeVesselsConfig(runDir)
 		new File(config, 'iris.properties').setText([
 			'allowUnknownShaders=false', 'colorSpace=SRGB', 'disableUpdateMessage=true', 'enableDebugOptions=false',
 			'enableShaders=true', 'maxShadowRenderDistance=32', "shaderPack=${filmShaderPack.name}".toString()
