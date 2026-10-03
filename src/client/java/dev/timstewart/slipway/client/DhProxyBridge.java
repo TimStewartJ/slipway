@@ -1,5 +1,6 @@
 package dev.timstewart.slipway.client;
 
+import dev.timstewart.slipway.client.dh.DhCullRepair;
 import dev.timstewart.slipway.client.dh.DhProxies;
 import dev.timstewart.slipway.net.SlipwayPayloads;
 import net.fabricmc.loader.api.FabricLoader;
@@ -15,6 +16,12 @@ public final class DhProxyBridge {
 
 	public static boolean present() {
 		return PRESENT;
+	}
+
+	static void init() {
+		if (PRESENT && FabricLoader.getInstance().isModLoaded("iris")) {
+			DhCullRepair.register();
+		}
 	}
 
 	static void onProxy(SlipwayPayloads.VesselProxy proxy) {

@@ -151,6 +151,97 @@ final class DiagScenarios {
 		view(ctx, sp, r, "right-t3000-no-shaders", -7.0, 85.5, -8.0, 0f, 22f);
 	}
 
+	/**
+	 * diag-water-patch: a copy of a saved harbour world ({@code -PslipwayDiagWorld}, as {@code make-harbour} leaves
+	 * it), seen from above with Bliss on. Without {@code DhCullRepair} the water of the two chunks holding the moored
+	 * submarine (glass windows in the sea) looks like a mirror of the sky while the sea around is dark, and so does
+	 * the chunk of a single glass block put in the sea. Pictures with and without the repair, and whether GL's
+	 * back-face culling agrees with Minecraft's state cache at points inside the frame.
+	 */
+	static void waterPatch(ClientGameTestContext ctx, Report.Result r) throws Exception {
+		String world = System.getProperty("slipway.diag.world", "");
+		Check.that(!world.isEmpty(), "set -PslipwayDiagWorld=<save folder>");
+		Path source = Path.of(world);
+		Check.that(Files.isRegularFile(source.resolve("level.dat")), "not a save folder: %s", source);
+		Path saves = ctx.computeOnClient(mc -> mc.getLevelSource().getBaseDir());
+		Path copy = saves.resolve("diag-world");
+		delete(copy);
+		copy(source, copy);
+		Files.deleteIfExists(copy.resolve("session.lock"));
+		int ox = Integer.getInteger("slipway.diag.x", 96), oz = Integer.getInteger("slipway.diag.z", -352);
+		try (TestSingleplayerContext sp = new TestWorldSaveImpl(ctx, copy).open()) {
+			try {
+				TestServerContext server = sp.getServer();
+				server.runCommand("gamerule advance_time false");
+				server.runCommand("time set 2000");
+				Game.hud(ctx, false);
+				double x = ox + 0.5, y = 62 + 26, z = oz - 7.5;
+				view(ctx, sp, r, "a-no-shaders", x, y, z, 180f, 90f);
+				RenderScenarios.shaders(ctx, r, true);
+				view(ctx, sp, r, "b-bliss", x, y, z, 180f, 90f);
+				// One glass block in the sea of an untouched chunk: enough for the patch.
+				sp.getServer().runCommand("setblock " + (ox - 40) + " 60 " + (oz - 12) + " minecraft:glass");
+				ctx.waitTicks(60);
+				Shots.take(ctx, r, "d-bliss-glass-block-in-the-sea");
+				cullProbe(ctx, r, "with the repair");
+				dev.timstewart.slipway.client.dh.DhCullRepair.enabled = false;
+				ctx.waitTicks(60);
+				Shots.take(ctx, r, "e-bliss-without-the-repair");
+				cullProbe(ctx, r, "without the repair");
+				dev.timstewart.slipway.client.dh.DhCullRepair.enabled = true;
+				ctx.waitTicks(40);
+				Shots.take(ctx, r, "f-bliss-with-the-repair-again");
+			} finally {
+				RenderScenarios.shaders(ctx, r, false);
+				dhRendering(ctx, true);
+				Game.hud(ctx, true);
+			}
+		}
+	}
+
+	private static volatile boolean cullProbing;
+	private static boolean cullRegistered;
+	private static final java.util.Map<String, int[]> CULL = new java.util.LinkedHashMap<>();
+
+	private static void cullSample(String name) {
+		if (!cullProbing) {
+			return;
+		}
+		boolean gl = org.lwjgl.opengl.GL11C.glIsEnabled(org.lwjgl.opengl.GL11C.GL_CULL_FACE);
+		boolean cache = GlStateCheck.cachedCull();
+		synchronized (CULL) {
+			int[] counts = CULL.computeIfAbsent(name, n -> new int[3]);
+			counts[0]++;
+			counts[1] += gl ? 0 : 1;
+			counts[2] += gl != cache ? 1 : 0;
+		}
+	}
+
+	/** Thirty frames: at each of Fabric's level render events, how often GL had culling off and how often the cache disagreed. */
+	private static void cullProbe(ClientGameTestContext ctx, Report.Result r, String when) {
+		ctx.runOnClient(mc -> {
+			if (!cullRegistered) {
+				cullRegistered = true;
+				net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.START_MAIN.register(c -> cullSample("startMain"));
+				net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_OPAQUE_TERRAIN.register(c -> cullSample("afterOpaqueTerrain"));
+				net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_SOLID_FEATURES.register(c -> cullSample("afterSolidFeatures"));
+				net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.BEFORE_TRANSLUCENT_TERRAIN.register(c -> cullSample("beforeTranslucentTerrain"));
+				net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.END_MAIN.register(c -> cullSample("endMain"));
+			}
+		});
+		synchronized (CULL) {
+			CULL.clear();
+		}
+		cullProbing = true;
+		ctx.waitTicks(30);
+		cullProbing = false;
+		StringBuilder s = new StringBuilder();
+		synchronized (CULL) {
+			CULL.forEach((name, c) -> s.append(String.format(java.util.Locale.ROOT, "%s: %d samples, GL culling off %d, cache disagrees %d; ", name, c[0], c[1], c[2])));
+		}
+		r.note("back-face culling %s: %s", when, s);
+	}
+
 	private static String read(Path file) {
 		try {
 			return Files.readString(file);

@@ -20,6 +20,11 @@ import org.lwjgl.system.MemoryStack;
  * terrain drawn next came out darkened in blotches under shaders. The stale state lasts only until later passes toggle
  * those buffers again, so this check samples the state inside the frame (at Fabric's level render events around the
  * terrain) as well as between frames.
+ *
+ * <p>Back-face culling is cached the same way (one flag). Iris turns it off with a plain GL call before each Distant
+ * Horizons render pass and nothing turns it back on in GL, so translucent terrain drawn afterwards shows the underside
+ * of water wherever a chunk section's faces are drawn all together (water against glass): a bright patch of sea under
+ * shaders. {@code DhCullRepair} puts it back; this check also compares that flag.
  */
 final class GlStateCheck {
 	private static final int DRAW_BUFFERS = 8;
@@ -47,7 +52,7 @@ final class GlStateCheck {
 	}
 
 	/**
-	 * Fails when, during {@code frames} frames, a draw buffer's GL blend enable or colour write mask differs from
+	 * Fails when, during {@code frames} frames, face culling or a draw buffer's GL blend enable or colour write mask differs from
 	 * GlStateManager's cache at any sampled point, or when a sampled point never ran.
 	 */
 	static void assertInSync(ClientGameTestContext ctx, Report.Result r, String when, int frames) {
@@ -85,7 +90,7 @@ final class GlStateCheck {
 		for (Map.Entry<String, Point> e : all.entrySet()) {
 			Check.atLeast(when + ": samples at " + e.getKey() + " (the check ran inside the frame)", e.getValue().samples.get(), frames / 2.0);
 		}
-		Check.that(bad == 0, "%s: Minecraft's per-draw-buffer GL state cache disagreed with GL %d times (%s); first: %s", when, bad,
+		Check.that(bad == 0, "%s: Minecraft's GL state cache disagreed with GL %d times (%s); first: %s", when, bad,
 			summary.toString().trim(), firstBad);
 	}
 
@@ -130,6 +135,10 @@ final class GlStateCheck {
 			throw new AssertionError(e);
 		}
 		StringBuilder out = new StringBuilder();
+		boolean glCull = GL11C.glIsEnabled(GL11C.GL_CULL_FACE), cachedCull = cachedCull();
+		if (glCull != cachedCull) {
+			out.append(String.format("face culling: GL %s, cache %s; ", glCull ? "on" : "off", cachedCull ? "on" : "off"));
+		}
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			ByteBuffer rgba = stack.malloc(4);
 			for (int i = 0; i < DRAW_BUFFERS; i++) {
@@ -146,6 +155,21 @@ final class GlStateCheck {
 			}
 		}
 		return out.isEmpty() ? null : out.toString().trim();
+	}
+
+	/** GlStateManager's cached face-culling flag: {@code CULL.enable.enabled}. */
+	static boolean cachedCull() {
+		try {
+			Object cull = field("CULL").get(null);
+			Field enable = cull.getClass().getDeclaredField("enable");
+			enable.setAccessible(true);
+			Object state = enable.get(cull);
+			Field enabled = state.getClass().getDeclaredField("enabled");
+			enabled.setAccessible(true);
+			return enabled.getBoolean(state);
+		} catch (ReflectiveOperationException e) {
+			throw new AssertionError(e);
+		}
 	}
 
 	private static Field field(String name) {

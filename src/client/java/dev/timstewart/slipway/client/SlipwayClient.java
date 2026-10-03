@@ -23,6 +23,7 @@ public final class SlipwayClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		EntityRendererRegistry.register(SlipwayRegistry.VESSEL, VesselRenderer::new);
 		HelmControls.register();
+		DhProxyBridge.init();
 		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, Slipway.id("helm"), HelmHud::extract);
 
 		ClientPlayNetworking.registerGlobalReceiver(SlipwayPayloads.VesselInfo.TYPE, (payload, context) -> ClientVessels.onInfo(payload));

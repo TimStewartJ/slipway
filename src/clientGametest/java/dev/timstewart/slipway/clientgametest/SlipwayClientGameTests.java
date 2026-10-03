@@ -54,7 +54,8 @@ public final class SlipwayClientGameTests implements FabricClientGameTest {
 
 	/** Diagnostic scenarios: run only when named in {@code slipway.clientGametest.only}, never by default. */
 	static List<Scenario> diagnostics() {
-		return List.of(new Scenario("diag-plain-ship", DiagScenarios::plainShip), new Scenario("make-harbour", HarbourScenarios::makeHarbour));
+		return List.of(new Scenario("diag-plain-ship", DiagScenarios::plainShip), new Scenario("make-harbour", HarbourScenarios::makeHarbour),
+			new Scenario("diag-water-patch", DiagScenarios::waterPatch));
 	}
 
 	static Path reportDir() {
