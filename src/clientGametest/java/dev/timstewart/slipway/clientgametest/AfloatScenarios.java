@@ -31,6 +31,8 @@ import net.minecraft.world.phys.Vec3;
  * <li>standing in the hull with the eyes under the waterline, the player is not in the water (no swimming, no
  * breath meter) and the view is not a view from under water, on the client and on the server, although the world
  * has water blocks there; looking up, the surface is not drawn overhead;</li>
+ * <li>the same with the Bliss shader pack on (when Iris is there): from inside and from above the mask keeps the
+ * water's surface out of the hull, and the view from inside is not a view from under water for the pack either;</li>
  * <li>a short push of the helm's thrust moves the boat along the water and the water stops it;</li>
  * <li>loaded beyond what it can displace, it goes down, the water runs over the rim, and the player in it is in
  * the water.</li>
@@ -43,6 +45,8 @@ final class AfloatScenarios {
 	/** The pool: 15 x 15 blocks of water, seven deep, standing on the flat ground in a basin of stone. */
 	private static final int POOL_X = 0, POOL_Z = 60, POOL_HALF = 7, POOL_DEPTH = 7;
 	private static final double SURFACE = Game.GROUND_Y + POOL_DEPTH - 1 + 8.0 / 9.0;
+	/** Ticks a shader pack is given before a picture: it blends each frame with the ones before it. */
+	private static final int SHADER_SETTLE_TICKS = 60;
 
 	/** A 5x5 floor, three rows of wall and a helm in the middle, with a block of iron in each inner corner. */
 	static Map<BlockPos, BlockState> ballastedHull() {
@@ -95,12 +99,18 @@ final class AfloatScenarios {
 
 	/** The same view with the water mask and without it: both pictures, and how much a part of them differs. */
 	private static double maskDifference(ClientGameTestContext ctx, Report.Result r, String name, double centreX, double centreY, double halfSize, double[] meanWithMask) {
-		ctx.waitTicks(5);
+		return maskDifference(ctx, r, name, centreX, centreY, halfSize, meanWithMask, 5);
+	}
+
+	/** As above, waiting {@code settleTicks} before each picture (a shader pack blends a frame with the ones before it). */
+	private static double maskDifference(ClientGameTestContext ctx, Report.Result r, String name, double centreX, double centreY, double halfSize, double[] meanWithMask,
+		int settleTicks) {
+		ctx.waitTicks(settleTicks);
 		Path with = Shots.take(ctx, r, name + "-mask-on");
 		ctx.runOnClient(mc -> WaterMask.enabled = false);
 		Path without;
 		try {
-			ctx.waitTicks(5);
+			ctx.waitTicks(settleTicks);
 			without = Shots.take(ctx, r, name + "-mask-off");
 		} finally {
 			ctx.runOnClient(mc -> WaterMask.enabled = true);
@@ -245,6 +255,41 @@ final class AfloatScenarios {
 			ctx.getInput().lookAt(180f, 10f);
 			ctx.waitTicks(5);
 			Shots.take(ctx, r, "04-inside-below-the-waterline");
+
+			// The same with a shader pack: it draws the water itself, in its own passes, from what the game hands it.
+			if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("iris")) {
+				RenderScenarios.shaders(ctx, r, true);
+				try {
+					ctx.waitTicks(SHADER_SETTLE_TICKS);
+					Check.that(ctx.computeOnClient(mc -> mc.gameRenderer.mainCamera().getFluidInCamera() == FogType.NONE && !mc.player.isInWater()),
+						"with the shader pack on, the player in the hull counts as in or under the water");
+					Shots.take(ctx, r, "06-bliss-inside-below-the-waterline");
+					ctx.getInput().lookAt(180f, -75f);
+					double[] blissUp = new double[4];
+					double blissOverhead = maskDifference(ctx, r, "07-bliss-inside-looking-up", 0.0, 0.0, 0.2, blissUp, SHADER_SETTLE_TICKS);
+					r.metric("bliss.inside.msdMaskOnOff", blissOverhead);
+					flyTo(ctx, sp, POOL_X + 0.5, SURFACE + 7.0, POOL_Z + 0.5, 180f, 90f);
+					double[] blissFloor = new double[4];
+					double blissAbove = maskDifference(ctx, r, "08-bliss-from-above", 0.125, 0.0, 0.025, blissFloor, SHADER_SETTLE_TICKS);
+					r.metric("bliss.above.msdMaskOnOff", blissAbove);
+					flyTo(ctx, sp, POOL_X + 0.5, top + 6, POOL_Z + 10.5, 180f, 30f);
+					ctx.waitTicks(SHADER_SETTLE_TICKS);
+					Shots.take(ctx, r, "09-bliss-afloat");
+					Check.atLeast("with Bliss: how much the view up from inside the hull changes when the mask goes (mean squared difference)", blissOverhead, 0.001);
+					Check.atLeast("with Bliss: how much the floor seen from above changes when the mask goes (mean squared difference)", blissAbove, 0.002);
+					Check.that(blissFloor[0] > blissFloor[2] + 10, "with Bliss and the mask the floor from above is not plank-coloured: red %.0f, green %.0f, blue %.0f",
+						blissFloor[0], blissFloor[1], blissFloor[2]);
+				} finally {
+					RenderScenarios.shaders(ctx, r, false);
+				}
+				// Back on the hull's floor for what follows.
+				server.runOnServer(s -> {
+					Game.player(s).getAbilities().flying = false;
+					Game.player(s).onUpdateAbilities();
+				});
+				DeckScenarios.placeRider(ctx, server, id, new Vec3(0.5, 0.05, 1.5));
+				ctx.waitTicks(20);
+			}
 
 			// A push of thrust: it moves along the water and the water stops it.
 			Flight.Sample before = Flight.sample(server, id);
