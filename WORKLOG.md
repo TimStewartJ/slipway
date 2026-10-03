@@ -207,6 +207,42 @@ and what is not done: `E:\slipway-e2e\runs\buoyancy-20261002\README.txt`.
 - 10-03 00:17: play instance: Slipway `0.2.0-pre.1` (SHA256 `A679C6B2...50FB`) in place of `0.1.4-pre.1`, world
   "Slipway Harbor" added; backup `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.0-pre.1-20261003-001745`.
 
+## 2026-10-03: survival pass (branch `buoyancy`, local)
+
+Tim, 07:58: fix the water looking different around the ships with shaders; a survival-friendly pass (vessels are
+overpowered: real logic for how well a vessel floats, flies and how fast it is); fix jumping and ladders on vessels.
+Design in DESIGN.md: "Survival rules: sails, hot air and ballast", "Interaction and riding" (jumping and climbing),
+"Distant Horizons" (the bright patch). Evidence: `E:\slipway-e2e\runs\survival-20261003\README.txt`.
+
+- The bright patch of sea (`26ed6f1`). A diagnostic scenario on a copy of the harbour world (`diag-water-patch`),
+  one thing changed per run: the patch was exactly the two chunks of the moored submarine; gone with Distant Horizons'
+  rendering or its transparency off; one glass block in the sea of an untouched chunk made the same patch. Cause:
+  Iris turns back-face culling off with a plain GL call before each DH pass, and DH's way of turning it back on is a
+  no-op on 26.2+ with a shader pack (it goes through Minecraft's state cache, which still says "on"). Probe: GL
+  culling off at the end of the main pass in 89 of 89 frames, in sync at every earlier point. `DhCullRepair` puts it
+  back after DH's pass: 0 of 89, patch gone. `GlStateCheck` (render-iris) now compares the culling flag.
+- Jumping and ladders (`fe6f035`). New scenario `deck-jump`: a survival player's jumps tick by tick on the ground
+  and on a deck (still, under way, climbing, descending, turning, banked, afloat) and a five-block ladder. Found:
+  ladders did nothing (the game asks the world's block); a jump died after one tick on any vessel not square to the
+  world (rounding in the frame change read by vanilla as a collision); jumping on a descending ship was fall damage
+  (the server counts falls in the world), and the damage reset the client's speed; the step up worked in mid-air.
+  A wrong turn on the way: a probe that asked the server from the client thread deadlocked the lockstep (the run
+  hung; killed).
+- The rules (`c38d960`, `6a1ccb8`). `Rig` reads sails (wool with open air on two opposite sides) and hot air (the
+  hull upside down, over lit campfires) off the blocks; `VesselController` takes a rating. First numbers (helm 40
+  then 20 kN) made small rafts fast and big ships dead in the water; a submarine had no drive at all. Now the helm
+  gives every vessel 1.5 m/s^2 and a sail 50 kN, and a fin of wool in open water counts (a screw).
+  `make-harbour` runs under the rules: balloon added, sails on the barge, the submarine dives on ballast.
+- At `40be29a`: 144 unit tests, 68 server GameTests, make-harbour, deck-jump.
+- Client suite, first run: 16 of 19; assemble-mixed, flight-rotation and disassembly failed, and failed again when
+  run again. Not the code: Tim's desktop was locked from about 10:15. With the desktop locked Windows does not
+  schedule the lowest-priority threads of a normal-priority process: a later start of the game hung in
+  `Main.main` waiting for the datafixer bootstrap thread (ready, 0 ms of CPU in four minutes), and Distant Horizons'
+  LOD builders fell behind (the pictures of those scenarios differ in the far terrain). Raising the game's priority
+  class let the hung game start at once. With `E:\slipway-e2e\scratch\run-boosted.ps1` (the same run with the
+  game at "above normal"): the three pass, as does the code from before this work; without it they fail. One run
+  with it still gave flight-rotation 64 frames and disassembly 0.2502 against 0.25; the next gave 179 and a pass.
+
 ## Previous goal (shader blotches)
 
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
