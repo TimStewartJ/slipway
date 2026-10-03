@@ -71,7 +71,7 @@ public class SurvivalGameTests {
 				+ vessel.rig.envelope());
 			SlipwayConfig config = SlipwayConfig.get();
 			SlipwayPayloads.RigInfo info = VesselManager.rigInfo(vessel);
-			double expected = config.maxSpeed * Math.min(1.0, (config.helmThrust + 6 * config.sailThrust) / vessel.mass.mass() / config.thrustAcceleration);
+			double expected = config.maxSpeed * Math.min(1.0, (config.helmAcceleration + 6 * config.sailThrust / vessel.mass.mass()) / config.thrustAcceleration);
 			check(helper, Math.abs(info.topSpeed() - expected) < 1.0e-3, String.format(Locale.ROOT, "top speed %.3f, the helm and six sails on %.1f t give %.3f",
 				info.topSpeed(), vessel.mass.mass() / 1000.0, expected));
 			check(helper, info.free() && info.sails() == 6, "what the pilot is shown: " + info);
@@ -83,10 +83,10 @@ public class SurvivalGameTests {
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 100)
-	public void underTheRulesSailsMoveAShipItsHelmBarelyDoes(GameTestHelper helper) {
-		// Two decks of stone, 21.6 t each, dropped side by side with the helm full ahead: one under oars, one under sail.
-		BlockPos oarsHelm = deck(helper, 3, 11, 8, Blocks.STONE);
-		BlockPos sailHelm = deck(helper, 11, 11, 8, Blocks.STONE);
+	public void underTheRulesSailsMoveAShipFasterThanItsHelmAlone(GameTestHelper helper) {
+		// Two decks of iron, 70 t each, dropped side by side with the helm full ahead: one under oars, one under sail.
+		BlockPos oarsHelm = deck(helper, 3, 11, 8, Blocks.IRON_BLOCK);
+		BlockPos sailHelm = deck(helper, 11, 11, 8, Blocks.IRON_BLOCK);
 		mastAndSail(helper, sailHelm);
 		VesselRecord oars = TestShips.assemble(helper, oarsHelm);
 		VesselRecord sail = TestShips.assemble(helper, sailHelm);
@@ -108,17 +108,17 @@ public class SurvivalGameTests {
 				double drag = config.thrustAcceleration / config.maxSpeed;
 				// Thrust against the drag every vessel has, for 16 ticks from rest.
 				double reached = (1.0 - Math.exp(-drag * 0.8)) / drag;
-				double oarsExpected = config.helmThrust / oarsVessel.mass.mass() * reached;
-				double sailExpected = (config.helmThrust + 6 * config.sailThrust) / sailVessel.mass.mass() * reached;
+				double oarsExpected = Math.min(config.thrustAcceleration, config.helmAcceleration) * reached;
+				double sailExpected = Math.min(config.thrustAcceleration, config.helmAcceleration + 6 * config.sailThrust / sailVessel.mass.mass()) * reached;
 				double oarsSpeed = Math.hypot(oars.linearVelocity.x, oars.linearVelocity.z), sailSpeed = Math.hypot(sail.linearVelocity.x, sail.linearVelocity.z);
 				check(helper, sailVessel.rig.sails() == 6 && oarsVessel.rig.sails() == 0, "sails: " + sailVessel.rig.sails() + " and " + oarsVessel.rig.sails());
 				check(helper, Math.abs(oarsSpeed - oarsExpected) < 0.15 * oarsExpected, String.format(Locale.ROOT, "under oars %.3f m/s after 0.8 s, its thrust on %.1f t gives %.3f",
 					oarsSpeed, oarsVessel.mass.mass() / 1000.0, oarsExpected));
 				check(helper, Math.abs(sailSpeed - sailExpected) < 0.15 * sailExpected, String.format(Locale.ROOT, "under sail %.3f m/s after 0.8 s, its thrust on %.1f t gives %.3f",
 					sailSpeed, sailVessel.mass.mass() / 1000.0, sailExpected));
-				check(helper, sailSpeed > 4.0 * oarsSpeed, String.format(Locale.ROOT, "six sails made %.3f m/s of %.3f", sailSpeed, oarsSpeed));
+				check(helper, sailSpeed > 3.0 * oarsSpeed, String.format(Locale.ROOT, "six sails made %.3f m/s of %.3f", sailSpeed, oarsSpeed));
 				// Hover is on for both and holds neither: they have no lift, and fall.
-				check(helper, oars.hover && !oarsVessel.hovering() && oars.linearVelocity.y < -3.0, "a stone deck without lift did not fall: " + oars.linearVelocity.y);
+				check(helper, oars.hover && !oarsVessel.hovering() && oars.linearVelocity.y < -3.0, "a deck of iron without lift did not fall: " + oars.linearVelocity.y);
 				helper.succeed();
 			}
 		});

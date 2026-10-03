@@ -12,7 +12,8 @@ import org.jspecify.annotations.Nullable;
  * <p><b>Sails.</b> A sail block (wool, by the {@code slipway:sails} tag) with open air on two opposite sides, east
  * and west or north and south, is cloth the wind blows through the rigging at: it counts. Wool laid as a deck, walled
  * in, or forming the skin of a balloon has air on one side at most and does not. Every sail adds the same push, in
- * whatever direction the helm asks for; there is no wind to trim them to.
+ * whatever direction the helm asks for; there is no wind to trim them to. Open water counts as open air: a fin of wool
+ * on a submarine's stern is its screw.
  *
  * <p><b>Hot air.</b> The air a vessel's blocks hold from rising away is its envelope: turn the vessel upside down and
  * it is the air {@link Hull} would call sheltered (below a rim, here the mouth of a balloon or the top of a doorway)
@@ -41,18 +42,18 @@ public record Rig(int sails, int burners, double envelope) {
 	/**
 	 * The numbers the rules are made of (the server's settings).
 	 *
-	 * @param helmThrust what every helm gives, N: oars and sweeps
+	 * @param helmAcceleration what every helm gives whatever the vessel weighs, m/s^2: oars and sweeps, as many as it has room for
 	 * @param sailThrust what one sail block adds, N
 	 * @param hotAirLift what a cubic metre of heated air lifts, N
 	 * @param burnerVolume how much air one burner heats, m^3
 	 * @param ballastTrim how hard a vessel in water can push itself up or down, as a share of its weight
 	 */
-	public record Rules(double helmThrust, double sailThrust, double hotAirLift, double burnerVolume, double ballastTrim) {
+	public record Rules(double helmAcceleration, double sailThrust, double hotAirLift, double burnerVolume, double ballastTrim) {
 	}
 
-	/** The push of helm and sails, N. */
-	public double thrust(Rules rules) {
-		return rules.helmThrust() + this.sails * rules.sailThrust();
+	/** The push of helm and sails on a vessel of {@code mass} kg, N. */
+	public double thrust(Rules rules, double mass) {
+		return rules.helmAcceleration() * mass + this.sails * rules.sailThrust();
 	}
 
 	/** The air that is both held and heated, m^3. */
@@ -75,15 +76,16 @@ public record Rig(int sails, int burners, double envelope) {
 		if (!(mass > 0) || !(thrustAcceleration > 0)) {
 			return 0;
 		}
-		return maxSpeed * Math.min(1.0, this.thrust(rules) / mass / thrustAcceleration);
+		return maxSpeed * Math.min(1.0, this.thrust(rules, mass) / mass / thrustAcceleration);
 	}
 
 	/**
 	 * What this rig allows a vessel of {@code mass} kg in one step.
 	 *
 	 * <ul>
-	 * <li>Along the deck it accelerates by thrust over mass, at most by {@code thrustAcceleration}. Drag is as for
-	 * every vessel, so the top speed falls in step.</li>
+	 * <li>Along the deck it accelerates by what the helm gives every vessel plus the sails' push over its mass, at
+	 * most by {@code thrustAcceleration}. Drag is as for every vessel, so the top speed falls in step: without sails
+	 * every vessel crawls at the same pace, and a sail makes a light vessel fast and a heavy one a little faster.</li>
 	 * <li>It hovers when its hot air lifts at least its weight. Then it climbs with the lift it has to spare (at
 	 * least {@link #LEAST_CLIMB}) and comes down by letting air out ({@link #VENT}, or as fast as it climbs).
 	 * Otherwise the lift only makes it lighter, and it is not held up.</li>
@@ -99,7 +101,7 @@ public record Rig(int sails, int burners, double envelope) {
 		if (!(mass > 0)) {
 			return new VesselController.Rating(0, 0, 0, LEAST_TURN, false, 0, 0);
 		}
-		double thrust = Math.min(thrustAcceleration, this.thrust(rules) / mass);
+		double thrust = Math.min(thrustAcceleration, this.thrust(rules, mass) / mass);
 		double lift = this.lift(rules) / mass;
 		boolean airworthy = lift >= VesselController.GRAVITY;
 		double climb = airworthy ? Math.min(thrustAcceleration, Math.max(LEAST_CLIMB, lift - VesselController.GRAVITY)) : 0;

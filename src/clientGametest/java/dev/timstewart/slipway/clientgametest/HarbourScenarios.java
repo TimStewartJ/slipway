@@ -2,6 +2,7 @@ package dev.timstewart.slipway.clientgametest;
 
 import dev.timstewart.slipway.client.ClientVessels;
 import dev.timstewart.slipway.client.render.WaterMask;
+import dev.timstewart.slipway.config.SlipwayConfig;
 import dev.timstewart.slipway.math.VesselPose;
 import dev.timstewart.slipway.physics.FluidField;
 import dev.timstewart.slipway.vessel.ActiveVessel;
@@ -123,7 +124,7 @@ final class HarbourScenarios {
 	/**
 	 * A submarine: a closed box five wide, five high and nine long of dark oak with windows along both sides and at
 	 * the front, a hatch in its roof over a ladder, two lanterns, and four blocks of iron as ballast: a little lighter
-	 * than the water it displaces.
+	 * than the water it displaces, so that it floats and dives on its ballast. Two fins of wool at its stern drive it.
 	 */
 	static Moored submarine(BlockPos helm) {
 		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
@@ -156,6 +157,12 @@ final class HarbourScenarios {
 			put(b, air, new BlockPos(0, y, 5), Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.NORTH));
 		}
 		b.put(new BlockPos(0, 3, 5), Blocks.OAK_TRAPDOOR.defaultBlockState().setValue(TrapDoorBlock.HALF, Half.TOP).setValue(TrapDoorBlock.FACING, Direction.NORTH));
+		// Its screw: a fin of wool on each side of the stern, with open water before and behind it. Eight sails.
+		for (int side = -3; side <= 3; side += 6) {
+			for (int y = 0; y <= 3; y++) {
+				b.put(new BlockPos(side, y, 5), Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.GRAY).defaultBlockState());
+			}
+		}
 		put(b, air, BlockPos.ZERO, Ships.helm(Direction.SOUTH));
 		return new Moored("submarine", helm, b, air);
 	}
@@ -163,8 +170,9 @@ final class HarbourScenarios {
 	/**
 	 * A barge of stone bricks: thirteen wide, seventeen long, a floor and six rows of wall, with a deck of planks
 	 * across its stern for the helm, another across its bow to balance it, and a ladder down into the hold. 557
-	 * blocks of stone, 1,337 t, and 46 t of planks: it floats on the 1,300 m^3 of air below its rim, with three
-	 * quarters of a block of freeboard.
+	 * blocks of stone, 1,337 t, and 46 t of planks: it floats on the 1,300 m^3 of air below its rim. Under the survival
+	 * rules its helm alone would not move such a weight: it carries a mast at the bow and one at the stern with a sail
+	 * of eight by seven blocks of wool each.
 	 */
 	static Moored barge(BlockPos helm) {
 		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
@@ -190,8 +198,62 @@ final class HarbourScenarios {
 		for (int y = -6; y <= -1; y++) {
 			put(b, air, new BlockPos(-5, y, -4), Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.EAST));
 		}
+		// The bow mast stands on the bow deck, the stern mast on the stern wall behind the helm.
+		for (int z : new int[] {-12, 2}) {
+			for (int y = 0; y <= 9; y++) {
+				b.put(new BlockPos(0, y, z), Blocks.SPRUCE_LOG.defaultBlockState());
+			}
+			for (int y = 3; y <= 9; y++) {
+				for (int x = -4; x <= 4; x++) {
+					if (x != 0) {
+						b.put(new BlockPos(x, y, z), wool());
+					}
+				}
+			}
+		}
 		b.put(BlockPos.ZERO, Ships.helm(Direction.SOUTH));
 		return new Moored("barge", helm, b, air);
+	}
+
+	private static BlockState wool() {
+		return Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.WHITE).defaultBlockState();
+	}
+
+	/**
+	 * A hot-air balloon: a basket floor of three by three planks with the helm in its middle (bow to the south), a lit
+	 * campfire to each side of it, a sail of two blocks of wool outboard of each fire, and four posts of fence from the
+	 * floor's corners up to a canopy of wool seven by seven outside, five rows of wall and a roof. The canopy holds
+	 * some 120 m^3 of air over the fires, which lifts 60 t; the balloon weighs about 44 t.
+	 */
+	static Moored balloon(BlockPos helm) {
+		Map<BlockPos, BlockState> b = new LinkedHashMap<>();
+		for (int x = -1; x <= 1; x++) {
+			for (int z = -1; z <= 1; z++) {
+				b.put(new BlockPos(x, -1, z), planks());
+			}
+		}
+		for (int side = -1; side <= 1; side += 2) {
+			b.put(new BlockPos(side, 0, 0), Blocks.CAMPFIRE.defaultBlockState());
+			b.put(new BlockPos(2 * side, 0, 0), wool());
+			b.put(new BlockPos(2 * side, 1, 0), wool());
+			for (int z = -1; z <= 1; z += 2) {
+				for (int y = 0; y <= 6; y++) {
+					b.put(new BlockPos(side, y, z), Blocks.SPRUCE_FENCE.defaultBlockState());
+				}
+			}
+		}
+		for (int x = -3; x <= 3; x++) {
+			for (int z = -3; z <= 3; z++) {
+				b.put(new BlockPos(x, 7, z), wool());
+				if (Math.abs(x) == 3 || Math.abs(z) == 3) {
+					for (int y = 2; y <= 6; y++) {
+						b.put(new BlockPos(x, y, z), wool());
+					}
+				}
+			}
+		}
+		b.put(BlockPos.ZERO, Ships.helm(Direction.NORTH));
+		return new Moored("balloon", helm, b, List.of());
 	}
 
 	private static void put(Map<BlockPos, BlockState> blocks, List<BlockPos> air, BlockPos at, BlockState state) {
@@ -202,7 +264,7 @@ final class HarbourScenarios {
 	/** Whether the sea is open and deep enough for the harbour around a place. */
 	private static boolean deepSeaAround(ServerLevel level, int ox, int oz) {
 		for (int x = ox - 24; x <= ox + 28; x += 4) {
-			for (int z = oz - 24; z <= oz + 8; z += 4) {
+			for (int z = oz - 24; z <= oz + 12; z += 4) {
 				if (level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z) > FLOOR_MAX || !level.getFluidState(new BlockPos(x, SEA, z)).isSource()
 					|| !level.getBlockState(new BlockPos(x, SEA + 1, z)).isAir()) {
 					return false;
@@ -213,7 +275,12 @@ final class HarbourScenarios {
 	}
 
 	private static void sign(ServerLevel level, BlockPos at, String... lines) {
-		level.setBlock(at, Blocks.OAK_SIGN.defaultBlockState().setValue(StandingSignBlock.ROTATION, 0), 3);
+		sign(level, at, 0, lines);
+	}
+
+	/** A sign; rotation 0 faces south (read from the south), 8 north. */
+	private static void sign(ServerLevel level, BlockPos at, int rotation, String... lines) {
+		level.setBlock(at, Blocks.OAK_SIGN.defaultBlockState().setValue(StandingSignBlock.ROTATION, rotation), 3);
 		if (level.getBlockEntity(at) instanceof SignBlockEntity sign) {
 			SignText.Mutable text = SignText.EMPTY.asMutable();
 			for (int i = 0; i < lines.length && i < SignText.LINES; i++) {
@@ -237,8 +304,11 @@ final class HarbourScenarios {
 						level.setBlock(new BlockPos(x, y, z), Blocks.SPRUCE_LOG.defaultBlockState(), 2 | 16);
 					}
 				}
-				level.setBlock(new BlockPos(x, SEA + 2, oz + 4), Blocks.SPRUCE_FENCE.defaultBlockState(), 3);
-				level.setBlock(new BlockPos(x, SEA + 3, oz + 4), Blocks.LANTERN.defaultBlockState(), 3);
+				// No lantern under the balloon's canopy: it would touch it, and tie the balloon to the pier.
+				if (Math.abs(x - (ox - 12)) > 3) {
+					level.setBlock(new BlockPos(x, SEA + 2, oz + 4), Blocks.SPRUCE_FENCE.defaultBlockState(), 3);
+					level.setBlock(new BlockPos(x, SEA + 3, oz + 4), Blocks.LANTERN.defaultBlockState(), 3);
+				}
 			}
 		}
 		// Cargo to overload a hull with.
@@ -291,7 +361,19 @@ final class HarbourScenarios {
 		r.metric(m.name() + ".sealedAir", numbers[3]);
 		r.metric(m.name() + ".reserve", numbers[4]);
 		r.metric(m.name() + ".elements", numbers[5]);
+		var rig = rig(server, id);
+		Check.that(!rig.free(), "the %s was assembled free of the survival rules", m.name());
+		r.note("%s under the survival rules: %.1f t, %d sails, %d burners, top speed %.1f m/s in the air, lift %.0f%% of its weight", m.name(), numbers[0], rig.sails(),
+			rig.burners(), rig.topSpeed(), rig.liftRatio() * 100.0);
+		r.metric(m.name() + ".sails", rig.sails());
+		r.metric(m.name() + ".burners", rig.burners());
+		r.metric(m.name() + ".topSpeed", rig.topSpeed());
+		r.metric(m.name() + ".liftRatio", rig.liftRatio());
 		return id;
+	}
+
+	private static dev.timstewart.slipway.net.SlipwayPayloads.RigInfo rig(TestServerContext server, long id) {
+		return server.computeOnServer(s -> VesselManager.rigInfo(Game.active(s, id)));
 	}
 
 	/** Waits until a vessel lies still on the water and checks that it floats; returns how deep its helm lies below where it was built. */
@@ -324,6 +406,8 @@ final class HarbourScenarios {
 	private static void moorAgain(ClientGameTestContext ctx, TestSingleplayerContext sp, Report.Result r, Moored m, long id, VesselPose built, Vec3 watch) {
 		TestServerContext server = sp.getServer();
 		AfloatScenarios.flyTo(ctx, sp, watch.x, watch.y, watch.z, 180f, 30f);
+		// Free of the rules for this: hover then holds any vessel exactly where it is put.
+		server.runCommand("slipway mode " + id + " free true");
 		server.runCommand("slipway mode " + id + " loose false");
 		server.runCommand("slipway mode " + id + " hover true");
 		server.runOnServer(s -> VesselManager.get(s.overworld()).teleport(Game.active(s, id), built));
@@ -403,6 +487,12 @@ final class HarbourScenarios {
 			s.setName(WORLD_NAME);
 		}).create()) {
 			TestServerContext server = sp.getServer();
+			// As a player gets it: vessels assembled here follow the survival rules (the test run's own settings turn them off).
+			server.runOnServer(s -> {
+				SlipwayConfig rules = SlipwayConfig.get().sanitized();
+				rules.survivalRules = true;
+				SlipwayConfig.set(rules);
+			});
 			server.runCommand("gamerule spawn_mobs false");
 			server.runCommand("gamerule spawn_monsters false");
 			server.runCommand("weather clear 1000000");
@@ -450,11 +540,13 @@ final class HarbourScenarios {
 			Moored boat = boat(new BlockPos(ox - 7, SEA, oz - 2));
 			Moored submarine = submarine(new BlockPos(ox + 1, SEA - 2, oz - 6));
 			Moored barge = barge(new BlockPos(ox + 13, SEA + 1, oz - 2));
-			List<Moored> all = List.of(raft, boat, submarine, barge);
+			// The balloon hangs south of the pier, its basket floor level with the pier's deck and a block of water between.
+			Moored balloon = balloon(new BlockPos(ox - 12, SEA + 2, oz + 7));
+			List<Moored> all = List.of(raft, boat, submarine, barge, balloon);
 			server.runOnServer(s -> {
 				ServerLevel level = s.overworld();
 				// Kelp is cut below the hulls and kept from growing back up into them (it stays out of a vessel anyway).
-				for (BlockPos p : BlockPos.betweenClosed(ox - 24, KELP_TOP, oz - 24, ox + 28, SEA, oz + 8)) {
+				for (BlockPos p : BlockPos.betweenClosed(ox - 24, KELP_TOP, oz - 24, ox + 28, SEA, oz + 12)) {
 					BlockState state = level.getBlockState(p);
 					if (state.isAir() || state.getBlock() instanceof LiquidBlock || state.getFluidState().isEmpty() || !state.getCollisionShape(level, p).isEmpty()) {
 						continue;
@@ -465,11 +557,12 @@ final class HarbourScenarios {
 				}
 				pier(level, ox, oz);
 				all.forEach(m -> build(level, m));
-				sign(level, new BlockPos(ox - 15, SEA + 2, oz + 2), "RAFT", "Use the helm.", "Hover off or", "loose: it floats");
-				sign(level, new BlockPos(ox - 7, SEA + 2, oz + 2), "BOAT", "Use the helm,", "hover off,", "then sail");
-				sign(level, new BlockPos(ox + 1, SEA + 2, oz + 2), "SUBMARINE", "Hatch on top.", "Hover on: dive", "with descend");
-				sign(level, new BlockPos(ox + 13, SEA + 2, oz + 2), "STONE BARGE", "Hover off: it", "floats. Load", "iron: it sinks");
+				sign(level, new BlockPos(ox - 15, SEA + 2, oz + 2), "RAFT", "Use the helm.", "No sail: oars.", "Add wool: sails");
+				sign(level, new BlockPos(ox - 7, SEA + 2, oz + 2), "BOAT", "Use the helm.", "Twelve blocks", "of sail drive it");
+				sign(level, new BlockPos(ox + 1, SEA + 2, oz + 2), "SUBMARINE", "Hatch on top.", "Hold descend", "to dive on ballast");
+				sign(level, new BlockPos(ox + 13, SEA + 2, oz + 2), "STONE BARGE", "1,400 t under", "two big sails.", "Load iron: sinks");
 				sign(level, new BlockPos(ox + 19, SEA + 2, oz + 2), "CARGO", "Iron to", "overload", "a hull with");
+				sign(level, new BlockPos(ox - 10, SEA + 2, oz + 4), 8, "BALLOON", "Hot air over lit", "fires lifts it.", "Up: ascend key");
 			});
 			ctx.waitTicks(60);
 			for (Moored m : all) {
@@ -536,31 +629,46 @@ final class HarbourScenarios {
 				moorAgain(ctx, sp, r, boat, id, built, watch);
 			}
 
-			// The submarine: dives with its cabin dry, and comes up when hover is turned off.
+			// The submarine: a little lighter than the water it displaces, it dives on its ballast with its cabin dry, and
+			// comes up when the helm is let go.
 			{
 				long id = assemble(ctx, server, r, submarine);
 				VesselPose built = Flight.sample(server, id).pose();
 				double sealed = server.computeOnServer(s -> Game.active(s, id).hull.sealedVolume());
 				Check.atLeast("air sealed in the submarine (m^3)", sealed, 50.0);
+				double reserve = server.computeOnServer(s -> Game.active(s, id).buoyancyReserve());
+				double trim = server.computeOnServer(s -> SlipwayConfig.get().ballastTrim);
+				Check.that(reserve > 1.02 && reserve < 1.0 + trim - 0.05, "the submarine displaces %.2f of its weight: to float and to dive on its ballast it must lie between 1 and %.2f",
+					reserve, 1.0 + trim);
+				// Hover is on, as for every new vessel, and holds nothing without lift: it floats.
+				waitAfloat(ctx, server, r, submarine, id, built, 4.0);
 				standIn(ctx, server, id, new Vec3(0.5, 0.05, 2.5), 180f, 0f);
-				// Down with the descend axis, never faster than 2.5 blocks a second, to eight blocks below its mooring.
-				for (int i = 0; i < 600; i++) {
+				// Down with the descend axis held, to eight blocks below its mooring.
+				int diveTicks = 0;
+				double fastestDive = 0;
+				for (; diveTicks < 1200; diveTicks++) {
 					Flight.Sample s = Flight.sample(server, id);
+					fastestDive = Math.max(fastestDive, -s.velocity().y);
 					if (s.pose().y() <= built.y() - 8.0) {
 						break;
 					}
-					if (s.velocity().y > -2.5) {
-						server.runCommand("slipway control " + id + " 0 0 -0.5 0 0 0 2");
+					if (diveTicks % 10 == 0) {
+						server.runCommand("slipway control " + id + " 0 0 -1 0 0 0 12");
 					}
 					ctx.waitTick();
 				}
-				server.runCommand("slipway control " + id + " 0 0 0 0 0 0 1");
+				// Held there: as much ballast as it is lighter than the water.
+				String hold = String.format(java.util.Locale.ROOT, "%.3f", -Math.min(1.0, (reserve - 1.0) / trim));
+				server.runCommand("slipway control " + id + " 0 0 " + hold + " 0 0 0 600");
 				ctx.waitTicks(80);
 				Flight.Sample deep = Flight.sample(server, id);
+				r.metric("submarine.dive.ticks", diveTicks);
+				r.metric("submarine.dive.fastest", fastestDive);
 				r.metric("submarine.dive.depth", built.y() - deep.pose().y());
-				r.metric("submarine.dive.speedAtRest", deep.velocity().length());
+				r.metric("submarine.dive.speedHeld", deep.velocity().length());
 				Check.atLeast("how deep the submarine dived (blocks)", built.y() - deep.pose().y(), 7.0);
-				Check.atMost("the hovering submarine's speed after the dive", deep.velocity().length(), 0.1);
+				Check.atMost("the fastest the submarine sank on its ballast (blocks/s)", fastestDive, 3.0);
+				Check.atMost("the submarine's speed with its ballast trimmed to its weight", deep.velocity().length(), 0.3);
 				Standing in = standing(ctx, id);
 				r.metric("submarine.eyesBelowSurface", SURFACE - in.eyeY());
 				Check.atLeast("how far the player's eyes are under the sea's surface in the submarine (blocks)", SURFACE - in.eyeY(), 6.0);
@@ -571,14 +679,27 @@ final class HarbourScenarios {
 				shots(ctx, r, "07-submarine-cabin-looking-ahead");
 				ctx.getInput().lookAt(90f, 0f);
 				shots(ctx, r, "08-submarine-cabin-looking-out-of-a-window");
+				// Under way at that depth, on the eight blocks of its screw.
+				Check.equal("the submarine's sails (its screw)", rig(server, id).sails(), 8);
+				Flight.Sample beforeRun = Flight.sample(server, id);
+				server.runCommand("slipway control " + id + " 1 0 " + hold + " 0 0 0 200");
+				List<Flight.Sample> under = Flight.run(ctx, server, id, 200);
+				Flight.checkContinuous("the submarine under way under water", under);
+				double fastestUnder = under.stream().mapToDouble(s -> Math.hypot(s.velocity().x, s.velocity().z)).max().orElse(0);
+				r.metric("submarine.run.distance", Flight.horizontalDistance(beforeRun, under.getLast()));
+				r.metric("submarine.run.fastest", fastestUnder);
+				Check.atLeast("the submarine's fastest speed under water (blocks/s)", fastestUnder, 1.0);
+				Check.atLeast("how deep the submarine still is after its run (blocks)", built.y() - under.getLast().pose().y(), 4.0);
+				server.runCommand("slipway control " + id + " 0 0 " + hold + " 0 0 0 600");
 				// Ten more seconds under water: the breath stays.
 				ctx.waitTicks(200);
 				Standing later = standing(ctx, id);
 				Check.that(later.air() == later.maxAir() && !later.inWater(), "after ten seconds in the submerged cabin: %s", later);
+				Check.atLeast("how deep the submarine still is after ten seconds on trimmed ballast (blocks)", built.y() - Flight.sample(server, id).pose().y(), 4.0);
 				lookFrom(ctx, sp, id, new Vec3(9.0, 4.0, -9.0), new Vec3(0.5, 1.0, 2.0));
 				shots(ctx, r, "09-submarine-from-outside-under-water");
-				// Hover off: lighter than the water it displaces, it comes up and floats.
-				server.runCommand("slipway mode " + id + " hover false");
+				// The helm let go: lighter than the water it displaces, it comes up and floats.
+				server.runCommand("slipway control " + id + " 0 0 0 0 0 0 1");
 				waitAfloat(ctx, server, r, submarine, id, built, 4.0);
 				Flight.Sample up = Flight.sample(server, id);
 				// Its roof is four blocks above its helm's floor.
@@ -607,8 +728,23 @@ final class HarbourScenarios {
 				shots(ctx, r, "11-barge-from-its-hold");
 				lookFrom(ctx, sp, id, new Vec3(0.5, 22.0, -5.5), new Vec3(0.5, 0.0, -6.0));
 				shots(ctx, r, "12-barge-from-above");
-				lookFrom(ctx, sp, id, new Vec3(20.0, 8.0, 16.0), new Vec3(0.5, -2.0, -6.0));
+				lookFrom(ctx, sp, id, new Vec3(24.0, 10.0, 20.0), new Vec3(0.5, 0.0, -6.0));
 				shots(ctx, r, "13-barge-afloat");
+				// Under sail: 112 blocks of wool on 1,400 t.
+				var rig = rig(server, id);
+				Check.equal("the barge's sails", rig.sails(), 112);
+				standIn(ctx, server, id, new Vec3(0.5, 0.05, 1.5), 180f, 0f);
+				Flight.Sample before = Flight.sample(server, id);
+				server.runCommand("slipway control " + id + " 1 0 0 0 0 0 300");
+				List<Flight.Sample> run = Flight.run(ctx, server, id, 300);
+				Flight.checkContinuous("the barge under sail", run);
+				double fastest = run.stream().mapToDouble(s -> Math.hypot(s.velocity().x, s.velocity().z)).max().orElse(0);
+				r.metric("barge.run.distance", Flight.horizontalDistance(before, run.getLast()));
+				r.metric("barge.run.fastest", fastest);
+				Check.atLeast("the barge's fastest speed under sail in fifteen seconds (blocks/s)", fastest, 1.0);
+				Check.atMost("the barge's fastest speed under sail (blocks/s)", fastest, 6.0);
+				Check.that(!AfloatScenarios.water(server, id).flooding(), "the barge took in water under sail");
+				server.runCommand("slipway control " + id + " 0 0 0 0 0 0 1");
 				moorAgain(ctx, sp, r, barge, id, built, watch);
 			}
 
@@ -616,11 +752,63 @@ final class HarbourScenarios {
 			{
 				long id = assemble(ctx, server, r, raft);
 				VesselPose built = Flight.sample(server, id).pose();
+				// Under oars: the helm alone on 18 t of logs.
+				waitAfloat(ctx, server, r, raft, id, built, 6.0);
+				server.runCommand("slipway control " + id + " 1 0 0 0 0 0 120");
+				List<Flight.Sample> oars = Flight.run(ctx, server, id, 120);
+				double rowed = oars.stream().mapToDouble(s -> Math.hypot(s.velocity().x, s.velocity().z)).max().orElse(0);
+				r.metric("raft.oars.fastest", rowed);
+				Check.atLeast("the raft's fastest speed under oars (blocks/s)", rowed, 0.5);
+				Check.atMost("the raft's fastest speed under oars (blocks/s)", rowed, 4.0);
+				server.runCommand("slipway control " + id + " 0 0 0 0 0 0 1");
 				server.runCommand("slipway mode " + id + " loose true");
 				waitAfloat(ctx, server, r, raft, id, built, 6.0);
 				lookFrom(ctx, sp, id, new Vec3(7.0, 4.0, 9.0), new Vec3(0.5, 0.0, 0.5));
 				Shots.take(ctx, r, "14-raft-loose-on-the-sea");
 				moorAgain(ctx, sp, r, raft, id, built, watch);
+			}
+
+			// The balloon: hangs on its hot air, climbs with what lift it has to spare, sails on its four blocks of wool.
+			{
+				long id = assemble(ctx, server, r, balloon);
+				VesselPose built = Flight.sample(server, id).pose();
+				var rig = rig(server, id);
+				Check.equal("the balloon's burners", rig.burners(), 2);
+				Check.equal("the balloon's sails", rig.sails(), 4);
+				Check.that(rig.liftRatio() > 1.2 && rig.liftRatio() < 1.8, "the balloon's lift is %.2f of its weight", rig.liftRatio());
+				ctx.waitTicks(40);
+				Flight.Sample hanging = Flight.sample(server, id);
+				Check.that(Math.abs(hanging.pose().y() - built.y()) < 0.2 && hanging.velocity().length() < 0.05, "the balloon did not hang where it was assembled: %.2f from there at %.2f m/s",
+					hanging.pose().y() - built.y(), hanging.velocity().length());
+				standIn(ctx, server, id, new Vec3(0.5, 0.05, -0.5), 0f, 5f);
+				server.runCommand("slipway control " + id + " 0 0 1 0 0 0 160");
+				List<Flight.Sample> climb = Flight.run(ctx, server, id, 160);
+				Flight.checkContinuous("the balloon climbing", climb);
+				double climbed = climb.getLast().pose().y() - built.y();
+				double fastestClimb = climb.stream().mapToDouble(s -> s.velocity().y).max().orElse(0);
+				r.metric("balloon.climb.height", climbed);
+				r.metric("balloon.climb.fastest", fastestClimb);
+				Check.atLeast("how high the balloon climbed in eight seconds (blocks)", climbed, 8.0);
+				// The lift it has to spare against the drag every vessel has: no faster than that.
+				Check.atMost("the balloon's fastest climb (blocks/s)", fastestClimb, (rig.liftRatio() - 1.0) * 9.81 / 0.5 * 1.1);
+				Check.equal("the player is carried by the balloon", standing(ctx, id).carrier(), id);
+				Shots.take(ctx, r, "15-balloon-from-its-basket");
+				server.runCommand("slipway control " + id + " 1 0 0 0 0 0 160");
+				List<Flight.Sample> flight = Flight.run(ctx, server, id, 160);
+				Flight.checkContinuous("the balloon under sail", flight);
+				double flown = Flight.horizontalDistance(climb.getLast(), flight.getLast());
+				double fastestFlight = flight.stream().mapToDouble(s -> Math.hypot(s.velocity().x, s.velocity().z)).max().orElse(0);
+				r.metric("balloon.flight.distance", flown);
+				r.metric("balloon.flight.fastest", fastestFlight);
+				Check.atLeast("how far south, bow first, the balloon sailed in eight seconds (blocks)", flight.getLast().pose().z() - climb.getLast().pose().z(), 20.0);
+				Check.atMost("the balloon's fastest speed (blocks/s)", fastestFlight, rig.topSpeed() * 1.05);
+				Check.atMost("the balloon's tilt in flight (degrees)", Flight.maxTilt(flight), 8.0);
+				server.runCommand("slipway control " + id + " 0 0 0 0 0 0 1");
+				ctx.waitTicks(60);
+				Check.atMost("the balloon's speed after its helm is let go (blocks/s)", Flight.sample(server, id).velocity().length(), 0.5);
+				lookFrom(ctx, sp, id, new Vec3(14.0, 2.0, 18.0), new Vec3(0.5, 3.0, 0.5));
+				shots(ctx, r, "16-balloon-aloft");
+				moorAgain(ctx, sp, r, balloon, id, built, watch);
 			}
 
 			// As it is left for a player: nothing assembled, everything moored and dry, the player on the pier.
@@ -636,8 +824,10 @@ final class HarbourScenarios {
 			server.runCommand("give @a slipway:helm 16");
 			server.runCommand("give @a minecraft:iron_block 64");
 			server.runCommand("give @a minecraft:oak_planks 64");
+			server.runCommand("give @a minecraft:white_wool 64");
+			server.runCommand("give @a minecraft:campfire 8");
 			AfloatScenarios.flyTo(ctx, sp, ox + 1.5, SEA + 14, oz + 22.5, 180f, 30f);
-			shots(ctx, r, "15-harbour-as-left");
+			shots(ctx, r, "17-harbour-as-left");
 			server.runOnServer(s -> {
 				var p = Game.player(s);
 				p.getAbilities().flying = false;
@@ -647,10 +837,13 @@ final class HarbourScenarios {
 			ctx.waitFor(mc -> mc.player != null && mc.player.onGround(), 200);
 			ctx.waitTicks(20);
 			Game.hud(ctx, true);
-			Shots.take(ctx, r, "16-where-the-player-starts");
+			Shots.take(ctx, r, "18-where-the-player-starts");
 			r.note("saved as \"%s\" in %s", WORLD_NAME, SlipwayClientGameTests.reportDir().resolve("saves"));
 		} finally {
 			ctx.runOnClient(mc -> WaterMask.enabled = true);
+			SlipwayConfig free = SlipwayConfig.get().sanitized();
+			free.survivalRules = false;
+			SlipwayConfig.set(free);
 		}
 	}
 }

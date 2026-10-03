@@ -13,8 +13,8 @@ class SlipwayConfigTest {
 		assertEquals(4096, c.maxVesselBlocks);
 		assertEquals(20.0, c.disassemblyTiltDegrees);
 		assertEquals(true, c.survivalRules);
-		assertEquals(20000.0, c.helmThrust);
-		assertEquals(20000.0, c.sailThrust);
+		assertEquals(1.5, c.helmAcceleration);
+		assertEquals(50000.0, c.sailThrust);
 		assertEquals(500.0, c.hotAirLift);
 		assertEquals(100.0, c.burnerVolume);
 		assertEquals(0.3, c.ballastTrim);
@@ -26,15 +26,15 @@ class SlipwayConfigTest {
 	void theSurvivalRulesNumbersAreClamped() {
 		SlipwayConfig c = new SlipwayConfig();
 		c.survivalRules = false;
-		c.helmThrust = -1;
+		c.helmAcceleration = -1;
 		c.sailThrust = Double.NaN;
 		c.hotAirLift = Double.POSITIVE_INFINITY;
 		c.burnerVolume = -5;
 		c.ballastTrim = 7;
 		SlipwayConfig s = c.sanitized();
 		assertEquals(false, s.survivalRules);
-		assertEquals(0.0, s.helmThrust);
-		assertEquals(20000.0, s.sailThrust);
+		assertEquals(0.0, s.helmAcceleration);
+		assertEquals(50000.0, s.sailThrust);
 		assertEquals(500.0, s.hotAirLift);
 		assertEquals(0.0, s.burnerVolume);
 		assertEquals(1.0, s.ballastTrim);

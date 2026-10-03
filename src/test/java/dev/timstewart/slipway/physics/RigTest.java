@@ -9,8 +9,8 @@ import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
 
 class RigTest {
-	/** 40 kN from the helm, 20 kN a sail, 500 kg lifted by a cubic metre, 100 m^3 a burner, 30% ballast. */
-	static final Rig.Rules RULES = new Rig.Rules(40_000, 20_000, 500 * VesselController.GRAVITY, 100, 0.3);
+	/** 1 m/s^2 from the helm, 20 kN a sail, 500 kg lifted by a cubic metre, 100 m^3 a burner, 30% ballast. */
+	static final Rig.Rules RULES = new Rig.Rules(1.0, 20_000, 500 * VesselController.GRAVITY, 100, 0.3);
 	static final VesselController.Params PARAMS = new VesselController.Params(12.0, 24.0, 1.6, 0.9, 1.5);
 	static final double[] INERTIA = {1000, 0, 0, 0, 1000, 0, 0, 0, 1000};
 
@@ -149,21 +149,24 @@ class RigTest {
 	}
 
 	@Test
-	void thrustOverMassIsTheAccelerationAndSetsTheTopSpeed() {
+	void theHelmGivesEveryVesselTheSameAndSailsPushByTheirNumberOverItsMass() {
 		Rig oars = new Rig(0, 0, 0);
 		Rig sails = new Rig(12, 0, 0);
-		// 40 kN on 40 t is 1 m/s^2: a twelfth of full thrust, so a twelfth of the full 24 m/s.
+		// The helm alone: 1 m/s^2 whatever the weight, a twelfth of full thrust, so a twelfth of the full 24 m/s.
 		assertEquals(1.0, oars.rating(RULES, 40_000, 12.0, 0).thrust(), 1e-9);
+		assertEquals(1.0, oars.rating(RULES, 4_000_000, 12.0, 0).thrust(), 1e-9);
 		assertEquals(2.0, oars.topSpeed(RULES, 40_000, 12.0, 24.0), 1e-9);
-		// Twelve sails add 240 kN: 7 m/s^2 and 14 m/s.
+		// Twelve sails add 240 kN: on 40 t that is 6 m/s^2 more, 14 m/s in all; on 400 t a tenth of it.
 		assertEquals(7.0, sails.rating(RULES, 40_000, 12.0, 0).thrust(), 1e-9);
 		assertEquals(14.0, sails.topSpeed(RULES, 40_000, 12.0, 24.0), 1e-9);
+		assertEquals(1.6, sails.rating(RULES, 400_000, 12.0, 0).thrust(), 1e-9);
 		// Never more than the full thrust every vessel had before the rules.
 		assertEquals(12.0, sails.rating(RULES, 1_000, 12.0, 0).thrust(), 1e-9);
 		assertEquals(24.0, sails.topSpeed(RULES, 1_000, 12.0, 24.0), 1e-9);
-		// A heavier ship under the same rig turns more slowly, but always answers its helm.
+		// A ship with less thrust for its weight turns more slowly, but always answers its helm.
 		assertEquals(Math.sqrt(7.0 / 12.0), sails.rating(RULES, 40_000, 12.0, 0).turn(), 1e-9);
-		assertEquals(Rig.LEAST_TURN, oars.rating(RULES, 4_000_000, 12.0, 0).turn(), 1e-9);
+		assertEquals(Math.sqrt(1.6 / 12.0), sails.rating(RULES, 400_000, 12.0, 0).turn(), 1e-9);
+		assertEquals(Rig.LEAST_TURN, new Rig(0, 0, 0).rating(new Rig.Rules(0.5, 20_000, 0, 100, 0.3), 4_000_000, 12.0, 0).turn(), 1e-9);
 	}
 
 	@Test

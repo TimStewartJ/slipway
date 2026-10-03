@@ -51,10 +51,13 @@ public final class SlipwayConfig {
 	 * {@code /slipway mode <id> free true|false}.
 	 */
 	public boolean survivalRules = true;
-	/** What every helm gives a vessel under the survival rules, in newtons: oars and sweeps, as much as one sail. */
-	public double helmThrust = 20000.0;
+	/**
+	 * The acceleration every helm gives a vessel under the survival rules whatever it weighs, in m/s^2: oars and sweeps.
+	 * With the default drag it is good for an eighth of the full speed, 3 blocks a second in the air.
+	 */
+	public double helmAcceleration = 1.5;
 	/** What one sail block adds, in newtons. */
-	public double sailThrust = 20000.0;
+	public double sailThrust = 50000.0;
 	/** What a cubic metre of heated air lifts, in kilograms. */
 	public double hotAirLift = 500.0;
 	/** How much air one burner heats, in cubic metres. */
@@ -72,7 +75,7 @@ public final class SlipwayConfig {
 
 	/** The survival rules' numbers in the units the physics uses. */
 	public dev.timstewart.slipway.physics.Rig.Rules rigRules() {
-		return new dev.timstewart.slipway.physics.Rig.Rules(this.helmThrust, this.sailThrust, this.hotAirLift * dev.timstewart.slipway.physics.VesselController.GRAVITY,
+		return new dev.timstewart.slipway.physics.Rig.Rules(this.helmAcceleration, this.sailThrust, this.hotAirLift * dev.timstewart.slipway.physics.VesselController.GRAVITY,
 			this.burnerVolume, this.ballastTrim);
 	}
 
@@ -118,8 +121,8 @@ public final class SlipwayConfig {
 		c.buoyancy = this.buoyancy;
 		c.waterDrag = clamp(this.waterDrag, 0.0, 10.0, 1.0);
 		c.survivalRules = this.survivalRules;
-		c.helmThrust = clamp(this.helmThrust, 0.0, 1.0e9, 20000.0);
-		c.sailThrust = clamp(this.sailThrust, 0.0, 1.0e9, 20000.0);
+		c.helmAcceleration = clamp(this.helmAcceleration, 0.0, 100.0, 1.5);
+		c.sailThrust = clamp(this.sailThrust, 0.0, 1.0e9, 50000.0);
 		c.hotAirLift = clamp(this.hotAirLift, 0.0, 1.0e6, 500.0);
 		c.burnerVolume = clamp(this.burnerVolume, 0.0, 1.0e6, 100.0);
 		c.ballastTrim = clamp(this.ballastTrim, 0.0, 1.0, 0.3);
