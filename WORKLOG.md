@@ -243,6 +243,16 @@ Design in DESIGN.md: "Survival rules: sails, hot air and ballast", "Interaction 
   game at "above normal"): the three pass, as does the code from before this work; without it they fail. One run
   with it still gave flight-rotation 64 frames and disassembly 0.2502 against 0.25; the next gave 179 and a pass.
 
+- Second full client run, with the game at "above normal": 18 of 19; assemble-mixed failed on the far terrain again
+  (a band on the horizon missing from the first picture) and passed when run again. Packaged-jar check passed.
+- 11:27: play instance: Slipway `0.2.0-pre.2` (SHA256 `588C7A68...E5D6`, built at `6879f11`) in place of
+  `0.2.0-pre.1`; world "Slipway Harbor 2" added (the harbour made under the rules); "Slipway Harbor" left as it was.
+  Backup `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.0-pre.2-20261003-112726`. Started
+  to the title screen in the background and closed: no mixin error, the new settings written.
+- In `deck-jump`'s first run the ship "was not active" after jumps on a deck descending at 16 blocks a second: the
+  player had died of the falls the server counted and respawned far away, which unloaded the ship. Not a ship
+  falling through the ground: set down at 21 blocks a second, it stops on the ground (part of the scenario now).
+
 ## Previous goal (shader blotches)
 
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
