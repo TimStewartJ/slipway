@@ -218,6 +218,31 @@ public class InteractionGameTests {
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 40)
+	public void aVesselsLadderIsClimbable(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 2);
+		for (int y = 0; y < 2; y++) {
+			helper.setBlock(helm.east(2).above(y), Blocks.OAK_PLANKS);
+			helper.setBlock(helm.east(1).above(y), Blocks.LADDER.defaultBlockState().setValue(net.minecraft.world.level.block.LadderBlock.FACING, Direction.WEST));
+		}
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		// Away from where it was built, turned and heeling: the ladder is nowhere near the blocks the world has there.
+		BlockPos moved = helper.absolutePos(helm).above(6);
+		VesselManager.get(helper.getLevel()).teleport(vessel, TestShips.poseAboutHelm(moved, 70, 0, 15));
+		helper.runAfterDelay(2, () -> {
+			ArmorStand onLadder = pig(helper, record.pose.localToWorld(new Vec3(1.5, 0.6, 0.5)));
+			ArmorStand onDeck = pig(helper, record.pose.localToWorld(new Vec3(-1.5, 0.6, 0.5)));
+			ArmorStand whereItWas = pig(helper, Vec3.atBottomCenterOf(helper.absolutePos(helm.east(1))).add(0, 0.6, 0));
+			check(helper, onLadder.onClimbable(), "an entity in the ladder of a vessel is not on something it can climb");
+			check(helper, onLadder.getLastClimbablePos().filter(pos -> helper.getLevel().getBlockState(pos).is(Blocks.LADDER)).isPresent(),
+				"the block it climbs is not the vessel's ladder: " + onLadder.getLastClimbablePos());
+			check(helper, !onDeck.onClimbable(), "an entity on the deck, away from the ladder, counts as climbing");
+			check(helper, !whereItWas.onClimbable(), "an entity where the ladder stood before the vessel left counts as climbing");
+			helper.succeed();
+		});
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 40)
 	public void reachIsMeasuredToWhereTheVesselIs(GameTestHelper helper) {
 		BlockPos helm = deck(helper, 8, 4, 8, 1);
 		VesselRecord record = TestShips.assemble(helper, helm);

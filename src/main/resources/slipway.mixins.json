@@ -11,6 +11,7 @@
 		"ContainerOpenersCounterMixin",
 		"EntityMixin",
 		"LevelChunkMixin",
+		"LivingEntityMixin",
 		"PistonStructureResolverMixin",
 		"PlayerMixin",
 		"ServerGamePacketListenerImplMixin",

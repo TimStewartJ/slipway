@@ -42,6 +42,16 @@
 			"tests": ["dev.timstewart.slipway.gametest.PhysicsGameTests#addingBlocksMakesAVesselHeavier", "clientGametest:interaction"]
 		},
 		{
+			"mixin": "dev.timstewart.slipway.mixin.LivingEntityMixin",
+			"side": "both",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.entity.LivingEntity",
+			"methods": ["onClimbable"],
+			"feature": "ladders on vessels",
+			"reason": "The game decides whether an entity climbs from the block of the world its feet are in. A vessel's ladders, vines and scaffolding are not in the world where the vessel is, so they could not be climbed. When the world's block is not climbable, the feet are taken into each nearby vessel's plot and the block there is asked, with vanilla's own rules (the climbable tag, an open trapdoor above a ladder, nothing while gliding through a block that can be glided through).",
+			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#aVesselsLadderIsClimbable", "clientGametest:deck-jump"]
+		},
+		{
 			"mixin": "dev.timstewart.slipway.mixin.EntityMixin",
 			"side": "both",
 			"targetMod": "minecraft",
@@ -138,10 +148,10 @@
 			"side": "server",
 			"targetMod": "minecraft",
 			"targetClass": "net.minecraft.server.network.ServerGamePacketListenerImpl",
-			"methods": ["noBlocksAround", "forceSendPlayerSupportBlocks"],
+			"methods": ["noBlocksAround", "forceSendPlayerSupportBlocks", "handlePlayerPositionChange"],
 			"feature": "deck riding",
-			"reason": "A player standing on a vessel has no world blocks around them; without this the server kicks them for flying after four seconds and logs and resends the air below them every ten seconds.",
-			"tests": ["clientGametest:deck-walk"]
+			"reason": "A player standing on a vessel has no world blocks around them; without this the server kicks them for flying after four seconds and logs and resends the air below them every ten seconds. The server also adds up a player's fall from the moves the client reports, in the world: on a vessel that is going down a jump counted as a fall of everything the vessel sank meanwhile, and the player landed hurt. For a player on a vessel the vertical part of each move is counted against the deck.",
+			"tests": ["clientGametest:deck-walk", "clientGametest:deck-jump"]
 		},
 		{
 			"mixin": "dev.timstewart.slipway.client.mixin.ClientChunkCacheMixin",

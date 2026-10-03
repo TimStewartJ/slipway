@@ -35,6 +35,7 @@ public final class SlipwayClientGameTests implements FabricClientGameTest {
 			new Scenario("assemble-mixed", AssemblyScenarios::assembleMixed),
 			new Scenario("flight-rotation", FlightScenarios::flightRotation),
 			new Scenario("deck-walk", DeckScenarios::deckWalk),
+			new Scenario("deck-jump", JumpScenarios::deckJump),
 			new Scenario("interaction", InteractionScenarios::interaction),
 			new Scenario("collision", CollisionScenarios::collision),
 			new Scenario("small-vessel-light", LightScenarios::smallVesselLight),

@@ -135,6 +135,7 @@ public final class VesselCollisions {
 	private static Vec3 collideWith(Entity entity, VesselLookup.View vessel, AABB box, Vec3 movement, Contact contact) {
 		Rider rider = (Rider)entity;
 		Quaterniond rotation = vessel.pose().rotation();
+		Vec3 asked = movement;
 		// On walkable deck, gravity (the downward part of the movement) acts along the deck normal.
 		if (rider.slipway$carrier() == vessel.id() && movement.y < 0 && entity.tickCount - rider.slipway$lastContactTick() <= 1) {
 			Vec3 n = rider.slipway$groundNormal();
@@ -172,12 +173,13 @@ public final class VesselCollisions {
 		Iterable<VoxelShape> shapes = entity.level().getBlockCollisions(null, swept);
 		if (!shapes.iterator().hasNext()) {
 			contact.stage = Math.max(contact.stage, 3);
-			return pushed ? pushedMovement(contact, vessel.id(), rotation, localMove, push) : movement;
+			return pushed ? pushedMovement(contact, vessel.id(), rotation, localMove, push) : asked;
 		}
 		contact.stage = 4;
 		Vec3 resolved = collideAxes(localMove, local, shapes);
-		// Step up in the vessel's frame, like vanilla does on terrain, when the deck is roughly upright.
-		boolean grounded = rider.slipway$carrier() == vessel.id() || (localMove.y < 0 && resolved.y != localMove.y);
+		// Step up in the vessel's frame, like vanilla does on terrain, when the deck is roughly upright: from the ground
+		// only (an entity in the air, on a ladder or in a jump, is not lifted over an edge it bumps into).
+		boolean grounded = entity.onGround() || (localMove.y < 0 && resolved.y != localMove.y);
 		if (entity.maxUpStep() > 0 && grounded && ay.y > WALKABLE_COS && (resolved.x != localMove.x || resolved.z != localMove.z)) {
 			Vec3 stepped = tryStep(entity, local, localMove, resolved);
 			if (stepped != null) {
@@ -189,8 +191,22 @@ public final class VesselCollisions {
 			recordPush(contact, vessel.id(), rotation, push);
 			resolved = resolved.add(push.x, push.y, push.z);
 		}
-		Vector3d w = rotation.transform(new Vector3d(resolved.x, resolved.y, resolved.z));
-		return new Vec3(w.x, w.y, w.z);
+		// Only what the vessel took from the movement is turned back into the world and taken from what was asked.
+		// Vanilla calls every axis on which the result differs from what it asked for a collision, at any size of
+		// difference: it then stops the entity along that axis and, off the ground, nothing gives the speed back. Turning
+		// the whole movement into the vessel's frame and back changes its last bits on any vessel that is not square to
+		// the world, so a jump beside a wall or off a heeling deck ended after its first tick.
+		Vector3d taken = new Vector3d(resolved.x - localMove.x, resolved.y - localMove.y, resolved.z - localMove.z);
+		if (taken.x == 0.0 && taken.y == 0.0 && taken.z == 0.0) {
+			return asked;
+		}
+		rotation.transform(taken);
+		return new Vec3(movement.x + exact(taken.x), movement.y + exact(taken.y), movement.z + exact(taken.z));
+	}
+
+	/** Zero for what is only rounding. */
+	private static double exact(double part) {
+		return Math.abs(part) < 1.0e-9 ? 0.0 : part;
 	}
 
 	/**
