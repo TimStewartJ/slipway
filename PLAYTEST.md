@@ -17,7 +17,8 @@ on other vessels.
   to 0.19.5 for it.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
-- World **Slipway Harbor** (creative, cheats on), for the water: see "The harbour" below.
+- World **Slipway Harbor 2** (creative, cheats on), for the water and the survival rules: see "The harbour" below.
+  **Slipway Harbor**, from the first test build, is kept as you left it.
 
 ## What's new in this test build (0.2.0-pre.2): survival rules, ladders, jumping, the water under shaders
 
@@ -56,9 +57,10 @@ From the first test build, unchanged:
 
 ### The harbour
 
-World **Slipway Harbor**: you stand on a pier in a deep sea (near 93 64 -348), in creative, with helms, iron,
-planks, wool and campfires in your hotbar. This is a new copy of the world, made under the survival rules; the one
-you played is kept as **Slipway Harbor (first test build)**. Four things are moored north of the pier as plain
+World **Slipway Harbor 2**: you stand on a pier in a deep sea (near 93 64 -348), in creative, with helms, iron,
+planks, wool and campfires in your hotbar. It is a new world, made under the survival rules. The one you played
+(**Slipway Harbor**) is still there, untouched; ships you assemble in it now follow the rules too, and its barge and
+submarine were built for the old ones (no sails, no screw). Four things are moored north of the pier as plain
 blocks, bows away from you, and a balloon hangs south of it, behind you; each has a sign. Use (right-click) a helm to
 assemble and take it. A ship assembled in the water floats at once.
 
