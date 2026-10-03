@@ -48,7 +48,7 @@
 			"targetClass": "net.minecraft.world.entity.LivingEntity",
 			"methods": ["onClimbable"],
 			"feature": "ladders on vessels",
-			"reason": "The game decides whether an entity climbs from the block of the world its feet are in. A vessel's ladders, vines and scaffolding are not in the world where the vessel is, so they could not be climbed. When the world's block is not climbable, the feet are taken into each nearby vessel's plot and the block there is asked, with vanilla's own rules (the climbable tag, an open trapdoor above a ladder, nothing while gliding through a block that can be glided through).",
+			"reason": "The game decides whether an entity climbs from the block of the world its feet are in. A vessel's ladders and vines are not in the world where the vessel is, so they could not be climbed. When the world's block is not climbable, the feet are taken into each nearby vessel's plot and the block there is asked, with vanilla's own rules (the climbable tag, an open trapdoor above a ladder, nothing while gliding through a block that can be glided through).",
 			"tests": ["dev.timstewart.slipway.gametest.InteractionGameTests#aVesselsLadderIsClimbable", "clientGametest:deck-jump"]
 		},
 		{

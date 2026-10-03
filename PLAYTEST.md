@@ -1,4 +1,4 @@
-# Slipway playtest guide (0.1.3)
+# Slipway playtest guide (0.2.0-pre.2)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
@@ -19,37 +19,59 @@ on other vessels.
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
 - World **Slipway Harbor** (creative, cheats on), for the water: see "The harbour" below.
 
-## What's new in this test build: water
+## What's new in this test build (0.2.0-pre.2): survival rules, ladders, jumping, the water under shaders
 
-Not released; built from the branch `buoyancy`. With hover off (or loose) a vessel now floats, sinks or sails by its
-weight and its hull. The short version:
+Not released; built from the branch `buoyancy`. On top of the water of the first test build:
 
-- **Hover off over water**: the ship drops in with a splash, bobs and floats where it displaces its own weight. A
-  raft of planks floats low; an open hull floats high, because the air its walls keep dry counts too.
+- **Ships are no longer overpowered.** A new vessel moves and lifts itself with what it is built of:
+  - The **helm alone** rows any ship slowly: 3 blocks a second in the air, about 1 on water.
+  - **Sails**: every block of wool with open air on two opposite sides adds thrust. Light ship, few sails, fast;
+    heavy ship, many sails, still slow. Wool in a deck, a wall or a balloon's skin does not count.
+  - **Hover needs hot air.** Build a canopy of wool, open below, over **lit campfires**: each fire heats 100 m³, each
+    cubic metre lifts 500 kg. With hover on and too little lift the HUD says "NO LIFT" and the ship floats, sinks or
+    falls. Put the fires out (shovel or water bottle) and a balloon comes down.
+  - **Submarines dive on ballast**: in water, ascend and descend push a ship up or down by up to 30% of its weight. A
+    closed hull that displaces 100% to 130% of its weight (the HUD's hull line) dives while you hold descend and comes
+    up when you let go.
+  - The HUD has two new lines: "Sails 12  Top speed 20.6 m/s" (the speed in the air; water slows it) and
+    "Lift: 2 burners carry 140% of its weight: it flies".
+  - **Your existing ships keep flying.** A vessel assembled before this build stays free of the rules. To switch one:
+    `/slipway mode <id> free false` (or `true`). To turn the rules off for new ships: `"survivalRules": false` in
+    `config/slipway.json`.
+- **Ladders work on ships**, and **jumping on a deck is a normal jump**: on a tilted, turned or bobbing ship a jump
+  used to stop after one tick, and on a ship going down it counted as a fall and hurt in survival.
+- **No more bright patch of water** around the ships with shaders on. It came from the submarine's glass windows in
+  the water: a bug between Iris and Distant Horizons, which Slipway now works around.
+
+From the first test build, unchanged:
+
+- A vessel that hover does not hold up floats, sinks or sails by its weight and its hull. A raft of planks floats
+  low; an open hull floats high, because the air its walls keep dry counts too.
 - **The HUD's last line** tells what the hull can do: "Hull displaces 180% of its weight: afloat". Above 100% it
   floats. Load it past that, or heel it until the rim dips, and it reads "TAKING ON WATER" and the ship goes down.
-- **Sail it**: W/S and A/D as in the air, slower (about 9 blocks a second), and it does not slide sideways.
 - **Inside the hull you are dry**, also below the waterline, and the sea is not drawn inside the hull.
-- **Hover on**: water does nothing to the ship. That is your submarine: a closed cabin stays dry under water.
 - **Disassemble in the water**: the hold stays dry. **Assemble in the water**: the sea closes at once where the hull
-  stood, so the ship has water under it the moment you turn hover off.
+  stood.
 - Kelp and sea grass never become part of a ship, and a ship can be put down on them.
 
 ### The harbour
 
-World **Slipway Harbor**: you stand on a pier in a deep sea (near 93 64 -348), in creative, with helms, iron and
-planks in your hotbar. Four things are moored north of the pier as plain blocks, bows away from you; each has a sign.
-Use (right-click) a helm to assemble and take it; **Toggle hover** is what puts a ship on the water.
+World **Slipway Harbor**: you stand on a pier in a deep sea (near 93 64 -348), in creative, with helms, iron,
+planks, wool and campfires in your hotbar. This is a new copy of the world, made under the survival rules; the one
+you played is kept as **Slipway Harbor (first test build)**. Four things are moored north of the pier as plain
+blocks, bows away from you, and a balloon hangs south of it, behind you; each has a sign. Use (right-click) a helm to
+assemble and take it. A ship assembled in the water floats at once.
 
 | Moored | What it shows | Try |
 | --- | --- | --- |
-| **Raft** (logs, far left) | Blocks float by their own weight | Hover off: it lies seven tenths deep. Or set it loose and push nothing: it drifts to rest |
-| **Boat** (planks, a mast and a sail) | A hull carries far more than its planks | Hover off, then W and A/D: about 9 blocks a second, no sideways slide. Walk in the hold: dry below the waterline. Pile iron from the pier's far end into it until it goes down |
-| **Submarine** (dark oak and glass, hatch on top) | A closed cabin is always dry | Climb in through the hatch. Hover on: dive with **Descend**, look out of the windows. Hover off: it comes up by itself, its roof just out of the water |
-| **Stone barge** (far right) | Stone floats if the hull is large enough | Hover off: three quarters of a block of freeboard. Climb down the ladder into the hold, six blocks deep and dry. A few dozen blocks of iron sink it |
+| **Raft** (logs, far left) | The helm alone: oars | W: about 1 block a second. Put a mast and a few blocks of wool on it, assemble again, and watch the HUD's top speed |
+| **Boat** (planks, a mast and a sail) | Twelve blocks of sail on 68 t | W and A/D: 7.7 blocks a second, no sideways slide. Walk in the hold: dry below the waterline. Pile iron from the pier's far end into it: it gets slower, then goes down |
+| **Submarine** (dark oak and glass, hatch on top, grey fins at the stern) | Ballast and a screw | Climb down the ladder through the hatch. Hold **Descend**: it sinks slowly. Ease off to hang at a depth, W to run (2.5 blocks a second), let go to come up |
+| **Stone barge** (far right, two big sails) | 1,400 t under 112 blocks of sail | W: it gathers way slowly to 4 blocks a second. Climb down the ladder into the hold, six blocks deep and dry |
+| **Balloon** (south of the pier, wool canopy over two campfires) | Hot air | Hop across into the basket and use the helm. It hangs where it is. **Space** climbs (up to 7.7 blocks a second), W sails south on its four blocks of side sail (12 blocks a second). Put a fire out and it sinks |
 
 To put one back: bring it to rest and level, leave the helm, sneak and use the helm. It lands as blocks where it
-floats, with a dry hold. All four were assembled, tried and moored again by the test that built this world
+is. All five were assembled, tried and moored again by the test that built this world
 (`gradlew runClientGametest -PslipwayClientGametestOnly=make-harbour`, which makes the world anew).
 
 ## What's new in 0.1.3
@@ -111,7 +133,7 @@ Gameplay is the same as 0.1.0; this build carries the fixes from the world-reten
 | Pitch nose up / down | Up / down arrow |
 | Roll left / right | Left / right arrow |
 | Strafe left / right | N / M |
-| Hover on/off | **Toggle hover** (hover on: the ship holds its position, also under cargo; off: gravity applies) |
+| Hover on/off | **Toggle hover** (hover on: the ship holds its position, also under cargo, if it is free or has the lift for its weight; off: gravity applies) |
 | Level on/off | **Toggle level** (level on: the ship rights itself; off: it holds any attitude, e.g. inverted) |
 | Loose on/off | **Toggle loose** (loose on: no hover, no levelling, no drag, the helm does nothing: the ship is a plain physical object; off: hover and level apply again as they were set) |
 | Disassemble | Level the ship (within 20° of level), leave the helm, then sneak and use the helm |
@@ -122,11 +144,12 @@ Slipway's keys are under Options > Controls > Key Binds > **Slipway** and can be
 will come up as U: check that U is free in your layout (it was not checked against it).
 
 The HUD (top left while piloting) shows the vessel id and block count, speed, altitude, pitch, roll and heading,
-hover, level and loose, and mass. Forces scale with mass, so small and large ships handle alike (up to about 24 m/s
-and about 50°/s of turn).
+hover, level and loose, and mass; for a ship under the survival rules also its sails, top speed and lift. A free ship
+(one from before this build, or with the rules off) handles alike at any size (up to about 24 m/s and about 50°/s of
+turn); under the rules speed and turning depend on sails and weight.
 
 Operator commands (useful while testing): `/slipway list`, `/slipway info <id>`, `/slipway stats`,
-`/slipway mode <id> hover|level|loose true|false`, `/slipway disassemble <id>`, `/slipway assemble <x y z of a helm>`, and
+`/slipway mode <id> hover|level|loose|free true|false`, `/slipway disassemble <id>`, `/slipway assemble <x y z of a helm>`, and
 `/slipway control <id> <forward> <strafe> <vertical> <pitch> <yaw> <roll> <ticks>` (each axis -1..1), which flies a
 vessel with nobody at the helm for that many ticks, so you can walk its deck while it moves, e.g.
 `/slipway control 1 0.4 0 0 0 0.3 0 400` for a slow 20-second turn. `/slipway remove <id>` deletes a vessel and its
@@ -141,6 +164,9 @@ a door, a chest with spare helms and blocks, a redstone lamp with a lever, a sig
 - **On your right: vessel #1** (helm at -8 81 0), already assembled. Fly onto its stern (the open end facing you),
   use the helm to take it, and fly. `/slipway info 1` shows its state and position.
 - **On your left: the plain copy** (helm at 8 81 0). Use its helm to assemble it yourself; it becomes vessel #2.
+  In this build a newly assembled vessel follows the survival rules: the skiff has a sail (count it on the HUD) but no
+  hot air, so with hover on the HUD reads "NO LIFT" and it drops to the ground below. To fly it as before, set it free:
+  `/slipway mode 2 free true`. Vessel #1 was assembled before the rules and is free.
 
 The world is creative with cheats on, difficulty peaceful, and the ground is about 10 to 15 blocks below. The chest on each
 skiff holds four more Slipway Helms (also in the creative inventory under Functional Blocks, `/give @s slipway:helm`,

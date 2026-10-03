@@ -79,13 +79,33 @@ Install it on both the client and the server for multiplayer.
 Keys are under Options > Controls > Key Binds > **Slipway**. The Slipway Helm is in the creative inventory under
 Functional Blocks (`/give @s slipway:helm`), or crafted from two sticks on top, a compass in the middle and three
 planks below. Anything face-connected to the helm becomes part of the vessel, so build ships in the air, on a
-temporary platform you remove, or on water (water, kelp and sea grass never become part of a vessel). Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level` or
-`loose`), `control`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
+temporary platform you remove, or on water (water, kelp and sea grass never become part of a vessel). Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level`,
+`loose` or `free`), `control`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
 list of things to try.
 
 Loose vessels are for cargo: build a few small things over a ship's deck, give each a helm, assemble them and set
 them loose (`/slipway mode <id> loose true`, or the key at their helm). They land on the deck, ride along while the
 ship flies gently, and slide off when it rolls past about 31 degrees.
+
+### What makes a ship go (unreleased)
+
+A new vessel moves and lifts itself with what it is built of (the survival rules; `survivalRules` in
+`config/slipway.json` turns them off, and vessels from earlier versions stay free of them):
+
+- **The helm alone** rows any vessel: 3 blocks a second in the air, about 1 on water.
+- **Sails**: every block of wool with open air on two opposite sides adds 50 kN of thrust. Speed is thrust over
+  weight, up to the old 24 blocks a second: twelve blocks of sail drive a 68 t boat at 7.7 blocks a second at sea; a
+  1,400 t stone barge wants more than a hundred. Wool in a deck, a wall or a balloon's skin does not count. Under
+  water a fin of wool with open water before and behind it is a screw.
+- **Hot air**: hover holds a vessel up only when its lift carries its weight. Build a canopy that keeps air from
+  rising away (wool, open below; a closed room counts too) over **lit campfires**. Each fire heats 100 m³ and each
+  cubic metre lifts 500 kg, so a canopy seven blocks square over two fires lifts 60 t. The more lift to spare, the
+  faster it climbs; put the fires out and it comes down.
+- **Ballast**: in water, ascend and descend trim the vessel by up to 30% of its weight. A closed hull that displaces
+  100% to 130% of its weight dives while descend is held and comes up by itself.
+- The pilot's display shows sails, top speed and lift ("TOO HEAVY TO FLY" below 100%).
+
+Ladders work on vessels, and jumping on a deck is what it is on the ground.
 
 ### On the water (unreleased)
 
@@ -103,11 +123,11 @@ Turn hover off over water and the vessel floats, sinks or anything between, by i
 - When the rim goes under, by overloading or by heeling, the water runs in there and that air stops counting: the
   vessel goes down. The pilot's display shows "Hull displaces 180% of its weight: afloat" (above 100% it floats) and
   warns when water is coming in.
-- The helm drives a boat as it flies a ship, slower (about 9 blocks a second) and with a keel: it runs straight and
+- The helm drives a boat as it flies a ship, slower (the water resists) and with a keel: it runs straight and
   does not slide sideways. Level on keeps it upright against any load; with level off the hull's own stability does.
-- With hover on, water does nothing to the vessel: it holds its place and flies under water as above it. A closed
-  hull with hover off is a submarine that wants to come up: dive with the descend key, or ballast it with iron until
-  it displaces little more than its weight.
+- A vessel that hover holds up (a free one, or one with the lift for its weight) is left alone by the water: it
+  holds its place and flies under water as above it. A closed hull that is not held up is a submarine that wants to
+  come up: ballast it with iron until it displaces little more than its weight, and dive with the descend key.
 - Inside a hull that keeps the water out you are dry: you walk, breathe and see as in air, below the waterline and
   under water. Disassembling in the water leaves that air dry, so a docked boat is not full of water; assembling in
   the water closes the sea at once where the hull stood. A hull is put down on kelp and sea grass as on water (the

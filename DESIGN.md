@@ -436,6 +436,70 @@ Harbor"). Measured on 2026-10-02:
 All four moored again with every block as built and no water in the air they keep dry. The scenario takes every
 view without the shader pack, with it, and with it and the mask off (uild/client-gametest/screenshots/make-harbour).
 
+### Survival rules: sails, hot air and ballast (unreleased)
+
+Up to 0.1.3 every vessel got the same thrust acceleration whatever it weighed, and hover held any weight up for
+nothing: a helm on a mountain of stone flew at 24 blocks a second. Under the survival rules a vessel moves and
+lifts itself with what it is built of. The rules are a setting (`survivalRules`, on by default) that newly assembled
+vessels take; each vessel remembers whether it is *free* of them (`VesselRecord.free`). Vessels from saves made
+before the rules load as free, so no ship that flew stops flying, and an operator can change one vessel with
+`/slipway mode <id> free true|false`.
+
+**What is read off the blocks (`Rig`).** In the same pass over the plot that builds the collision shape and the hull:
+
+- *Sails.* A block in the tag `slipway:sails` (wool) with open air, or open water, on two opposite sides (east and
+  west, or north and south) counts. "Open" is what the hull calls open: no block, not below a hull's rim, not sealed
+  in, and not inside an envelope. So a sail on a mast counts, the part of it below the gunwale does not, and wool
+  laid as a deck, walled in, or forming the skin of a balloon does not. There is no wind: every sail adds the same
+  push in whatever direction the helm asks for. A fin of wool on a submarine's stern is its screw.
+- *Hot air.* The air a vessel's blocks keep from rising away is its envelope. It is the vessel's hull upside down:
+  the same blocks are given to a second `Hull.Builder` with up and down swapped, and what that hull calls sheltered
+  (air below a rim, here the mouth of a balloon or the top of a doorway) or sealed is air that cannot rise out. The
+  flood for it runs only for a vessel that has a burner, and only when its blocks changed. A burner is a block in
+  the tag `slipway:burners` that is lit (a campfire or soul campfire); it counts when there is nothing but air
+  between it and envelope straight above it, within 16 blocks. Each burner heats `burnerVolume` (100 m^3) of air;
+  the air that is both held and heated lifts `hotAirLift` (500 kg) a cubic metre. Putting a fire out takes its lift
+  away at the next tick.
+
+**What the rig allows (`Rig.rating`, applied by `VesselController`).**
+
+| | Free vessel | Under the rules |
+|---|---|---|
+| Thrust along the deck | `thrustAcceleration` (12 m/s^2) | `helmAcceleration` (1.5 m/s^2, the helm's own: oars) plus sails x `sailThrust` (50 kN) over the mass, at most `thrustAcceleration` |
+| Top speed in the air | `maxSpeed` (24 m/s) | in proportion: 3 m/s under the helm alone |
+| Hover | holds any weight | holds the vessel when its lift is at least its weight; otherwise the lift only makes it lighter, and it floats, sinks or falls like a vessel without hover |
+| Up and down while hovering | `thrustAcceleration` | up with the lift to spare (at least 0.5 m/s^2), down by letting air out (half a g, or as fast as it climbs) |
+| Up and down in water, not hovering | `thrustAcceleration` | ballast: `ballastTrim` (0.3) of its weight, in proportion to how much of its weight it displaces; nothing out of the water |
+| Turn rate | `maxTurnRate` | times the square root of its share of the full thrust, at least 0.3 |
+
+Drag is the same for all, so a rated vessel's top speed falls with its thrust. The hold of a hovering vessel is
+unchanged: a vessel that is held up is braked and held as before; one that is not gets no hold. Buoyancy acts on
+every vessel that hover does not hold up, so a boat assembled in the water floats at once, hover on or off.
+A submarine is a closed hull that displaces a little more than its weight (the hull line of the pilot's display must
+read between 100% and 130%): it floats, goes down while descend is held, and comes back up by itself.
+
+The pilot's display shows the rig (`VesselInfo` carries it): sails and the top speed they give, and the lift as a
+share of the weight with the number of burners, or that the vessel is too heavy to fly. With hover on and too little
+lift the display reads "NO LIFT" (a flag bit of the pose packet).
+
+Measured in `make-harbour` on 2026-10-03, every ship assembled under the rules:
+
+| | Mass | Rig | Result |
+|---|---|---|---|
+| Raft (25 logs) | 19.6 t | helm only | 1.2 blocks a second on the sea |
+| Boat | 68.2 t | 12 sails | 7.7 blocks a second on the sea, 41 blocks in six seconds, 120 degrees of turn in four seconds |
+| Submarine | 194.6 t, displaces 119% | 8 blocks of wool as a screw | dives 8 blocks on its ballast at 0.7 blocks a second, rests there with the ballast trimmed (0.02 blocks a second), runs 2.5 blocks a second under water, comes up when the helm is let go |
+| Stone barge | 1,421 t | 112 sails on two masts | 4.2 blocks a second, 0.54 of freeboard |
+| Balloon (wool canopy 7 by 7 by 6 over two campfires) | 44.1 t | lift 140% of its weight, 4 sails | hangs where it is assembled, climbs 47 blocks in eight seconds (7.7 blocks a second at most), sails 11.9 blocks a second |
+
+Tests: `RigTest` (what counts as a sail, the envelope and burners, the rating's numbers, the controller with a
+rating and without), `VesselRecordTest` and `SlipwayConfigTest` (the flag and the settings), and
+`SurvivalGameTests` on a server with real blocks (the rig of a ship with a mast, a fire under the open sky and wool
+in its deck; two decks of iron dropped side by side, one under oars and one under sail; a balloon that hangs, climbs
+with its spare lift and comes down when its fires are put out). The test and film runs turn `survivalRules` off in
+their run directories (`freeVesselsConfig` in `build.gradle`), because their ships are built to test something else;
+the tests of the rules put their own vessels under them, and `make-harbour` turns the rules on.
+
 ### Networking
 
 Server-authoritative. Viewers get `VesselInfo` (plot mapping, bounds, helm; flagged on assembly), plot chunks as
@@ -573,6 +637,32 @@ and sounds from plot positions to where they are in the world and sends block an
 viewers (next section). `VesselCollisions` (via `EntityMixin`)
 collides entities with vessel blocks in the vessel's frame, carries them with the vessel, lets them walk on decks
 tilted up to 50 degrees and slide off steeper ones.
+
+**Jumping and climbing on a deck are the game's own (after 0.1.3).** Four things were wrong, found by measuring a
+survival player's jumps tick by tick against the same jumps on the ground (`deck-jump`):
+
+- *Ladders did nothing.* The game decides whether an entity climbs from the block of the world its feet are in, and
+  a vessel's blocks are not in the world where the vessel is. `LivingEntityMixin` asks `VesselClimbing` when the
+  world's block is not climbable: the feet are taken into each nearby vessel's plot (by the current and the previous
+  pose for an entity this side moves, by the recent poses for a player on the server) and the block there is asked
+  with vanilla's rules (the climbable tag, an open trapdoor over a ladder).
+- *A jump died after its first tick on a vessel that was not square to the world.* `Entity.move` calls every axis on
+  which the collided movement differs from the requested one a collision, at any size of difference, and stops the
+  entity along it. Turning the whole movement into the vessel's frame and back changed its last bits, so beside any
+  vessel block a jump on a heeling deck, or a running jump on a turned one, lost its speed in the air, where nothing
+  gave it back (on the deck `afterMove` did). Now only what the vessel took from the movement is turned back and
+  taken from what was asked; what it left alone comes back bit for bit.
+- *Jumping on a vessel that was going down hurt.* The server adds up a player's fall from the moves the client
+  reports, in the world: a jump on a ship sinking through the air at 16 blocks a second counted as a fall of nine
+  blocks. The damage also sent the client the server's idea of the player's speed, which cut the next jump short or
+  doubled it. `DeckFall` (in `ServerGamePacketListenerImplMixin`) counts the vertical part of a move of a player
+  within a vessel's bounds against where the vessel carried the player's last place.
+- *The step up worked in the air.* Stepping up onto an edge (0.6 of a block) was allowed whenever the entity was
+  carried by the vessel, also in a jump or on a ladder; it is now from the ground only, as in the game.
+
+After the changes a jump on a deck is 1.252 blocks high and 11 ticks long, as on the ground, hovering, under way at
+21 blocks a second, climbing, descending, turning and afloat (1.223 on a deck banked 12 degrees), five jumps to five
+with the key held, no damage, and a five-block ladder takes 45 ticks on the ground and on the ship.
 
 **The pilot's view turns in the pilot's own tick (after 0.1.3).** The pilot rides the vessel's entity.
 `VesselEntity.positionRider` puts their eyes where a standing pilot's would be and keeps their facing relative to the
@@ -779,6 +869,23 @@ and turns it off where the real vessel is drawn. After assembly and disassembly 
 LODs of the world chunks involved (`overwriteChunkDataAsync`): on a client connected to a server DH only rebuilds a
 chunk when it loads or the local player edits it, so otherwise a ghost of the ship stayed at its build site (and hid
 the real ship until it moved). No DH fork change was needed.
+
+**A bright patch of sea around glass in water, under shaders (after 0.1.3; not Slipway's bug, worked around).** With
+Distant Horizons 3.3.4 and Iris 1.11.6 on Minecraft 26.2 or later, the water of a whole chunk looked like a mirror of
+the sky wherever the chunk held a glass block in water: around the moored submarine with its windows, and around a
+single glass block put into the sea of an untouched chunk. Iris turns back-face culling off with a plain GL call
+before each Distant Horizons render pass (`LodRendererEvents`, its handler of `DhApiBeforeRenderPassEvent`). Distant
+Horizons turns it back on (its own workaround for Iris issue 2582), but on these versions with a shader pack in use
+it makes no plain GL calls (`MinecraftGLWrapper.runDirectGlCall`) and goes through Minecraft's state cache, which
+still says "on" and so does nothing. Culling stays off in GL for the rest of the frame while the cache says it is on.
+Sodium draws a chunk section whose translucent faces must be sorted together (water with side faces, as against
+glass) with the faces of all directions in one draw; with culling off the underside of the water's surface is drawn
+too, and the pack shades it as a mirror. `DhCullRepair` (registered when both mods are present) turns culling off and
+on through the cache after Distant Horizons' pass (`DhApiAfterRenderEvent` and `DhApiBeforeRenderCleanupEvent`),
+which makes GL and the cache agree. Measured with `diag-water-patch`: at the end of the main pass GL had culling off
+in 89 of 89 frames without the repair and in none with it, and the patch is gone in both cases. `GlStateCheck`
+(scenario `render-iris`) now compares the culling flag as well. The fix belongs in Distant Horizons or Iris; it is
+noted for the fork.
 
 ## Algorithms and their sources
 
@@ -1118,7 +1225,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, water, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~40 s for 64 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, water, the survival rules, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~45 s for 68 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 
@@ -1143,9 +1250,10 @@ a block on either side, which leaves the middle where it is).
 A check that fails inside a step of a test sequence does not end the test at once: the sequence runs for one more
 tick, and the failure that is reported is the last one.
 
-**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs eighteen
+**Client GameTests** (`fabric-client-gametest-api-v1`, shipped in Fabric API 0.160.7+26.3). One entrypoint runs nineteen
 scenarios (`SlipwayClientGameTests`; 0.1.2 added `small-vessel-light`, `loose-cargo`, `block-events`, `farm` and
-`disassembly`; `afloat` came with the water, see "Water: floating, sinking and dry hulls"); each starts
+`disassembly`; `afloat` came with the water, see "Water: floating, sinking and dry hulls"; `deck-jump` with the
+survival pass, see "Interaction and riding"); each starts
 at the title screen with default options, a failure is recorded
 and the next scenario still runs, and the run fails at the end if any failed. Reports:
 `build/client-gametest/TEST-slipway-client-gametest.xml` (JUnit) and `results.json` (every measurement, note and

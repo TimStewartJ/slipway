@@ -7,6 +7,32 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 ### Added
 
+- **Survival rules: a vessel moves and lifts itself with what it is built of.** Until now every vessel had the same
+  thrust whatever it weighed, and hover held any weight up for nothing. Vessels assembled from now on follow these
+  rules (the setting `survivalRules`, on by default):
+  - **Sails.** The helm alone moves any vessel slowly (oars: 3 blocks a second in the air, about 1 on water). Every
+    block of wool with open air on two opposite sides is a sail and adds thrust; how much speed that gives depends on
+    the vessel's weight. A boat of 68 t with twelve blocks of sail makes 7.7 blocks a second at sea, a stone barge of
+    1,400 t needs over a hundred for 4. Wool in a deck, in a wall or in the skin of a balloon is no sail. A fin of
+    wool with open water before and behind it works the same way under water.
+  - **Hot air.** Hover only holds a vessel up when it has the lift for its weight. Lift comes from air the vessel
+    keeps from rising away (a canopy of wool, open below, or any closed room) over **lit campfires**: each fire heats
+    100 m³, each cubic metre lifts 500 kg. A balloon with a canopy seven blocks square and two fires lifts 60 t. With
+    lift to spare it climbs, faster the more it has; with too little, hover does nothing but make it lighter. Put the
+    fires out and it comes down.
+  - **Ballast.** In water the ascend and descend keys trim a vessel by up to 30% of its weight. A closed hull that
+    displaces between 100% and 130% of its weight is a submarine: it floats, dives while descend is held, and comes
+    up by itself.
+  - Heavy vessels with little thrust also turn more slowly.
+  - The pilot's display shows the sails and the top speed they give, and the lift as a share of the weight
+    ("TOO HEAVY TO FLY" below 100%). `/slipway info` shows the same.
+  - **Vessels you already have keep flying**: one saved by an earlier version stays free of the rules. An operator
+    switches a vessel with `/slipway mode <id> free true|false`. Settings: `survivalRules`, `helmAcceleration`,
+    `sailThrust`, `hotAirLift`, `burnerVolume`, `ballastTrim`; the block tags `slipway:sails` and `slipway:burners`
+    say which blocks count.
+- **Ladders can be climbed on a vessel**, at rest and under way, as fast as on the ground. The same goes for every
+  block the game calls climbable (vines, and an open trapdoor over a ladder); ladders are what is tested.
+
 - **Vessels float.** Water (and lava) now acts on every vessel that does not hover: it lifts what the vessel
   displaces and resists its movement. A raft of planks floats with seven tenths of its thickness under water (one
   of slabs half as deep), a block of stone sinks, and a vessel comes to rest where it displaces its own weight, bobbing a few times first.
@@ -47,6 +73,14 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 ### Changed
 
+- **New vessels are no longer fast and weightless for nothing** (see the survival rules above). A ship built like the
+  ones before, with a helm and no sails, crawls; one without hot air does not hover: assembled on the ground it stays
+  there, assembled in the air it falls, assembled on water it floats. Set `survivalRules` to false in
+  `config/slipway.json` to get the old behaviour for new vessels.
+- A boat floats as soon as it is assembled in the water: hover, which is on for every new vessel, no longer holds a
+  vessel that has no lift.
+- `VesselInfo` carries the vessel's rig and the pose packet one more flag bit. Use the same version on client and
+  server.
 - A vessel without hover no longer falls through water, and a loose one neither: both float or sink by their weight.
   A hovering vessel behaves as before.
 - A vessel's surroundings (ground and water) are known to the physics before its body's first step, also when many
@@ -56,6 +90,18 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 ### Fixed
 
+- **Jumping on a ship.** On a ship that was heeling, banked or bobbing, or turned at an angle to the world, a jump
+  beside any of its blocks stopped after its first tick, and a running jump lost its speed in the air. On a ship that
+  was going down, every jump was counted as a fall of everything the ship sank meanwhile: in survival the player
+  landed hurt, and the next jump was cut short. A jump on a deck is now the jump it is on the ground, in every one
+  of these cases.
+- An entity in the air (in a jump, on a ladder) is no longer lifted over an edge it bumps into; stepping up works
+  from the ground only, as in the game.
+- **No bright patch of sea around a ship with windows, under shaders.** With Distant Horizons and a shader pack the
+  water of a whole chunk looked like a mirror of the sky wherever the chunk held glass in water (a submarine's
+  windows, or a single glass block in the sea). The cause is in how Iris and Distant Horizons hand the graphics state
+  to each other on Minecraft 26.2 and later, and it shows without Slipway too; Slipway now puts the state right after
+  Distant Horizons has drawn.
 - **The pilot's view turns smoothly with the ship.** At the helm, every turn (A/D) made the picture judder: the view
   was turned once a game tick, twenty times a second, while the ship was drawn turning in every frame. Between ticks
   the ship swung against the view, by up to 2.6 degrees at the full turn rate, and the world turned in steps. The
