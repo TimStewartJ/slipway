@@ -124,8 +124,10 @@ into the world, and code that moves entities, clicks, sounds, drops and renderin
 default 4,096; span cap 512; unloaded chunks fail the scan). `AssemblyRules` leaves out blocks in the
 `slipway:assembly_deny` tag (bedrock, barrier, light, structure void, command/structure/jigsaw/test blocks, moving
 pistons, nether and end portals, end portal frames, end gateways, reinforced deepslate), the config's
-`extraDeniedBlocks`, other helms, and fluid blocks (a ship built on the sea does not take the sea with it; waterlogged
-blocks keep their waterlogged state, so fluids aboard are supported that way). `VesselAssembly` copies block states
+`extraDeniedBlocks`, other helms, fluid blocks (a ship built on the sea does not take the sea with it; waterlogged
+blocks keep their waterlogged state, so fluids aboard are supported that way), and blocks in the `slipway:sea_plants`
+tag (kelp, sea grass, bubble columns: they grow from the sea's floor up to a hull and would tie it to the ground;
+disassembly puts a vessel down on them as on air). `VesselAssembly` copies block states
 and block-entity data into the plot, erases the originals without drops, and creates the record and entity.
 Disassembly requires the vessel to be within `disassemblyTiltDegrees` (default 20 degrees) of level, snaps the
 heading to the nearest quarter turn, rotates every block state with `BlockState.rotate`, refuses (with a message)
@@ -377,10 +379,36 @@ transparency modes; through another mod's collector they go as custom geometry.
 **Docking.** `VesselManager.disassemble` takes the fluid blocks out of the cells the hull kept dry (at the pose it
 had), after its blocks are in the world: they keep the water out themselves from then on.
 
-**Effects.** The step reports up to eight places where the surface cuts a block of the vessel's outside (not the
-dry air of the hold, which the surface cuts as well, nor a chest in it); `WaterEffects` makes the splash
-(particles and a sound, when a vessel goes in at more than 1.5 blocks a second) and the spray along the waterline of
-a moving vessel there.
+**Launching (`VesselManager.closeTheWater`).** The other way round the world needs help too. A hull standing in
+water as blocks keeps the water out of its own cells and of its hold; assembling it takes the blocks away and leaves
+a hole in the sea. The game fills such a hole in its own time, flowing in from the edges and making sources as it
+goes: seconds for a large hold. Until then there is no water where the vessel is, and the lift comes from the
+world's water: the stone barge of the harbour test (13 by 17, six deep), released ten ticks after assembly, dropped
+19 blocks to the sea's floor with all of its 923 m³ of air counted as flooded. So assembly fills the hole in the
+same tick, as the game would in the end: the hull is built from the plot at once (`VesselPhysicsBridge.hullNow`),
+and every cell its blocks were in or kept dry becomes a water source if a source lies beside or above it, and so on
+inwards (a queue; cells above the water around never fill). Alternatives: reading the water around the vessel
+instead of under it (no clear rule where "around" is, for a hull in a lock or beside a pier), or holding the vessel
+until the hole has filled (the wait depends on the hold's size, and the hole is visible meanwhile).
+
+**A new body knows its surroundings.** Ground and water go to the physics thread section by section, at most 24 a
+tick over all vessels. A body got its first step in the tick it was made, so with many vessels made at once (a
+world loading, 50 tests in one batch) one could have its weight a tick before its water: a drop of 0.13 blocks,
+enough to put a low rim under. The sections around a body made in this tick are now built in the same tick, beyond
+the budget (`ActiveVessel.surroundingsUrgent`, up to 512).
+
+**Effects.** The step reports up to eight places where the surface cuts a block of the vessel's outside: a block
+with open space to a side of it (not the dry air of the hold, which the surface cuts as well, nor a chest in it, nor
+the middle of the floor), and the place is 0.3 outside that side's face, since at the block's centre half of the
+spray would come out on the inside of the wall. `WaterEffects` makes the splash (particles and a sound, when a
+vessel goes in at more than 1.5 blocks a second) and the spray along the waterline of a moving vessel there. The
+game's own drifting specks in water blocks (`WaterFluid.animateTick`) are skipped in air a hull keeps dry
+(`WaterFluidMixin`): they would drift through a hold and a cabin.
+
+**What it looks like from a submerged cabin.** The view is not a view from under water, so there is no water fog:
+through the windows the sea is clear, with its floor, its plants and its surface from below. Seen in the harbour
+test, with and without Bliss. A tint for what lies beyond the glass would need the pack's or the game's fog applied
+by depth outside the hull only; not done.
 
 Tests: `FluidFieldTest`, `HullTest` (rims, holes, sealed air, railings, furniture, slabs, the outside, merging),
 `ShelterTest` (dry and wet places, flooding over the rim, a heeled hull, a vessel under way), `CubeCutTest`,
@@ -388,7 +416,25 @@ Tests: `FluidFieldTest`, `HullTest` (rims, holes, sealed air, railings, furnitur
 hull coming back up, righting from 12 degrees, a sealed cabin rising from 20 blocks down, hover, a boat's speed,
 straight run and turn, sleeping and waking, lava); server GameTests `BuoyancyGameTests` in a pool (the level's water
 reaching the step, cargo until it is too much, an armour stand dry in a hull and wet when it floods, a docked hull
-dry); client GameTest `afloat`.
+dry, the water closed in the tick of assembly and the hull released at once, kelp under a hull at assembly and at
+disassembly); client GameTest `afloat` (also with Bliss on: the mask from inside and from above, no view from under
+water, no drifting specks in the hold).
+
+**In a real sea (`make-harbour`, a diagnostic client GameTest, run only when named).** A normal world with a fixed
+seed; at the nearest deep sea a pier and four things moored at it as blocks: a raft, a boat with a mast, a closed
+submarine of planks and glass with iron ballast, and a barge of stone bricks. Each is assembled, tried with
+Distant Horizons and with Bliss, put back and disassembled; the world is saved for playing by hand ("Slipway
+Harbor"). Measured on 2026-10-02:
+
+| | Mass | Can displace | Result |
+|---|---|---|---|
+| Boat (87 planks, mast, sail) | 68.2 t | 145 m³ | floats level (0.65°), feet 0.62 under the waterline in a dry hold; full thrust: 46.9 blocks in six seconds, 8.88 blocks a second at most, 0.65° of tilt; 130° of turn in four seconds |
+| Submarine (5 by 5 by 9, 57 m³ sealed) | 193.0 t | 224 m³ | dives 9.8 blocks under hover, eyes 11.1 under the surface, not in water, full breath after ten seconds; hover off: comes up, roof 0.70 above the surface, 0.2° |
+| Barge (557 stone bricks) | 1,384 t | 1,548 m³ | floats with 0.71 of freeboard, level (0.02°), no drop at release; eyes 3.65 under the surface in a dry hold |
+| Raft (25 logs) | 19.6 t | 28 m³ | floats loose, level |
+
+All four moored again with every block as built and no water in the air they keep dry. The scenario takes every
+view without the shader pack, with it, and with it and the mask off (uild/client-gametest/screenshots/make-harbour).
 
 ### Networking
 
@@ -1072,7 +1118,7 @@ Four levels, all part of `gradlew check` (`build` runs them too):
 | Level | What | Where | Time |
 | --- | --- | --- | --- |
 | Unit tests (JUnit) | pure logic and jolt-jni (poses, boxes, controller and holds, records, engine lifecycle with Debug natives, loose cargo on a carrier in the real engine) | `src/test` | under a minute |
-| Server GameTests | assembly, physics, interaction, packets, loose vessels, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~25 s for 55 tests (the farm test runs 1,000 ticks) |
+| Server GameTests | assembly, physics, interaction, packets, loose vessels, water, block events and pistons, redstone, a farm and machines inside a headless server | `src/gametest`, `runGametest` | ~40 s for 64 tests (the farm test runs 1,000 ticks) |
 | Client GameTests | every in-game scenario on a real client with the play stack | `src/clientGametest`, `runClientGametest` | ~12 min (2-minute soak, as in `check`); ~30 min with the 20-minute soak |
 | Packaged-jar check | the release jar with the exact play-stack jars in production Minecraft: every mixin applied, a vessel assembled, a chest on it opened by a block event, a vessel set loose | `src/packagedCheck`, `runPackagedJarCheck` | ~30 s |
 

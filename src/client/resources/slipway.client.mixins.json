@@ -12,7 +12,8 @@
 		"LocalPlayerMixin",
 		"ParticleAccessor",
 		"ParticleEngineMixin",
-		"SoundManagerMixin"
+		"SoundManagerMixin",
+		"WaterFluidMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

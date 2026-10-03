@@ -13,7 +13,10 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Which blocks may become part of a vessel. Everything that is not air qualifies except: blocks in the
- * {@code slipway:assembly_deny} tag (bedrock, portals, command and structure blocks, moving pistons, ...),
+ * {@code slipway:assembly_deny} tag (bedrock, portals, command and structure blocks, moving pistons, ...), blocks
+ * in the {@code slipway:sea_plants} tag (kelp, sea grass, bubble columns: they grow from the sea's floor up to a hull
+ * lying on the water and would tie it to the ground; a vessel is also put down on them as on air, see
+ * {@link VesselAssembly#plan}),
  * blocks listed in the config's {@code extraDeniedBlocks}, fluid blocks (water and lava sources and flows are
  * never assembled, so a ship built on the sea does not take the sea with it; waterlogged blocks keep their
  * waterlogged state), and other helms.
@@ -40,7 +43,7 @@ public final class AssemblyRules {
 		if (state.is(SlipwayRegistry.HELM)) {
 			return isOriginHelm;
 		}
-		if (state.is(SlipwayRegistry.ASSEMBLY_DENY) || this.extraDenied.contains(state.getBlock())) {
+		if (state.is(SlipwayRegistry.ASSEMBLY_DENY) || state.is(SlipwayRegistry.SEA_PLANTS) || this.extraDenied.contains(state.getBlock())) {
 			return false;
 		}
 		return true;

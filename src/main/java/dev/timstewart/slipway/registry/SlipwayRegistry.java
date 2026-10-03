@@ -26,6 +26,11 @@ public final class SlipwayRegistry {
 	public static final ResourceKey<EntityType<?>> VESSEL_KEY = ResourceKey.create(Registries.ENTITY_TYPE, Slipway.id("vessel"));
 	/** Blocks that never become part of a vessel (see data/slipway/tags/block/assembly_deny.json). */
 	public static final TagKey<Block> ASSEMBLY_DENY = TagKey.create(Registries.BLOCK, Slipway.id("assembly_deny"));
+	/**
+	 * What grows in the sea up to a hull lying on it (see data/slipway/tags/block/sea_plants.json): never part of a
+	 * vessel, and a vessel is put down on it as on air.
+	 */
+	public static final TagKey<Block> SEA_PLANTS = TagKey.create(Registries.BLOCK, Slipway.id("sea_plants"));
 
 	public static Block HELM;
 	public static Item HELM_ITEM;

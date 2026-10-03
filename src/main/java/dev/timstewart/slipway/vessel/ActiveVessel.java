@@ -69,6 +69,11 @@ public final class ActiveVessel {
 	public boolean brakeOnly;
 	/** Whether the physics body has been told it is loose; differs from the record until the next exchange. */
 	boolean bodyLoose;
+	/**
+	 * The body is new: what is around it (ground and water) goes to the physics thread before its first step, whatever
+	 * else is waiting to be built. A body that gets its weight a tick before its water drops into the sea first.
+	 */
+	boolean surroundingsUrgent;
 	/** False while the body sleeps: a loose vessel that has come to rest is not simulated until something disturbs it. */
 	public boolean bodyAwake = true;
 	/** Bumped whenever the vessel's blocks change; clients and proxies use it to know when to refresh. */

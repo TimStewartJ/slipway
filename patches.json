@@ -224,6 +224,16 @@
 			"tests": ["clientGametest:afloat"]
 		},
 		{
+			"mixin": "dev.timstewart.slipway.client.mixin.WaterFluidMixin",
+			"side": "client",
+			"targetMod": "minecraft",
+			"targetClass": "net.minecraft.world.level.material.WaterFluid",
+			"methods": ["animateTick"],
+			"feature": "dry hulls",
+			"reason": "The game makes drifting specks (and the murmur of flowing water) in water blocks around the player. The world has water blocks in the air a hull keeps dry, so they would drift through a boat's hold and a submarine's cabin; there the game's ambient tick of the water is skipped.",
+			"tests": ["clientGametest:afloat"]
+		},
+		{
 			"mixin": "dev.timstewart.slipway.client.mixin.GameRendererAccessor",
 			"side": "client",
 			"targetMod": "minecraft",

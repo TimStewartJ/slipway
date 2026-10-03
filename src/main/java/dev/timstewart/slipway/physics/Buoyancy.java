@@ -44,6 +44,8 @@ public final class Buoyancy {
 	private static final double MAX_STEP_LOSS = 0.8;
 	/** Places at the waterline reported per step, for splashes. */
 	public static final int WATERLINE_SAMPLES = 8;
+	/** How far outside an outside element's face its place on the waterline lies, in blocks. */
+	public static final double WATERLINE_OUT = 0.3;
 
 	private Buoyancy() {
 	}
@@ -202,9 +204,13 @@ public final class Buoyancy {
 					slot = r < WATERLINE_SAMPLES ? r : -1;
 				}
 				if (slot >= 0) {
-					out.waterline[slot * 3] = (float)wx;
+					// Just outside the block's face, where the water is: at its centre the spray would be in the wall, and
+					// half of it would come out on the inside.
+					double out2 = Math.max(1.0, edge) * 0.5 + WATERLINE_OUT;
+					double ox = hull.elementOutX(i) * out2, oz = hull.elementOutZ(i) * out2;
+					out.waterline[slot * 3] = (float)(wx + m00 * ox + m02 * oz);
 					out.waterline[slot * 3 + 1] = (float)(wy - edge * 0.5 + under * edge);
-					out.waterline[slot * 3 + 2] = (float)wz;
+					out.waterline[slot * 3 + 2] = (float)(wz + m20 * ox + m22 * oz);
 				}
 				cut++;
 			}

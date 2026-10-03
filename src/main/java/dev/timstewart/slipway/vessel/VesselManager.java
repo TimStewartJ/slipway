@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
@@ -23,6 +24,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ThreadedLevelLightEngine;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -201,6 +203,7 @@ public final class VesselManager {
 		if (outcome.success() && outcome.record() != null) {
 			VesselRecord record = outcome.record();
 			this.plotToVessel.put(record.plot, record.id);
+			this.closeTheWater(record);
 			VesselEntity entity = SlipwayRegistry.VESSEL.create(this.level, net.minecraft.world.entity.EntitySpawnReason.COMMAND);
 			if (entity == null) {
 				throw new IllegalStateException("Could not create a vessel entity");
@@ -219,6 +222,82 @@ public final class VesselManager {
 			player.sendOverlayMessage(outcome.message());
 		}
 		return outcome;
+	}
+
+	private static final Direction[] WATER_COMES_FROM = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP};
+	private static final Direction[] WATER_GOES_TO = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.DOWN};
+
+	/**
+	 * The water closes where a vessel was built in it. A hull standing in water as blocks kept the water out of its
+	 * own cells and of its hold; assembling it takes the blocks out of the world and leaves a hole there. The game
+	 * would fill it in its own time, flowing in from the edges, which takes seconds for a large hold. Until then
+	 * there would be no water where the vessel is, and so nothing to lift it (the lift is from the world's water,
+	 * see {@code Buoyancy}): a barge released at once would drop into its own hole and take the sea in over its
+	 * rim. So the hole is filled here, at once, as the game would fill it in the end: every cell the vessel's blocks
+	 * were in or kept dry becomes a water source if a source lies beside it or above it, and so on inwards. Cells
+	 * above the water around stay empty. The counterpart of the dry cells at disassembly.
+	 */
+	private void closeTheWater(VesselRecord record) {
+		dev.timstewart.slipway.physics.Hull hull = this.physics.hullNow(record);
+		if (hull == null) {
+			return;
+		}
+		// The pose of a new vessel is its helm's place in the world, unturned.
+		BlockPos origin = BlockPos.containing(record.pose.x(), record.pose.y(), record.pose.z());
+		it.unimi.dsi.fastutil.longs.LongOpenHashSet open = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+		it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue queue = new it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue();
+		for (BlockPos plotPos : BlockPos.betweenClosed(record.plotMin(), record.plotMax())) {
+			if (!this.level.getBlockState(plotPos).isAir()) {
+				long key = origin.offset(record.toLocal(plotPos)).asLong();
+				if (open.add(key)) {
+					queue.enqueue(key);
+				}
+			}
+		}
+		int[] dry = hull.dryCells();
+		for (int i = 0; i < dry.length; i += 4) {
+			long key = origin.offset(dry[i], dry[i + 1], dry[i + 2]).asLong();
+			if (open.add(key)) {
+				queue.enqueue(key);
+			}
+		}
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		BlockPos.MutableBlockPos near = new BlockPos.MutableBlockPos();
+		while (!queue.isEmpty()) {
+			long key = queue.dequeueLong();
+			if (!open.contains(key)) {
+				continue;
+			}
+			pos.set(key);
+			BlockState state = this.level.getBlockState(pos);
+			net.minecraft.world.level.material.FluidState fluid = state.getFluidState();
+			boolean empty = state.isAir() || state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock && fluid.is(net.minecraft.tags.FluidTags.WATER) && !fluid.isSource();
+			if (!empty) {
+				// Something else is there, or the game's own water got there first.
+				open.remove(key);
+				continue;
+			}
+			boolean reached = false;
+			for (Direction direction : WATER_COMES_FROM) {
+				net.minecraft.world.level.material.FluidState beside = this.level.getFluidState(near.setWithOffset(pos, direction));
+				if (beside.isSource() && beside.is(net.minecraft.tags.FluidTags.WATER)) {
+					reached = true;
+					break;
+				}
+			}
+			if (!reached) {
+				// Not yet: it is asked again when a cell beside or above it has filled.
+				continue;
+			}
+			this.level.setBlock(pos, net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
+			open.remove(key);
+			for (Direction direction : WATER_GOES_TO) {
+				long next = near.setWithOffset(pos, direction).asLong();
+				if (open.contains(next)) {
+					queue.enqueue(next);
+				}
+			}
+		}
 	}
 
 	/**

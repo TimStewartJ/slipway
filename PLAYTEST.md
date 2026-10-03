@@ -17,6 +17,7 @@ on other vessels.
   to 0.19.5 for it.
 - World **Slipway Sandbox** (creative, cheats on). Near spawn: a demo ship that is already a vessel, and an identical
   copy that is still plain blocks, so you can assemble it yourself. See "The sandbox" below.
+- World **Slipway Harbor** (creative, cheats on), for the water: see "The harbour" below.
 
 ## What's new in this test build: water
 
@@ -30,7 +31,26 @@ weight and its hull. The short version:
 - **Sail it**: W/S and A/D as in the air, slower (about 9 blocks a second), and it does not slide sideways.
 - **Inside the hull you are dry**, also below the waterline, and the sea is not drawn inside the hull.
 - **Hover on**: water does nothing to the ship. That is your submarine: a closed cabin stays dry under water.
-- **Disassemble in the water**: the hold stays dry.
+- **Disassemble in the water**: the hold stays dry. **Assemble in the water**: the sea closes at once where the hull
+  stood, so the ship has water under it the moment you turn hover off.
+- Kelp and sea grass never become part of a ship, and a ship can be put down on them.
+
+### The harbour
+
+World **Slipway Harbor**: you stand on a pier in a deep sea (near 93 64 -348), in creative, with helms, iron and
+planks in your hotbar. Four things are moored north of the pier as plain blocks, bows away from you; each has a sign.
+Use (right-click) a helm to assemble and take it; **Toggle hover** is what puts a ship on the water.
+
+| Moored | What it shows | Try |
+| --- | --- | --- |
+| **Raft** (logs, far left) | Blocks float by their own weight | Hover off: it lies seven tenths deep. Or set it loose and push nothing: it drifts to rest |
+| **Boat** (planks, a mast and a sail) | A hull carries far more than its planks | Hover off, then W and A/D: about 9 blocks a second, no sideways slide. Walk in the hold: dry below the waterline. Pile iron from the pier's far end into it until it goes down |
+| **Submarine** (dark oak and glass, hatch on top) | A closed cabin is always dry | Climb in through the hatch. Hover on: dive with **Descend**, look out of the windows. Hover off: it comes up by itself, its roof just out of the water |
+| **Stone barge** (far right) | Stone floats if the hull is large enough | Hover off: three quarters of a block of freeboard. Climb down the ladder into the hold, six blocks deep and dry. A few dozen blocks of iron sink it |
+
+To put one back: bring it to rest and level, leave the helm, sneak and use the helm. It lands as blocks where it
+floats, with a dry hold. All four were assembled, tried and moored again by the test that built this world
+(`gradlew runClientGametest -PslipwayClientGametestOnly=make-harbour`, which makes the world anew).
 
 ## What's new in 0.1.3
 
@@ -158,7 +178,7 @@ you remove, not touching the ground.
     contraption; watch the stroke while the ship flies. Open a chest and watch its lid.
 13. **A farm** (fixed): farmland with a waterlogged slab or stair next to it, wheat, a dispenser with bone meal
     facing a crop and a lever or a clock. The sparkle should be on the crop, and crops also grow by themselves.
-14. **A boat** (new): the sandbox has no sea, so make one (`/fill ~-20 ~-8 ~-20 ~20 ~-2 ~20 water` over a pit, or fly
+14. **A boat** (new; the harbour world has one ready): the sandbox has no sea, so make one (`/fill ~-20 ~-8 ~-20 ~20 ~-2 ~20 water` over a pit, or fly
     to an ocean in another world). Build an open hull of planks over the water, floor and two or three rows of
     wall, with the helm inside; assemble it, take the helm, press **Toggle hover**. Things to look for: how it goes
     in (a splash, two or three bobs, then still), whether the waterline looks right for the build, whether the
@@ -189,7 +209,7 @@ you remove, not touching the ground.
   ships cost more. A ship cannot be built or pushed by pistons beyond 512 blocks across after assembly either.
 - Mobs do not path-find onto moving decks. Players and entities on decks steeper than 50° slide.
 - Right after assembly the vessel can be drawn incomplete for a tick or two while its blocks arrive.
-- Loose vessels do not float (they fall through water) and are not pushed by players or mobs. A deck holds cargo by
+- Loose vessels are not pushed by players or mobs. A deck holds cargo by
   friction only: a hard stop or a sharp turn slides it, tall thin pieces fall over, and a piece sliding fast across
   a deck can catch on an invisible seam and tumble.
 - Pistons on a ship do not push you or other entities (you are moved out of the block instead). Particles appear at

@@ -33,6 +33,8 @@ import org.jspecify.annotations.Nullable;
 public final class VesselPhysicsBridge {
 	/** Terrain sections built per tick at most; the rest wait for the next tick. */
 	private static final int TERRAIN_BUILDS_PER_TICK = 24;
+	/** Sections built in one tick beyond that for bodies made in this tick (see {@link ActiveVessel#surroundingsUrgent}). */
+	private static final int URGENT_BUILDS_PER_TICK = 512;
 	/** A terrain section no vessel needed for this many ticks is released. */
 	private static final int TERRAIN_GRACE_TICKS = 100;
 	/** Helm input older than this is treated as released. */
@@ -147,6 +149,29 @@ public final class VesselPhysicsBridge {
 		record.angularVelocity = new Vec3(state.wx, state.wy, state.wz);
 	}
 
+	/** The hull of a vessel's blocks as they are in its plot now; null while a chunk of the plot is not loaded. */
+	@Nullable
+	Hull hullNow(VesselRecord record) {
+		ServerLevel level = this.manager.level();
+		BoxList unused = new BoxList();
+		Hull.Builder hull = new Hull.Builder();
+		BlockPos min = record.plotMin();
+		BlockPos max = record.plotMax();
+		for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
+			for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
+				LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
+				if (chunk == null) {
+					return null;
+				}
+				for (int sy = min.getY() >> 4; sy <= max.getY() >> 4; sy++) {
+					unused.clear();
+					this.sectionShapes.build(level, chunk, sy, record.anchor.getX(), record.anchor.getY(), record.anchor.getZ(), unused, hull);
+				}
+			}
+		}
+		return hull.build();
+	}
+
 	/** Rebuilds the vessel's collision boxes from its plot and replaces its body shape. */
 	private void rebuildShape(ActiveVessel vessel) {
 		VesselRecord record = vessel.record;
@@ -194,6 +219,7 @@ public final class VesselPhysicsBridge {
 			vessel.poseValidFromStep = this.world().nextStepIndex();
 			vessel.bodyLoose = false;
 			vessel.holdReset = true;
+			vessel.surroundingsUrgent = true;
 		}
 		this.world().submit(engine -> engine.setVesselShape(id, boxes, pose, velocity, angular));
 		vessel.hasBody = true;
@@ -244,10 +270,13 @@ public final class VesselPhysicsBridge {
 	private void updateTerrain() {
 		ServerLevel level = this.manager.level();
 		LongOpenHashSet needed = new LongOpenHashSet();
+		LongOpenHashSet urgent = new LongOpenHashSet();
 		for (ActiveVessel vessel : this.manager.activeVessels()) {
 			if (!vessel.hasBody) {
 				continue;
 			}
+			boolean isNew = vessel.surroundingsUrgent;
+			vessel.surroundingsUrgent = false;
 			double[] box = worldBounds(vessel.record);
 			double speed = vessel.record.linearVelocity.length();
 			double margin = 3.0 + speed * 0.25;
@@ -263,22 +292,29 @@ public final class VesselPhysicsBridge {
 				for (int sz = minSz; sz <= maxSz; sz++) {
 					for (int sy = minSy; sy <= maxSy; sy++) {
 						needed.add(SectionPos.asLong(sx, sy, sz));
+						if (isNew) {
+							urgent.add(SectionPos.asLong(sx, sy, sz));
+						}
 					}
 				}
 			}
 		}
 		int builds = 0;
+		int urgentBuilds = 0;
 		for (long key : needed) {
 			this.terrainLastNeeded.put(key, this.ticks);
 			boolean dirty = this.terrainDirty.remove(key);
 			if (this.terrainBuilt.contains(key) && !dirty) {
 				continue;
 			}
-			if (builds >= TERRAIN_BUILDS_PER_TICK) {
+			if (builds >= TERRAIN_BUILDS_PER_TICK && !(urgent.contains(key) && urgentBuilds < URGENT_BUILDS_PER_TICK)) {
 				if (dirty) {
 					this.terrainDirty.add(key);
 				}
 				continue;
+			}
+			if (builds >= TERRAIN_BUILDS_PER_TICK) {
+				urgentBuilds++;
 			}
 			int sx = SectionPos.x(key), sy = SectionPos.y(key), sz = SectionPos.z(key);
 			LevelChunk chunk = level.getChunkSource().getChunkNow(sx, sz);

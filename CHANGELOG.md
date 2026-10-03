@@ -30,6 +30,14 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
   behind it. When the hull floods, all of that ends.
 - **Docking stays dry.** Disassembling a vessel in the water puts its blocks into the world and takes the water out
   of the air its hull kept dry, so a docked boat's hold and a submarine's cabin are not full of water.
+- **Launching.** Assembling a hull that stands in water closes the water at once where its blocks and its hold were,
+  instead of leaving a hole for the game to fill over the next seconds: the vessel has water to float on from the
+  moment hover is turned off. (Without this a large hull released early dropped into its own hole and sank.)
+- **Kelp and sea grass.** They never become part of a vessel (they used to tie a hull lying on them to the sea's
+  floor, and assembly failed with "too many blocks"), and a vessel can be disassembled onto them: the block tag
+  `slipway:sea_plants` (kelp, sea grass, bubble columns).
+- In air a hull keeps dry, the game's drifting specks of water are not drawn, and spray rises outside the hull, not
+  in its hold.
 - The pilot's display has a line for the hull: how much of its weight it can displace (above 100% it floats), and
   whether it floats, sinks, takes in water or is held by hover. `/slipway info` shows the same numbers.
 - Settings (`config/slipway.json`): `buoyancy` (off, water is nothing to a vessel, as before) and `waterDrag`.
@@ -41,6 +49,8 @@ and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
 - A vessel without hover no longer falls through water, and a loose one neither: both float or sink by their weight.
   A hovering vessel behaves as before.
+- A vessel's surroundings (ground and water) are known to the physics before its body's first step, also when many
+  vessels load at once. Before, a body could fall for a tick or two before the ground under it was there.
 - The pose packet carries two more flag bits (in the water, flooding); its format is unchanged. Use the same version
   on client and server: an older client does not know which air a hull keeps dry.
 

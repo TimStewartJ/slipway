@@ -78,8 +78,8 @@ Install it on both the client and the server for multiplayer.
 
 Keys are under Options > Controls > Key Binds > **Slipway**. The Slipway Helm is in the creative inventory under
 Functional Blocks (`/give @s slipway:helm`), or crafted from two sticks on top, a compass in the middle and three
-planks below. Anything face-connected to the helm becomes part of the vessel, so build ships in the air or on a
-temporary platform you remove. Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level` or
+planks below. Anything face-connected to the helm becomes part of the vessel, so build ships in the air, on a
+temporary platform you remove, or on water (water, kelp and sea grass never become part of a vessel). Operator commands: `/slipway list`, `info`, `stats`, `mode` (`hover`, `level` or
 `loose`), `control`, `assemble`, `disassemble` and `remove`; see [PLAYTEST.md](PLAYTEST.md) for details and a guided
 list of things to try.
 
@@ -109,7 +109,9 @@ Turn hover off over water and the vessel floats, sinks or anything between, by i
   hull with hover off is a submarine that wants to come up: dive with the descend key, or ballast it with iron until
   it displaces little more than its weight.
 - Inside a hull that keeps the water out you are dry: you walk, breathe and see as in air, below the waterline and
-  under water. Disassembling in the water leaves that air dry, so a docked boat is not full of water.
+  under water. Disassembling in the water leaves that air dry, so a docked boat is not full of water; assembling in
+  the water closes the sea at once where the hull stood. A hull is put down on kelp and sea grass as on water (the
+  block tag `slipway:sea_plants`).
 
 What is tested on a moving vessel, block by block, is listed in [DESIGN.md](DESIGN.md), "What is proven to work on a
 moving vessel".

@@ -218,26 +218,34 @@ class HullTest {
 	}
 
 	@Test
-	void onlyBlocksWithOpenSpaceBesideThemAreTheOutside() {
+	void onlyBlocksWithOpenSpaceToASideOfThemAreTheOutsideAndThatSideIsTheWayOut() {
 		Hull.Builder b = openBox(5, 3, 5);
 		// A chest on the floor inside.
 		b.block(2, 1, 2, 0.67f, true);
 		Hull hull = b.build();
 		int outside = 0, inside = 0, air = 0;
 		for (int i = 0; i < hull.elementCount(); i++) {
+			float x = hull.elementX(i), z = hull.elementZ(i);
 			if (hull.elementPour(i) >= 0) {
 				air++;
 				assertFalse(hull.elementIsOutside(i), "sheltered air is not where a waterline shows");
 			} else if (hull.elementIsOutside(i)) {
 				outside++;
+				// The way out of a block of the wall or of the floor's edge: away from the middle, a unit long.
+				boolean west = x < 1, east = x > 4, north = z < 1, south = z > 4;
+				double expectedX = (east ? 1 : 0) - (west ? 1 : 0), expectedZ = (south ? 1 : 0) - (north ? 1 : 0);
+				double length = Math.sqrt(expectedX * expectedX + expectedZ * expectedZ);
+				assertEquals(expectedX / length, hull.elementOutX(i), 1e-6, "way out of the block at " + x + ", " + z);
+				assertEquals(expectedZ / length, hull.elementOutZ(i), 1e-6, "way out of the block at " + x + ", " + z);
 			} else {
 				inside++;
-				assertEquals(2.5f, hull.elementX(i), 1e-6f);
-				assertEquals(2.5f, hull.elementZ(i), 1e-6f);
+				assertTrue(x > 1 && x < 4 && z > 1 && z < 4, "a block that is not outside is in the middle: " + x + ", " + z);
+				assertEquals(0f, hull.elementOutX(i));
+				assertEquals(0f, hull.elementOutZ(i));
 			}
 		}
-		assertEquals(57, outside, "the floor and the walls");
-		assertEquals(1, inside, "the chest");
+		assertEquals(48, outside, "the walls and the edge of the floor");
+		assertEquals(10, inside, "the middle of the floor, and the chest");
 		assertEquals(18, air);
 
 		// A solid cube: its core is inside.
@@ -254,11 +262,17 @@ class HullTest {
 		for (int i = 0; i < solid.elementCount(); i++) {
 			core += solid.elementIsOutside(i) ? 0 : 1;
 		}
-		assertEquals(1, core);
-		// A fence post stands in open water itself.
+		assertEquals(3, core, "the column through the middle: no waterline shows on a block's top or bottom");
+		// A fence post stands in open water itself, and a single block is open all round: outside, with no one way out.
 		Hull.Builder post = new Hull.Builder();
 		post.block(0, 0, 0, 0.125f, false);
 		assertTrue(post.build().elementIsOutside(0));
+		Hull.Builder single = new Hull.Builder();
+		single.block(0, 0, 0, 1f, true);
+		Hull one = single.build();
+		assertTrue(one.elementIsOutside(0));
+		assertEquals(0f, one.elementOutX(0));
+		assertEquals(0f, one.elementOutZ(0));
 		// Without the flood nothing is known of an inside: every block counts as outside.
 		Hull unknown = openBox(5, 3, 5).build(Hull.MAX_ELEMENTS, 100);
 		for (int i = 0; i < unknown.elementCount(); i++) {

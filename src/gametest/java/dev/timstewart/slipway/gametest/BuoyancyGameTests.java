@@ -243,6 +243,93 @@ public class BuoyancyGameTests {
 			.thenSucceed();
 	}
 
+	@GameTest(structure = ARENA, maxTicks = 300)
+	public void aHullLyingOnKelpIsAssembledWithoutTheSeaFloor(GameTestHelper helper) {
+		double surface = pool(helper);
+		ServerLevel level = helper.getLevel();
+		// Kelp from the pool's floor up to the hull's bottom, sea grass beside it: they touch the hull face to face.
+		for (int y = POOL_BOTTOM; y < POOL_TOP; y++) {
+			level.setBlock(helper.absolutePos(new BlockPos(7, y, 7)), Blocks.KELP_PLANT.defaultBlockState(), 2 | 16);
+		}
+		BlockPos kelpTop = helper.absolutePos(new BlockPos(7, POOL_TOP, 7));
+		level.setBlock(kelpTop, Blocks.KELP.defaultBlockState(), 2 | 16);
+		BlockPos helm = hull(helper, 7, 6, 7);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		check(helper, record.blockCount == 58, "57 planks and a helm were built; the vessel has " + record.blockCount + " blocks");
+		check(helper, level.getBlockState(kelpTop).is(Blocks.KELP) && level.getBlockState(kelpTop.below()).is(Blocks.KELP_PLANT), "the kelp under the hull is gone: "
+			+ level.getBlockState(kelpTop));
+		check(helper, level.getBlockState(helper.absolutePos(new BlockPos(7, POOL_BOTTOM - 1, 7))).is(Blocks.STONE), "the pool's floor went with the vessel");
+		record.hover = false;
+		helper.succeedWhen(() -> assertFloats(helper, vessel, surface, 25.0));
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 100)
+	public void aHullIsPutDownOnKelpAsOnWater(GameTestHelper helper) {
+		pool(helper);
+		ServerLevel level = helper.getLevel();
+		for (int y = POOL_BOTTOM; y < POOL_TOP; y++) {
+			level.setBlock(helper.absolutePos(new BlockPos(7, y, 7)), Blocks.KELP_PLANT.defaultBlockState(), 2 | 16);
+		}
+		BlockPos kelpTop = helper.absolutePos(new BlockPos(7, POOL_TOP, 7));
+		level.setBlock(kelpTop, Blocks.KELP.defaultBlockState(), 2 | 16);
+		// Built two blocks above the kelp, then lowered until its floor is where the kelp's top is.
+		VesselRecord record = TestShips.assemble(helper, hull(helper, 7, 7, 7));
+		ActiveVessel vessel = TestShips.active(helper, record);
+		helper.startSequence()
+			.thenWaitUntil(() -> check(helper, TestShips.settled(vessel), "no physics body yet"))
+			.thenExecute(() -> VesselManager.get(level).teleport(vessel, record.pose.withPosition(record.pose.x(), record.pose.y() - 2.0, record.pose.z())))
+			.thenIdle(5)
+			.thenExecute(() -> {
+				var outcome = VesselManager.get(level).disassemble(record.id, null);
+				check(helper, outcome.success(), "the hull could not be put down on kelp: " + outcome.message().getString());
+				check(helper, level.getBlockState(kelpTop).is(Blocks.OAK_PLANKS), "where the kelp's top was is " + level.getBlockState(kelpTop));
+				check(helper, level.getBlockState(kelpTop.above()).is(SlipwayRegistry.HELM), "the helm is not on the floor over the kelp");
+			})
+			.thenSucceed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 300)
+	public void theWaterClosesAtOnceWhereAHullIsAssembledInIt(GameTestHelper helper) {
+		double surface = pool(helper);
+		ServerLevel level = helper.getLevel();
+		// Built deep in the pool: the floor two blocks under the topmost water, the rim just above the surface, the
+		// hold dry.
+		BlockPos helm = hull(helper, 7, 3, 7);
+		for (int x = 6; x <= 8; x++) {
+			for (int z = 6; z <= 8; z++) {
+				for (int y = 4; y <= 5; y++) {
+					if (x != 7 || y != 4 || z != 7) {
+						level.setBlock(helper.absolutePos(new BlockPos(x, y, z)), Blocks.AIR.defaultBlockState(), 2 | 16);
+					}
+				}
+			}
+		}
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		// In the same tick: where the floor, the walls and the hold were, the pool is whole again.
+		for (int x = 5; x <= 9; x++) {
+			for (int z = 5; z <= 9; z++) {
+				for (int y = 3; y <= POOL_TOP; y++) {
+					var fluid = level.getFluidState(helper.absolutePos(new BlockPos(x, y, z)));
+					check(helper, fluid.isSource() && fluid.is(net.minecraft.tags.FluidTags.WATER), "no water source at " + x + "," + y + "," + z + " right after assembly: "
+						+ level.getBlockState(helper.absolutePos(new BlockPos(x, y, z))));
+				}
+				check(helper, level.getBlockState(helper.absolutePos(new BlockPos(x, POOL_TOP + 1, z))).isAir(), "water above the pool's surface at " + x + "," + z);
+			}
+		}
+		// Released at once, it has water to float on: it comes up to its draught instead of dropping into a hole.
+		record.hover = false;
+		double[] lowest = {record.pose.y()};
+		double built = record.pose.y();
+		helper.succeedWhen(() -> {
+			lowest[0] = Math.min(lowest[0], record.pose.y());
+			assertFloats(helper, vessel, surface, 25.0);
+			check(helper, lowest[0] > built - 0.05, "released, the hull first dropped by " + (built - lowest[0]));
+			check(helper, record.pose.y() > built + 0.5, "the hull came up by " + (record.pose.y() - built));
+		});
+	}
+
 	@GameTest(structure = ARENA, maxTicks = 400)
 	public void aHullDockedByDisassemblyStaysDry(GameTestHelper helper) {
 		double surface = pool(helper);

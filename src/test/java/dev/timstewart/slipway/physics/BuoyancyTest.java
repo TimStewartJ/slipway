@@ -210,11 +210,13 @@ class BuoyancyTest {
 			assertTrue(hull.tilt() < 0.5, "it lists " + hull.tilt() + " degrees");
 			assertEquals(0.0, hull.water.floodedVolume, 1e-6);
 			assertEquals(556 * 2.4, hull.water.displacedVolume, 15.0);
-			// Where spray rises: on the walls the surface cuts, not in the dry air of the hold, which it cuts as well.
+			// Where spray rises: in the water just outside the walls the surface cuts, not in the walls and not in the dry
+			// air of the hold, which the surface cuts as well.
 			assertEquals(Buoyancy.WATERLINE_SAMPLES, hull.water.waterlineCount);
 			for (int i = 0; i < hull.water.waterlineCount; i++) {
 				Vector3d local = hull.state.pose().worldToLocal(hull.water.waterline[i * 3], hull.water.waterline[i * 3 + 1], hull.water.waterline[i * 3 + 2], new Vector3d());
-				assertTrue(local.x < 1 || local.x > 15 || local.z < 1 || local.z > 15, "a waterline sample inside the hold: " + local);
+				assertTrue(local.x < -0.1 || local.x > 16.1 || local.z < -0.1 || local.z > 16.1, "a waterline sample in the hull: " + local);
+				assertTrue(local.x > -0.6 && local.x < 16.6 && local.z > -0.6 && local.z < 16.6, "a waterline sample far from the hull: " + local);
 				assertEquals(SURFACE, hull.water.waterline[i * 3 + 1], 0.02);
 			}
 		}

@@ -139,7 +139,8 @@ public final class VesselAssembly {
 				return new Placement(turns, worldAnchor, Component.translatable("slipway.disassemble.unloaded", target.toShortString()));
 			}
 			BlockState existing = level.getBlockState(target);
-			if (!existing.isAir() && !(existing.canBeReplaced() && !existing.hasBlockEntity())) {
+			// Kelp and sea grass give way: a hull is put down on them as on the water they stand in.
+			if (!existing.isAir() && !existing.is(dev.timstewart.slipway.registry.SlipwayRegistry.SEA_PLANTS) && !(existing.canBeReplaced() && !existing.hasBlockEntity())) {
 				return new Placement(turns, worldAnchor, Component.translatable("slipway.disassemble.blocked",
 					target.toShortString(), existing.getBlock().getName()));
 			}

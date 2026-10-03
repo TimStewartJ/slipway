@@ -30,7 +30,8 @@ import net.minecraft.world.phys.Vec3;
  * changes when the mask is turned off, and with it on the floor has the colour of planks, not of water);</li>
  * <li>standing in the hull with the eyes under the waterline, the player is not in the water (no swimming, no
  * breath meter) and the view is not a view from under water, on the client and on the server, although the world
- * has water blocks there; looking up, the surface is not drawn overhead;</li>
+ * has water blocks there; the game's drifting specks of water are not made there; looking up, the surface is not
+ * drawn overhead;</li>
  * <li>the same with the Bliss shader pack on (when Iris is there): from inside and from above the mask keeps the
  * water's surface out of the hull, and the view from inside is not a view from under water for the pack either;</li>
  * <li>a short push of the helm's thrust moves the boat along the water and the water stops it;</li>
@@ -73,7 +74,7 @@ final class AfloatScenarios {
 	record Water(double displaced, double flooded, int fluid, boolean applied, boolean flooding, double mass, double capacity, double sheltered, double reserve) {
 	}
 
-	private static Water water(TestServerContext server, long id) {
+	static Water water(TestServerContext server, long id) {
 		return server.computeOnServer(s -> {
 			ActiveVessel v = Game.active(s, id);
 			return new Water(v.buoyancy.displacedVolume, v.buoyancy.floodedVolume, v.buoyancy.fluid, v.buoyancy.applied, v.flooding(),
@@ -82,7 +83,7 @@ final class AfloatScenarios {
 	}
 
 	/** Flies (so it stays put) to a viewpoint. */
-	private static void flyTo(ClientGameTestContext ctx, TestSingleplayerContext sp, double x, double y, double z, float yaw, float pitch) {
+	static void flyTo(ClientGameTestContext ctx, TestSingleplayerContext sp, double x, double y, double z, float yaw, float pitch) {
 		sp.getServer().runOnServer(s -> {
 			var p = Game.player(s);
 			p.stopRiding();
@@ -246,6 +247,30 @@ final class AfloatScenarios {
 			Check.that(!serverWet, "the player in the hull counts as in the water on the server");
 			Check.that(eye[4] == 0, "the view from inside the hull counts as a view from under water");
 			Check.that(eye[5] == eye[6], "the player in the hull is losing breath: %s of %s", eye[5], eye[6]);
+			// The specks the game lets drift in water are not made in the hold's air, and are made in the pool beside it.
+			int[] specks = ctx.computeOnClient(mc -> {
+				BlockPos dry = BlockPos.containing(mc.player.getX(), mc.player.getY() + 0.5, mc.player.getZ());
+				BlockPos wet = new BlockPos(POOL_X + POOL_HALF - 1, top - 1, POOL_Z + POOL_HALF - 1);
+				Check.that(mc.level.getFluidState(dry).isSource() && mc.level.getFluidState(wet).isSource(), "the world has no water at %s or at %s", dry, wet);
+				net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(7);
+				Effects.start(id);
+				try {
+					for (int i = 0; i < 2000; i++) {
+						mc.level.getFluidState(dry).animateTick(mc.level, dry, random);
+					}
+					int inDry = Effects.particles().size();
+					for (int i = 0; i < 2000; i++) {
+						mc.level.getFluidState(wet).animateTick(mc.level, wet, random);
+					}
+					return new int[] {inDry, Effects.particles().size() - inDry};
+				} finally {
+					Effects.stop();
+				}
+			});
+			r.metric("inside.specksInTheHold", specks[0]);
+			r.metric("inside.specksInThePool", specks[1]);
+			Check.equal("drifting specks made in the water blocks of the dry hold (2,000 ambient ticks)", specks[0], 0);
+			Check.atLeast("drifting specks made in the pool beside the hull (2,000 ambient ticks)", specks[1], 100);
 			Game.hud(ctx, false);
 			ctx.getInput().lookAt(180f, -75f);
 			double[] up = new double[4];

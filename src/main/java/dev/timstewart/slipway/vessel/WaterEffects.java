@@ -11,8 +11,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * What is seen and heard of a vessel in water: a splash when it goes in, and spray along its waterline while it
- * moves. The places come from the physics step (hull elements the surface cuts, see {@link Buoyancy.State}), so the
- * spray is where the hull meets the water whatever the hull's shape. Sent as ordinary particle and sound packets.
+ * moves. The places come from the physics step (just outside the faces of outside blocks the surface cuts, see
+ * {@link Buoyancy.State}), so the spray is where the hull meets the water whatever the hull's shape, and not in its hold. Sent as ordinary particle and sound packets.
  */
 final class WaterEffects {
 	/** Speed (blocks per second) a vessel must have when it goes in for a splash to be made. */
@@ -47,7 +47,7 @@ final class WaterEffects {
 				: SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, volume, pitch);
 			int each = (int)Math.min(12, 3 + speed);
 			for (int i = 0; i < water.waterlineCount; i++) {
-				level.sendParticles(particle, water.waterline[i * 3], water.waterline[i * 3 + 1] + 0.1, water.waterline[i * 3 + 2], each, 0.4, 0.1, 0.4, 0.2);
+				level.sendParticles(particle, water.waterline[i * 3], water.waterline[i * 3 + 1] + 0.1, water.waterline[i * 3 + 2], each, 0.3, 0.1, 0.3, 0.2);
 			}
 			return;
 		}
@@ -55,7 +55,7 @@ final class WaterEffects {
 		if (along >= SPRAY_SPEED && !lava && (level.getGameTime() & 1) == 0) {
 			int each = along > 6.0 ? 2 : 1;
 			for (int i = 0; i < water.waterlineCount; i++) {
-				level.sendParticles(particle, water.waterline[i * 3], water.waterline[i * 3 + 1] + 0.05, water.waterline[i * 3 + 2], each, 0.3, 0.02, 0.3, 0.0);
+				level.sendParticles(particle, water.waterline[i * 3], water.waterline[i * 3 + 1] + 0.05, water.waterline[i * 3 + 2], each, 0.2, 0.02, 0.2, 0.0);
 			}
 		}
 	}

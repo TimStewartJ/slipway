@@ -55,6 +55,7 @@ public final class Hull {
 	private final float[] ex, ey, ez, volume, edge;
 	private final int[] pour;
 	private final boolean[] outside;
+	private final float[] outX, outZ;
 	/** Pour points: local x, y, z of the centre of each pour cell. */
 	private final float[] pours;
 	private final double blockVolume, shelteredVolume, sealedVolume;
@@ -76,6 +77,8 @@ public final class Hull {
 		this.edge = elements.edge.toFloatArray();
 		this.pour = elements.pour.toIntArray();
 		this.outside = elements.outside.toBooleanArray();
+		this.outX = elements.outX.toFloatArray();
+		this.outZ = elements.outZ.toFloatArray();
 		this.pours = pours;
 		this.blockVolume = blockVolume;
 		this.shelteredVolume = shelteredVolume;
@@ -103,10 +106,13 @@ public final class Hull {
 	/** How high the element stands, in blocks: the edge of the cube it is taken for (less than 1 for a slab or a carpet). */
 	public float elementEdge(int i) { return this.edge[i]; }
 	/**
-	 * Whether the element is blocks on the outside of the vessel, with open water or air beside them: where a
-	 * waterline shows. Not so for the air a hull keeps dry, nor for the blocks inside it.
+	 * Whether the element is blocks on the outside of the vessel, with open water or air to a side of them: where a
+	 * waterline shows. Not so for the air a hull keeps dry, nor for the blocks inside it or under it.
 	 */
 	public boolean elementIsOutside(int i) { return this.outside[i]; }
+	/** Which way is out from an outside element, along the vessel's own x and z (length 1, or 0 when it is open all round). */
+	public float elementOutX(int i) { return this.outX[i]; }
+	public float elementOutZ(int i) { return this.outZ[i]; }
 	/** Index of the pour point that floods the element, or {@link #SEALED} when it always displaces. */
 	public int elementPour(int i) { return this.pour[i]; }
 
@@ -355,16 +361,24 @@ public final class Hull {
 				}
 			}
 
-			// The blocks with open space beside them are the outside of the vessel.
+			// The blocks with open space to a side of them are the outside of the vessel, and that side is the way out.
 			for (int i = 0; i < n; i++) {
 				int x = this.xs.getInt(i) - this.minX + 1, y = this.ys.getInt(i) - this.minY + 1, z = this.zs.getInt(i) - this.minZ + 1;
 				int index = (y * gz + z) * gx + x;
 				boolean open = !barrier[index] && level[index] <= y;
-				for (int d = 0; d < 6 && !open; d++) {
+				float wayX = 0, wayZ = 0;
+				for (int d = 0; d < 4; d++) {
 					int nIndex = index + step[d];
-					open = !barrier[nIndex] && level[nIndex] <= (d == 4 ? y + 1 : d == 5 ? y - 1 : y);
+					if (!barrier[nIndex] && level[nIndex] <= y) {
+						open = true;
+						wayX += d == 0 ? 1 : d == 1 ? -1 : 0;
+						wayZ += d == 2 ? 1 : d == 3 ? -1 : 0;
+					}
 				}
+				float length = (float)Math.sqrt(wayX * wayX + wayZ * wayZ);
 				out.outside.set(i, open);
+				out.outX.set(i, length > 0 ? wayX / length : 0f);
+				out.outZ.set(i, length > 0 ? wayZ / length : 0f);
 			}
 
 			// Classes and elements.
@@ -453,6 +467,8 @@ public final class Hull {
 		it.unimi.dsi.fastutil.floats.FloatArrayList edge = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 		IntArrayList pour = new IntArrayList();
 		it.unimi.dsi.fastutil.booleans.BooleanArrayList outside = new it.unimi.dsi.fastutil.booleans.BooleanArrayList();
+		it.unimi.dsi.fastutil.floats.FloatArrayList outX = new it.unimi.dsi.fastutil.floats.FloatArrayList();
+		it.unimi.dsi.fastutil.floats.FloatArrayList outZ = new it.unimi.dsi.fastutil.floats.FloatArrayList();
 
 		void add(float ex, float ey, float ez, float v, float e, int p, boolean isOutside) {
 			this.x.add(ex);
@@ -462,6 +478,8 @@ public final class Hull {
 			this.edge.add(e);
 			this.pour.add(p);
 			this.outside.add(isOutside);
+			this.outX.add(0f);
+			this.outZ.add(0f);
 		}
 
 		/**
@@ -484,7 +502,11 @@ public final class Hull {
 					if (at < 0) {
 						where.put(key, merged.volume.size());
 						merged.add(this.x.getFloat(i) * v, this.y.getFloat(i) * v, this.z.getFloat(i) * v, v, k, this.pour.getInt(i), this.outside.getBoolean(i));
+						merged.outX.set(merged.outX.size() - 1, this.outX.getFloat(i));
+						merged.outZ.set(merged.outZ.size() - 1, this.outZ.getFloat(i));
 					} else {
+						merged.outX.set(at, merged.outX.getFloat(at) + this.outX.getFloat(i));
+						merged.outZ.set(at, merged.outZ.getFloat(at) + this.outZ.getFloat(i));
 						merged.x.set(at, merged.x.getFloat(at) + this.x.getFloat(i) * v);
 						merged.y.set(at, merged.y.getFloat(at) + this.y.getFloat(i) * v);
 						merged.z.set(at, merged.z.getFloat(at) + this.z.getFloat(i) * v);
@@ -496,6 +518,10 @@ public final class Hull {
 					merged.x.set(i, merged.x.getFloat(i) / v);
 					merged.y.set(i, merged.y.getFloat(i) / v);
 					merged.z.set(i, merged.z.getFloat(i) / v);
+					float wayX = merged.outX.getFloat(i), wayZ = merged.outZ.getFloat(i);
+					float length = (float)Math.sqrt(wayX * wayX + wayZ * wayZ);
+					merged.outX.set(i, length > 1.0e-3f ? wayX / length : 0f);
+					merged.outZ.set(i, length > 1.0e-3f ? wayZ / length : 0f);
 				}
 				// Start again from the single cells would be exact; merging the merged gives the same cubes, since k doubles.
 				this.x = merged.x;
@@ -505,6 +531,8 @@ public final class Hull {
 				this.edge = merged.edge;
 				this.pour = merged.pour;
 				this.outside = merged.outside;
+				this.outX = merged.outX;
+				this.outZ = merged.outZ;
 			}
 		}
 	}
