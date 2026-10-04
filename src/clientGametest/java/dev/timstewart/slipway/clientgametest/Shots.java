@@ -144,7 +144,15 @@ final class Shots {
 	static final double STILL_MSD = 1.0e-6;
 
 	/**
-	 * Waits until the view is still: two pictures taken {@link #STILL_STEP} ticks apart are the same. In a new world,
+	 * How many comparisons in a row must find the same picture. Distant Horizons draws its far terrain in bursts with
+	 * quiet stretches between them: in one run the view was the same for a second with the horizon half drawn, and the
+	 * rest came a second later, between the two pictures a scenario compared.
+	 */
+	static final int STILL_PAIRS = 5;
+
+	/**
+	 * Waits until the view is still: {@link #STILL_PAIRS} times in a row, two pictures taken {@link #STILL_STEP} ticks
+	 * apart are the same. In a new world,
 	 * terrain beyond the render distance (Distant Horizons' LODs) keeps arriving for a while, so a picture taken too
 	 * early can differ from one taken a few ticks later. Records how long it took and the differences seen; fails if
 	 * the view does not settle within the timeout. Only for views without moving parts (no shaders, clouds or players).
@@ -154,6 +162,7 @@ final class Shots {
 		List<String> steps = new ArrayList<>();
 		NativeImage previous = null;
 		Path previousShot = null;
+		int same = 0;
 		try {
 			for (int waited = 0; waited <= timeoutTicks; waited += STILL_STEP) {
 				Path shot = ctx.takeScreenshot(TestScreenshotOptions.of("still-" + (waited / STILL_STEP) % 2).disableCounterPrefix().withDestinationDir(dir));
@@ -164,7 +173,8 @@ final class Shots {
 					steps.add(String.format(Locale.ROOT, "%.6f", difference));
 				}
 				previous = current;
-				if (difference <= STILL_MSD) {
+				same = difference <= STILL_MSD ? same + 1 : 0;
+				if (same >= STILL_PAIRS) {
 					result.metric("still." + label + ".ticks", waited);
 					result.note("%s: the view was still after %d ticks (differences between pictures %d ticks apart: %s)", label, waited, STILL_STEP, steps);
 					return waited;
