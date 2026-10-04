@@ -144,10 +144,18 @@ final class LeakScenarios {
 				// newest world's ClientLevel may stay until the next world loads. Every older world must be gone, and
 				// no server object ever (see DESIGN.md, world-retention RCA).
 				String heldByIris = shaders ? "cycle " + n + " ClientLevel" : null;
-				List<String> alive = new ArrayList<>();
-				for (int i = 0; i < worlds.size(); i++) {
-					if (worlds.get(i).get() != null && !worldNames.get(i).equals(heldByIris)) {
-						alive.add(worldNames.get(i));
+				List<String> alive = stillReachable(worlds, worldNames, heldByIris);
+				// What lets go by itself is no leak. Distant Horizons' "DH-ChunkSaveIgnoreTimer" tasks (see the thread
+				// counts below) hold their level's generator, and through it the closed server, until they have run:
+				// 5 s after the last chunk DH generated in that world. A world that closes quickly is looked at before
+				// that. So a world found here is looked at again for up to 10 s; a leaked one is still there then.
+				for (int round = 1; round <= 5 && !alive.isEmpty(); round++) {
+					List<String> before = alive;
+					ctx.waitTicks(40);
+					gc(ctx);
+					alive = stillReachable(worlds, worldNames, heldByIris);
+					if (alive.isEmpty()) {
+						r.metric(phase + ".cycle" + n + ".reachableUntilSecondsAfterTheFirstLook", round * 2 + ": " + before);
 					}
 				}
 				Cycle row = measure(n);
@@ -236,6 +244,18 @@ final class LeakScenarios {
 				}
 			}
 			r.metric(phase + ".threadGroupsThatChanged", changing.toString());
+			if (!grew.isEmpty()) {
+				// What the threads that piled up are doing, and the JDK's cleaner thread (which ends a Timer's thread
+				// once the Timer has been collected), for whoever has to find out why they are still there.
+				for (Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
+					String group = e.getKey().getName().replaceAll("\\d+", "#");
+					if (grew.containsKey(group) || group.equals("Common-Cleaner")) {
+						r.note("thread %s (%s): %s", e.getKey().getName(), e.getKey().getState(), java.util.Arrays.toString(e.getValue()));
+					}
+				}
+				Path dump = dumpHeap(r, "leak-" + phase + "-threads");
+				r.note("heap dump %s", dump);
+			}
 			Check.that(grew.isEmpty(), "%s: thread groups kept growing across world loads: %s", phase, grew);
 			if (!shaders) {
 				Check.atMost(phase + ": native memory (private bytes) growth per cycle from cycle 2 (MB)", privatePerCycle, 64.0);
@@ -245,6 +265,16 @@ final class LeakScenarios {
 				RenderScenarios.shaders(ctx, r, false);
 			}
 		}
+	}
+
+	private static List<String> stillReachable(List<WeakReference<Object>> worlds, List<String> worldNames, String except) {
+		List<String> alive = new ArrayList<>();
+		for (int i = 0; i < worlds.size(); i++) {
+			if (worlds.get(i).get() != null && !worldNames.get(i).equals(except)) {
+				alive.add(worldNames.get(i));
+			}
+		}
+		return alive;
 	}
 
 	/** Full collections, with game ticks between them so reference processing and cleaners run. */
