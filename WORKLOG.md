@@ -304,6 +304,11 @@ pull request #1 (`63da45f`, CI green). Evidence of everything below: `E:\slipway
 - Not done for this release: the 20-minute soak (the 2-minute one ran), a multiplayer run under the survival rules
   (the multiplayer scenario flies free vessels), climbable blocks other than ladders. Open: whether vessels from
   older saves should follow the rules too (asked, not answered; they stay free).
+- 10-04 00:13: published, https://github.com/TimStewartJ/slipway/releases/tag/v0.2.0; `main` = `f95156b` by fast
+  forward, pull request #1 merged, CI green on the commit. Play instance: Slipway `0.2.0` in place of `0.2.0-pre.2`
+  (the three worlds untouched); backup
+  `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.0-20261004-001340`. Started to the
+  title screen in the background and closed: Slipway 0.2.0 loaded, no mixin error.
 
 ## Previous goal (shader blotches)
 
