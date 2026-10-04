@@ -2,6 +2,7 @@ package dev.timstewart.slipway.clientgametest;
 
 import dev.timstewart.slipway.client.SlipwayDebug;
 import dev.timstewart.slipway.math.VesselPose;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,37 @@ import net.minecraft.world.phys.Vec3;
  */
 final class FlightScenarios {
 	private FlightScenarios() {
+	}
+
+	/**
+	 * Makes sure the client draws frames between its ticks, which is what a check of the view between ticks needs.
+	 *
+	 * <p>In a client GameTest the client and the server each tick on their own 50 ms beat and wait for each other
+	 * before every tick. When the server's beat falls later than the client's, the client stands waiting for the server
+	 * until its own next tick is due: it draws one frame a tick, right after the tick, however fast the machine is. That
+	 * state keeps itself up, and which state a world starts in is chance (60 frames in 60 ticks in about half the runs
+	 * of this scenario, 179 in the others). A server that is behind its beat does not wait for it, so the client's beat
+	 * sets the pace: holding both up for a few ticks' time here puts the server behind for good (it catches up one
+	 * tick at a time and gets one tick's time for each).
+	 */
+	private static void framesBetweenTicks(ClientGameTestContext ctx, Report.Result r, TestServerContext server, long id) {
+		List<Integer> frames = new ArrayList<>();
+		for (int round = 0; round < 4; round++) {
+			ctx.runOnClient(mc -> SlipwayDebug.viewTraceStart(id));
+			Flight.run(ctx, server, id, 20);
+			frames.add(ctx.computeOnClient(mc -> SlipwayDebug.viewTraceStop()).frames());
+			if (frames.getLast() >= 50) {
+				break;
+			}
+			try {
+				Thread.sleep(250);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new AssertionError("interrupted", e);
+			}
+			ctx.waitTicks(5);
+		}
+		r.metric("levelTurn.view.framesIn20TicksBeforeTheTurn", frames.toString());
 	}
 
 	static void flightRotation(ClientGameTestContext ctx, Report.Result r) {
@@ -51,6 +83,7 @@ final class FlightScenarios {
 			Flight.checkContinuous("climb", climb);
 			r.metric("climb.blocks", climb.getLast().pose().y() - start.pose().y());
 			Check.atLeast("height gained climbing for 30 ticks", climb.getLast().pose().y() - start.pose().y(), 1.0);
+			framesBetweenTicks(ctx, r, server, id);
 			ctx.runOnClient(mc -> SlipwayDebug.viewTraceStart(id));
 			List<Flight.Sample> turn = Flight.hold(ctx, server, id, 40, "key.right");
 			turn.addAll(Flight.run(ctx, server, id, 20));
