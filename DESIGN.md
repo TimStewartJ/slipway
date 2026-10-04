@@ -1105,6 +1105,15 @@ thread group (see below) took for growth and failed. The rule now counts again w
 last cycle and after collections, and fails for what is still there. Tried both ways with threads made for the
 purpose: six that end after 6 s, started after cycles 3 and 5, are let through; two per cycle that never end fail it.
 
+0.2.0: the same tasks hold their generator, and through it the closed server, for those 5 s. A world that closed
+quickly was looked at before that (twice: once traced with MAT to the timer thread, once with a heap dump that had
+no strong path to the server left and six of these threads). The check for closed worlds now looks again for up to
+10 s before it fails; a leaked world is still there then. In two of eleven runs of the scenario on more than the
+Bridge's 8 processors (see "Testing") the timer threads themselves stayed for the 15 s the rule waits, with every
+world collected: the six of the last world in one run, six a world from the third world on in the other (0, 0, 6,
+12, 18). That is not understood. The scenario now writes those threads' stacks, the JDK cleaner thread's stack and
+a heap dump when it happens.
+
 **The strict check** is the client GameTest `leak` (`src/clientGametest/.../LeakScenarios.java`): the same saved
 world with three flying vessels is opened and closed five times without shaders and five times with Bliss. After
 every close and full GCs it requires every earlier cycle's `IntegratedServer`, `ServerLevel`s and `ClientLevel` to
@@ -1326,7 +1335,11 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   render distance (vanilla's chunk edge, then Distant Horizons' LODs) keeps arriving for 40 to 90 ticks and changed
   frames 10 ticks apart by up to 0.015 mean squared difference (the assemble-mixed limit is 0.004); without DH it
   settled after 40 ticks. `Shots.waitStill` waits until two pictures 10 ticks apart are identical (and fails, keeping
-  both pictures, if they never are). Found when the first clean build after series2 failed assemble-mixed: its
+  both pictures, if they never are). Since 0.2.0 that pair counts only after eight comparisons in a row without a
+  change above 0.00002: Distant Horizons draws its far terrain in bursts, and in one release build the view before a
+  disassembly was the same for a second with the horizon half drawn; the rest came between the two pictures the
+  scenario compares (0.74 of a missing ship, all of it horizon). Asking for five equal pairs in a row does not work:
+  in some views something small changes every 40 ticks or so (differences up to 0.00001). Found when the first clean build after series2 failed assemble-mixed: its
   reference picture had been taken 5 ticks after landing, and the check then compared a different frame from the one
   it saved and measured (Fabric's comparison takes a new frame), which hid the failing picture. Picture checks now
   assert on the frame they save. With the view still, built and assembled pictures differ by 0.0001 (before:
@@ -1346,6 +1359,18 @@ single tick 0.7 to 2.7 ms; physics step 0.07 to 0.08 ms mean on its own thread.
   the leak scenario, which asserted that physics runs as soon as the client had the three vessels, found no engine
   and no body. It now waits for them (up to 400 ticks), as the collision, loose-cargo and save scenarios always did.
   The lock that keeps the film renders apart from these runs does not cover other games on the machine.
+- In a client GameTest the client and the server tick on their own 50 ms beats and wait for each other before every
+  tick (Fabric's `ThreadingImpl`). When the server's beat is the later one, the client stands waiting for the server
+  until its own next tick is due: it draws one frame a tick, right after the tick, on any machine. Both states keep
+  themselves up, and which one a world starts in is chance. `flight-rotation` checks the pilot's view in the frames
+  between ticks and needs at least 100 frames in 60 ticks; it got 60 (once 64) in five of eleven runs. A server that
+  is behind its beat does not wait for it, so the scenario, when it sees too few frames in 20 ticks, holds both
+  sides up for a quarter of a second (20 frames, then 59 or 60, and 179 or 180 in the turn, three runs). Any other
+  check of what is drawn between ticks needs the same.
+- The Bridge that runs the agents keeps its process tree on 8 of the machine's 20 logical processors, and a game
+  started from an agent's shell inherits that. For the release builds of 0.2.0 the shell gave itself every processor
+  before it started Gradle (`run-boosted.ps1 -AllCores` in the e2e scratch folder). Widening a game that already
+  runs is not the same: Java sizes its pools by the processors it sees at the time.
 
 **What stays on Prism.** No acceptance check. The leak isolation matrix (`tools/e2e/scenarios/leak-matrix.ps1`,
 `leak-new.ps1`) stays as a diagnostic tool, because isolating a leak needs configurations without Slipway, and a client

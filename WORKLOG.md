@@ -253,6 +253,58 @@ Design in DESIGN.md: "Survival rules: sails, hot air and ballast", "Interaction 
   player had died of the falls the server counted and respawned far away, which unloaded the ship. Not a ship
   falling through the ground: set down at 21 blocks a second, it stops on the ground (part of the scenario now).
 
+## 2026-10-03 to 10-04: 0.2.0
+
+Tim played `0.2.0-pre.2` in "Slipway Harbor 2" (21:14 to 21:17, all five ships assembled, nothing of Slipway's in
+the log) and said at 21:17: push, publish, merge to main. Before that, at 21:05, the branch went to GitHub as draft
+pull request #1 (`63da45f`, CI green). Evidence of everything below: `E:\slipway-e2e\releases\0.2.0\`.
+
+- Review of the mod code changed since 0.1.3 (a second agent, `f18e650..63da45f`): nothing critical or high. Two
+  medium findings, both fixed in `0a7ffb5`, each with a server GameTest that is red on the code before:
+  - `DeckFall` counted a vessel's rise as a fall for an entity beside or under it (its bounds are widened by a few
+    blocks): a balloon climbing past a player in a jump could hurt them. A vessel now only ever shortens a fall.
+  - `closeTheWater` (launching) filled the hull's whole volume with water sources wherever one source touched it: a
+    ship on land with a bucket of water on its deck made a block of water the size of its hull (77 sources from 3).
+    It now makes water only where the game would (two sources beside, solid or a source below). The price: a hull
+    that fills a canal wall to wall gets no water under it (README, known limitations).
+  - Low, left as it is: the vessel packet has no version in it (0.1.x and 0.2.0 do not talk to each other; the
+    notes say to use one version). `DhCullRepair` now checks once that the render thread has an OpenGL context.
+- The test harness, found while getting one full build green (six builds; the mod's code is the same from the
+  second on, only the client scenarios changed):
+  - The Bridge keeps its process tree on 8 of 20 logical processors, and a test game inherits that.
+    `E:\slipway-e2e\scratch\run-boosted.ps1 -AllCores` gives the shell every processor before it starts Gradle.
+    Widening a game that already runs is not the same: Java sizes its pools by what it sees at the time.
+    The entry above that blames the locked desktop for assemble-mixed, flight-rotation and disassembly is wrong
+    for flight-rotation and at best half right for the other two (see below).
+  - `leak` (`4d3796e`): a world that closed quickly was looked at before Distant Horizons' five-second timer tasks
+    had let go of it (the heap dump has no strong path to the server any more, and six `DH-ChunkSaveIgnoreTimer`
+    threads; the same path was traced on 10-02). The check looks again for up to 10 s. In two of eleven runs on
+    more than 8 processors the timer threads themselves stayed with every world collected (0, 0, 6, 12, 18 in
+    one): not understood; the scenario now writes those threads' stacks and a heap dump when it happens.
+  - `flight-rotation` (`1894673`): in a client GameTest the client and the server tick on their own 50 ms beats and
+    wait for each other. With the server's beat the later one the client draws one frame a tick, and the check of the
+    view between ticks has nothing to look at: 60 frames in 60 ticks in five of eleven runs, on any machine. The
+    scenario now holds both up for a quarter of a second when it sees that, which leaves the server behind its beat
+    so that the client's sets the pace (20 frames in 20 ticks, then 60, then 179 in the turn).
+  - Picture comparisons (`ff51c28`, `ed1a07c`): Distant Horizons draws far terrain in bursts; "still" was one pair of
+    equal pictures, and in build 4 the horizon was half drawn for a second and finished between the two pictures
+    of `disassembly` (0.74 of a missing ship, all of it horizon). A wrong turn: five equal pairs in a row never
+    come in views where something small changes every 40 ticks (build 5, two scenarios waited a minute in vain).
+    Still is now eight comparisons in a row without a change above 0.00002, the last of them equal.
+- The builds (`gradlew clean build`, logs in `releases\0.2.0\logs`): 1 at `759d284`, before the fixes, on 8
+  processors, stopped when the review came back (assemble-mixed, flight-rotation, deck-jump, multiplayer had
+  failed); 2 at `0a7ffb5`: 18 of 19, leak; 3 at `4d3796e`: 18 of 19, flight-rotation; 4 at `1894673`: 18 of 19,
+  disassembly; 5 at `ff51c28`: 17 of 19, the two that waited in vain; 6 at `ed1a07c`: green in 18 min 50 s, 144
+  unit tests, 70 server GameTests, 19 of 19 client scenarios, packaged-jar check.
+- The jar in production Minecraft in four mod sets (Fabric API only; with Sodium and Iris; with Distant Horizons
+  3.3.4; with 3.3.4-tellus-fork.7): every mixin applied, a vessel assembled, a chest opened by a block event, a
+  vessel set loose. `make-harbour` with the fixes: all five ships float, sail or fly and moor again.
+- Released as 0.2.0 (tag `v0.2.0`, pre-release like the versions before): `slipway-fabric-26.3-0.2.0.jar`, SHA-256
+  `574b7c50b30470ed208106606d88db7e14bcc6799631a258da49c90cdb63db1e`; a second build gave the same file.
+- Not done for this release: the 20-minute soak (the 2-minute one ran), a multiplayer run under the survival rules
+  (the multiplayer scenario flies free vessels), climbable blocks other than ladders. Open: whether vessels from
+  older saves should follow the rules too (asked, not answered; they stay free).
+
 ## Previous goal (shader blotches)
 
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
