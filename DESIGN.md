@@ -284,7 +284,7 @@ at rest on the deck, 0.18 ms while the carrier flies, 0.16 ms while they slide o
 sleep on the ground; Slipway's part of the server tick (the exchange) 0.1 ms or less; server tick 0.8 to 2.0 ms mean,
 4.5 ms worst. The client's poses are the server's (offset 0.0 blocks over 748 compared poses).
 
-### Water: floating, sinking and dry hulls (unreleased)
+### Water: floating, sinking and dry hulls (0.2.0)
 
 A vessel's blocks are stored in its plot, so where the vessel is, the world is as it was: the sea is still there, in
 and around the hull. Everything about water is therefore something Slipway adds on top of a world that knows nothing
@@ -436,7 +436,7 @@ Harbor"). Measured on 2026-10-02:
 All four moored again with every block as built and no water in the air they keep dry. The scenario takes every
 view without the shader pack, with it, and with it and the mask off (uild/client-gametest/screenshots/make-harbour).
 
-### Survival rules: sails, hot air and ballast (unreleased)
+### Survival rules: sails, hot air and ballast (0.2.0)
 
 Up to 0.1.3 every vessel got the same thrust acceleration whatever it weighed, and hover held any weight up for
 nothing: a helm on a mountain of stone flew at 24 blocks a second. Under the survival rules a vessel moves and
@@ -638,7 +638,7 @@ viewers (next section). `VesselCollisions` (via `EntityMixin`)
 collides entities with vessel blocks in the vessel's frame, carries them with the vessel, lets them walk on decks
 tilted up to 50 degrees and slide off steeper ones.
 
-**Jumping and climbing on a deck are the game's own (after 0.1.3).** Four things were wrong, found by measuring a
+**Jumping and climbing on a deck are the game's own (0.2.0).** Four things were wrong, found by measuring a
 survival player's jumps tick by tick against the same jumps on the ground (`deck-jump`):
 
 - *Ladders did nothing.* The game decides whether an entity climbs from the block of the world its feet are in, and
@@ -664,7 +664,7 @@ After the changes a jump on a deck is 1.252 blocks high and 11 ticks long, as on
 21 blocks a second, climbing, descending, turning and afloat (1.223 on a deck banked 12 degrees), five jumps to five
 with the key held, no damage, and a five-block ladder takes 45 ticks on the ground and on the ship.
 
-**The pilot's view turns in the pilot's own tick (after 0.1.3).** The pilot rides the vessel's entity.
+**The pilot's view turns in the pilot's own tick (0.2.0).** The pilot rides the vessel's entity.
 `VesselEntity.positionRider` puts their eyes where a standing pilot's would be and keeps their facing relative to the
 vessel: it turns them as far as the vessel has turned about the vertical (`VesselPose.yawTurnSinceDegrees`). Up to
 0.1.3 that turn was made in `updateFrom`, where the vessel's pose arrives, which is before the pilot's tick (a vehicle
@@ -870,7 +870,7 @@ LODs of the world chunks involved (`overwriteChunkDataAsync`): on a client conne
 chunk when it loads or the local player edits it, so otherwise a ghost of the ship stayed at its build site (and hid
 the real ship until it moved). No DH fork change was needed.
 
-**A bright patch of sea around glass in water, under shaders (after 0.1.3; not Slipway's bug, worked around).** With
+**A bright patch of sea around glass in water, under shaders (0.2.0; not Slipway's bug, worked around).** With
 Distant Horizons 3.3.4 and Iris 1.11.6 on Minecraft 26.2 or later, the water of a whole chunk looked like a mirror of
 the sky wherever the chunk held a glass block in water: around the moored submarine with its windows, and around a
 single glass block put into the sea of an untouched chunk. Iris turns back-face culling off with a plain GL call

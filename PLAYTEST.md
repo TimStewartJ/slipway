@@ -1,4 +1,4 @@
-# Slipway playtest guide (0.2.0-pre.2)
+# Slipway playtest guide (0.2.0)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
@@ -20,9 +20,10 @@ on other vessels.
 - World **Slipway Harbor 2** (creative, cheats on), for the water and the survival rules: see "The harbour" below.
   **Slipway Harbor**, from the first test build, is kept as you left it.
 
-## What's new in this test build (0.2.0-pre.2): survival rules, ladders, jumping, the water under shaders
+## What's new in 0.2.0: water, survival rules, ladders, jumping
 
-Not released; built from the branch `buoyancy`. On top of the water of the first test build:
+Two test builds went before the release (0.2.0-pre.1 with the water, 0.2.0-pre.2 with the rest); 0.2.0 is the second
+with the findings of its review fixed.
 
 - **Ships are no longer overpowered.** A new vessel moves and lifts itself with what it is built of:
   - The **helm alone** rows any ship slowly: 3 blocks a second in the air, about 1 on water.
@@ -44,7 +45,7 @@ Not released; built from the branch `buoyancy`. On top of the water of the first
 - **No more bright patch of water** around the ships with shaders on. It came from the submarine's glass windows in
   the water: a bug between Iris and Distant Horizons, which Slipway now works around.
 
-From the first test build, unchanged:
+The water:
 
 - A vessel that hover does not hold up floats, sinks or sails by its weight and its hull. A raft of planks floats
   low; an open hull floats high, because the air its walls keep dry counts too.

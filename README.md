@@ -6,9 +6,10 @@ Moving physics block structures for Minecraft 26.3 (Fabric). Build a structure f
 Helm on it, assemble it into a vessel and fly it with full pitch, yaw and roll. The blocks stay real blocks: chests,
 furnaces, doors, levers, pistons, redstone clocks and farms keep working while the vessel moves, and you can walk on
 the deck and build on it at any angle. A vessel can also be let loose as a plain rigid body: cargo that tumbles, lies
-on another vessel's deck and slides off when it rolls. With hover off a vessel floats on water by what its hull
-displaces, sails as a boat, sinks when it is too heavy or its rim goes under, and whoever is inside a hull that
-keeps the water out stays dry (unreleased; see the changelog). Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
+on another vessel's deck and slides off when it rolls. On water a vessel floats by what its hull displaces, sinks
+when it is too heavy or its rim goes under, and whoever is inside a hull that keeps the water out stays dry. Since
+0.2.0 a vessel moves and lifts itself with what it is built of: sails of wool drive it, hot air under a canopy over
+campfires carries it, and ballast takes a submarine down. Physics by [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
 through [jolt-jni](https://github.com/stephengold/jolt-jni). Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ![A three-masted galleon built from blocks, flying as a Slipway vessel over a bay with snowy mountains behind](docs/images/galleon-over-the-bay.jpg)
@@ -87,7 +88,7 @@ Loose vessels are for cargo: build a few small things over a ship's deck, give e
 them loose (`/slipway mode <id> loose true`, or the key at their helm). They land on the deck, ride along while the
 ship flies gently, and slide off when it rolls past about 31 degrees.
 
-### What makes a ship go (unreleased)
+### What makes a ship go (since 0.2.0)
 
 A new vessel moves and lifts itself with what it is built of (the survival rules; `survivalRules` in
 `config/slipway.json` turns them off, and vessels from earlier versions stay free of them):
@@ -107,7 +108,7 @@ A new vessel moves and lifts itself with what it is built of (the survival rules
 
 Ladders work on vessels, and jumping on a deck is what it is on the ground.
 
-### On the water (unreleased)
+### On the water (since 0.2.0)
 
 Turn hover off over water and the vessel floats, sinks or anything between, by its weight and its hull:
 
@@ -158,13 +159,16 @@ moving vessel".
 - Loose vessels: players and mobs do not push them; a deck passes on at
   most 0.6 g, so cargo slides when the carrier stops hard or turns sharply and tall thin pieces fall over; a piece
   sliding fast across a deck can catch on a seam of the deck's collision boxes and tumble.
-- On the water (unreleased): the water is flat and still for a vessel (no waves, and a river's current does not carry
+- The survival rules know no wind (a sail pushes wherever the helm asks, also under water) and no fuel (a lit
+  campfire heats for ever), and what stands on a deck (players, mobs, loose cargo) weighs nothing for a vessel's
+  thrust and lift. The numbers (thrust of a sail, lift of hot air) are first values; they are settings.
+- On the water: the water is flat and still for a vessel (no waves, and a river's current does not carry
   it); a vessel leaves the water as it is (no wake in the blocks, no hole where it floats). Water that has run into
   a hull is not remembered: it is out again as soon as the rim is above the water. Seen from inside a submerged cabin
   the sea outside looks like clear air (the world's water has no faces where the vessel's glass is). The water mask
   that keeps the surface from being drawn inside a hull hides everything translucent behind it, as vanilla's boat
-  does: stained glass or particles inside the hull, seen through the waterline from outside. A hovering vessel takes
-  no part in any of this. Entities do not weigh a vessel down. In lava a vessel floats higher (and its crew is in
+  does: stained glass or particles inside the hull, seen through the waterline from outside. A vessel that hover
+  holds up takes no part in any of this. Entities do not weigh a vessel down. In lava a vessel floats higher (and its crew is in
   trouble: only the fluid's push is kept from them, not its heat).
 - Pistons do not push entities standing on a vessel. Particles appear at the vessel but do not follow it afterwards. A
   jukebox's music stays where the vessel was when the disc started. Torches, furnaces and other blocks show no
@@ -200,12 +204,14 @@ check on every push. Details are in [DESIGN.md](DESIGN.md), "Testing".
 
 - `gradlew test`: unit tests (math, controller, shapes, mass properties, collisions, records, Jolt engine including a
   native leak test with the Debug natives, loose cargo on a carrier in the real engine, hulls and vessels in water
-  in the real engine).
+  in the real engine, sails, hot air and what they allow a vessel).
 - `gradlew runGametest`: Fabric GameTests in a headless server (assembly round trips, deny list, physics, packets,
   interaction, loose vessels, block events and pistons, a repeater clock, a farm, hoppers, observers and droppers,
-  floating, sinking, dry hulls and docking in a pool).
+  floating, sinking, dry hulls and docking in a pool, a ladder on a turned vessel, sails against oars, a balloon
+  that flies on its fires and comes down without them).
 - `gradlew runClientGametest`: Fabric client GameTests on a real client with Sodium, Iris (Bliss shaders) and
-  Distant Horizons: assembly of a mixed ship, flight through every rotation, deck walking, interaction, collision,
+  Distant Horizons: assembly of a mixed ship, flight through every rotation, deck walking, jumping and climbing a
+  ladder on a deck in every state of the ship, interaction, collision,
   loose cargo on a carrier, a ballasted hull afloat (the water mask, the player dry below the waterline, thrust on
   the water, flooding), block events (chest lid, piston strokes, note block, mining), a bone meal farm, the
   picture kept at disassembly, forged packets, save and reload, rendering (shadows, reference images, Distant

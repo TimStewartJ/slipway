@@ -3,7 +3,11 @@
 What changed for people who play or run Slipway. The development history, with every test run, is in `WORKLOG.md`
 and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
-## Unreleased
+## 0.2.0 (2026-10-03)
+
+Water, and rules for what makes a vessel go. Vessels float, sink and sail by their hull and weight; a new vessel moves
+with its sails and flies on hot air instead of getting thrust and hover for nothing. Worlds from 0.1.x load, and the
+vessels in them keep flying as they did.
 
 ### Added
 
