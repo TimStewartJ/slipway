@@ -163,7 +163,9 @@ final class JumpScenarios {
 
 			// On the ground: what a jump and a ladder are in the game.
 			Game.teleport(ctx, sp, 20.5, Game.GROUND_Y + 2, 20.5, 0f, 10f);
-			ctx.waitFor(mc -> mc.player.onGround(), 100);
+			// The teleport leaves the player in the air with the last place's "on the ground": the floor is where the fall ends.
+			ctx.waitTicks(10);
+			ctx.waitFor(mc -> mc.player.onGround() && Math.abs(mc.player.getDeltaMovement().y) < 0.1 && mc.player.getY() == Math.floor(mc.player.getY()), 100);
 			int floor = ctx.computeOnClient(mc -> mc.player.blockPosition().getY());
 			server.runOnServer(s -> {
 				for (int y = 0; y < PILLAR_HEIGHT; y++) {

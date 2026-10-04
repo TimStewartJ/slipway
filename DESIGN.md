@@ -386,8 +386,14 @@ goes: seconds for a large hold. Until then there is no water where the vessel is
 world's water: the stone barge of the harbour test (13 by 17, six deep), released ten ticks after assembly, dropped
 19 blocks to the sea's floor with all of its 923 m³ of air counted as flooded. So assembly fills the hole in the
 same tick, as the game would in the end: the hull is built from the plot at once (`VesselPhysicsBridge.hullNow`),
-and every cell its blocks were in or kept dry becomes a water source if a source lies beside or above it, and so on
-inwards (a queue; cells above the water around never fill). Alternatives: reading the water around the vessel
+and every cell its blocks were in or kept dry becomes a water source by the game's own rule for flowing water
+(`FlowingFluid.getNewLiquid`): two of the four cells beside it are sources, and the cell below is a source or solid.
+A queue asks a cell again when a cell beside or below it has filled, so a hole in a body of water closes from the
+bottom up and from its corners inwards, and cells above the water around never fill. (The first rule, a source
+beside or above, was found in the review before 0.2.0 to do more than close a hole: a single source on the deck of
+a ship standing on land, a trough or a farm's water, would have filled every cell of the ship below it with
+sources.) The price of the game's rule: a hull that fills a canal from wall to wall has only one source beside
+each of its end cells, so its hole is left to the game's flowing water. Alternatives: reading the water around the vessel
 instead of under it (no clear rule where "around" is, for a hull in a lock or beside a pier), or holding the vessel
 until the hole has filled (the wait depends on the hold's size, and the hole is visible meanwhile).
 
@@ -656,7 +662,9 @@ survival player's jumps tick by tick against the same jumps on the ground (`deck
   reports, in the world: a jump on a ship sinking through the air at 16 blocks a second counted as a fall of nine
   blocks. The damage also sent the client the server's idea of the player's speed, which cut the next jump short or
   doubled it. `DeckFall` (in `ServerGamePacketListenerImplMixin`) counts the vertical part of a move of a player
-  within a vessel's bounds against where the vessel carried the player's last place.
+  within a vessel's bounds against where the vessel carried the player's last place, and only ever in the player's
+  favour (the smaller fall of the two): someone standing on a quay beside a hull that rises is within its bounds
+  too, and the hull's rise is not their fall (found in the review before 0.2.0).
 - *The step up worked in the air.* Stepping up onto an edge (0.6 of a block) was allowed whenever the entity was
   carried by the vessel, also in a jump or on a ladder; it is now from the ground only, as in the game.
 
@@ -884,8 +892,9 @@ too, and the pack shades it as a mirror. `DhCullRepair` (registered when both mo
 on through the cache after Distant Horizons' pass (`DhApiAfterRenderEvent` and `DhApiBeforeRenderCleanupEvent`),
 which makes GL and the cache agree. Measured with `diag-water-patch`: at the end of the main pass GL had culling off
 in 89 of 89 frames without the repair and in none with it, and the patch is gone in both cases. `GlStateCheck`
-(scenario `render-iris`) now compares the culling flag as well. The fix belongs in Distant Horizons or Iris; it is
-noted for the fork.
+(scenario `render-iris`) now compares the culling flag as well. The repair asks once whether the render thread has
+an OpenGL context and does nothing without one (the game has other graphics backends). The fix belongs in Distant
+Horizons or Iris; it is noted for the fork.
 
 ## Algorithms and their sources
 

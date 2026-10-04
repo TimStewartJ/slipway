@@ -243,6 +243,39 @@ public class InteractionGameTests {
 	}
 
 	@GameTest(structure = ARENA, maxTicks = 40)
+	public void aFallIsCountedAgainstTheDeckAndAVesselNeverAddsToOne(GameTestHelper helper) {
+		BlockPos helm = deck(helper, 8, 4, 8, 2);
+		VesselRecord record = TestShips.assemble(helper, helm);
+		ActiveVessel vessel = TestShips.active(helper, record);
+		VesselManager manager = VesselManager.get(helper.getLevel());
+		BlockPos helmAbs = helper.absolutePos(helm);
+		// One stands on the deck, one on nothing beside it, within the bounds that count as "at the vessel".
+		ArmorStand onDeck = pig(helper, record.pose.localToWorld(new Vec3(1.5, 0.0, 0.5)));
+		ArmorStand beside = pig(helper, record.pose.localToWorld(new Vec3(3.4, 0.0, 0.5)));
+		onDeck.setNoGravity(true);
+		beside.setNoGravity(true);
+		dev.timstewart.slipway.vessel.DeckFall deckFall = new dev.timstewart.slipway.vessel.DeckFall();
+		dev.timstewart.slipway.vessel.DeckFall besideFall = new dev.timstewart.slipway.vessel.DeckFall();
+		check(helper, deckFall.against(onDeck, 0.0) == 0.0 && besideFall.against(beside, 0.0) == 0.0, "standing still at a vessel at rest is no fall");
+		// The vessel goes down two blocks and the one on its deck with it: no fall. The one beside it stays (and is
+		// still within three blocks of the vessel's bounds, which is what counts as "at the vessel"): no fall.
+		manager.teleport(vessel, dev.timstewart.slipway.math.VesselPose.at(helmAbs.getX(), helmAbs.getY() - 2, helmAbs.getZ()));
+		onDeck.setPos(onDeck.getX(), onDeck.getY() - 2.0, onDeck.getZ());
+		double carriedDown = deckFall.against(onDeck, -2.0);
+		check(helper, Math.abs(carriedDown) < 1.0e-6, "carried two blocks down by the deck counted as a move of " + carriedDown);
+		check(helper, besideFall.against(beside, 0.0) == 0.0, "standing beside a vessel that went down counted as a move");
+		// The vessel rises four blocks. Before 0.2.0's review this was a fall of four blocks for the one standing beside it.
+		manager.teleport(vessel, dev.timstewart.slipway.math.VesselPose.at(helmAbs.getX(), helmAbs.getY() + 2, helmAbs.getZ()));
+		double bystander = besideFall.against(beside, 0.0);
+		check(helper, bystander == 0.0, "standing beside a vessel that rose four blocks counted as a move of " + bystander);
+		// A real fall beside a vessel at rest is the fall it is.
+		beside.setPos(beside.getX(), beside.getY() - 3.0, beside.getZ());
+		double fell = besideFall.against(beside, -3.0);
+		check(helper, Math.abs(fell + 3.0) < 1.0e-6, "a fall of three blocks beside a vessel at rest counted as " + fell);
+		helper.succeed();
+	}
+
+	@GameTest(structure = ARENA, maxTicks = 40)
 	public void reachIsMeasuredToWhereTheVesselIs(GameTestHelper helper) {
 		BlockPos helm = deck(helper, 8, 4, 8, 1);
 		VesselRecord record = TestShips.assemble(helper, helm);

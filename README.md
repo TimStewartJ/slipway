@@ -164,7 +164,10 @@ moving vessel".
   thrust and lift. The numbers (thrust of a sail, lift of hot air) are first values; they are settings.
 - On the water: the water is flat and still for a vessel (no waves, and a river's current does not carry
   it); a vessel leaves the water as it is (no wake in the blocks, no hole where it floats). Water that has run into
-  a hull is not remembered: it is out again as soon as the rim is above the water. Seen from inside a submerged cabin
+  a hull is not remembered: it is out again as soon as the rim is above the water. A hull that fills a canal from
+  wall to wall, with no water along either side, gets no water under it at assembly (the game makes no still water
+  there either; it only lets water run in from the ends), so it can be left standing in its own gap: leave a block
+  of water along one side. Seen from inside a submerged cabin
   the sea outside looks like clear air (the world's water has no faces where the vessel's glass is). The water mask
   that keeps the surface from being drawn inside a hull hides everything translucent behind it, as vanilla's boat
   does: stained glass or particles inside the hull, seen through the waterline from outside. A vessel that hover

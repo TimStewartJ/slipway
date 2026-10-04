@@ -11,6 +11,11 @@ import org.joml.Vector3d;
  * speed, which cuts the next jump short). So for a player within a vessel's bounds the vertical part of a move is
  * taken against where the vessel would have carried the player's last place.
  *
+ * <p>Only ever in the player's favour: "within a vessel's bounds" is not "standing on it", and for someone standing
+ * on a quay beside a hull that rises, the hull's rise is no fall. A move that is not downward in the world is left as
+ * it is, and a move down counts as the smaller fall of the two, the one in the world and the one against the vessel.
+ * (So a fall onto the deck of a rising ship counts for a little less than it is.)
+ *
  * <p>One instance per player connection, used on the server thread.
  */
 public final class DeckFall {
@@ -44,8 +49,9 @@ public final class DeckFall {
 		if (aboard.id() == this.vessel) {
 			Vector3d carried = aboard.pose().localToWorld(this.local.x, this.local.y, this.local.z, new Vector3d());
 			double relative = pos.y - carried.y;
-			if (Double.isFinite(relative) && Math.abs(relative - dy) <= LARGEST_CARRY) {
-				against = relative;
+			// Only a move down in the world is a fall at all, and the vessel only ever makes it a smaller one.
+			if (dy < 0.0 && Double.isFinite(relative) && Math.abs(relative - dy) <= LARGEST_CARRY) {
+				against = Math.max(dy, relative);
 			}
 		}
 		this.vessel = aboard.id();

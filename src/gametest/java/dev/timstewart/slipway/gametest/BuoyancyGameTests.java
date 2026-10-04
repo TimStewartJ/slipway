@@ -330,6 +330,30 @@ public class BuoyancyGameTests {
 		});
 	}
 
+	@GameTest(structure = ARENA, maxTicks = 40)
+	public void waterOnAShipThatStandsOnLandMakesNoNewWaterAtAssembly(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		// The open hull stands clear of any water (on a slipway, in the air). A source of water on its floor (a
+		// trough), one on top of its wall and one against its side: the kinds of water a ship built on land has about it.
+		BlockPos helm = hull(helper, 7, 2, 7);
+		BlockPos[] sources = {new BlockPos(6, 3, 6), new BlockPos(5, 5, 7), new BlockPos(10, 2, 7)};
+		for (BlockPos source : sources) {
+			level.setBlock(helper.absolutePos(source), Blocks.WATER.defaultBlockState(), 2 | 16);
+		}
+		VesselRecord record = TestShips.assemble(helper, helm);
+		check(helper, record.blockCount == 58, "the hull and its helm are 58 blocks, assembled " + record.blockCount);
+		// In the same tick, before the game's own water has moved: only the three sources are there.
+		int found = 0;
+		for (BlockPos p : BlockPos.betweenClosed(new BlockPos(2, 2, 2), new BlockPos(12, 8, 12))) {
+			var fluid = level.getFluidState(helper.absolutePos(p));
+			if (fluid.isSource()) {
+				found++;
+			}
+		}
+		check(helper, found == sources.length, "after assembly on land there are " + found + " water sources where the ship stood, there were " + sources.length);
+		helper.succeed();
+	}
+
 	@GameTest(structure = ARENA, maxTicks = 400)
 	public void aHullDockedByDisassemblyStaysDry(GameTestHelper helper) {
 		double surface = pool(helper);

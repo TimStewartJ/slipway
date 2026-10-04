@@ -224,8 +224,9 @@ public final class VesselManager {
 		return outcome;
 	}
 
-	private static final Direction[] WATER_COMES_FROM = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP};
-	private static final Direction[] WATER_GOES_TO = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.DOWN};
+	private static final Direction[] BESIDE = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+	/** The cells whose turn may have come when a cell has filled: those beside it, and the one above it. */
+	private static final Direction[] ASK_AGAIN = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP};
 
 	/**
 	 * The water closes where a vessel was built in it. A hull standing in water as blocks kept the water out of its
@@ -233,9 +234,13 @@ public final class VesselManager {
 	 * would fill it in its own time, flowing in from the edges, which takes seconds for a large hold. Until then
 	 * there would be no water where the vessel is, and so nothing to lift it (the lift is from the world's water,
 	 * see {@code Buoyancy}): a barge released at once would drop into its own hole and take the sea in over its
-	 * rim. So the hole is filled here, at once, as the game would fill it in the end: every cell the vessel's blocks
-	 * were in or kept dry becomes a water source if a source lies beside it or above it, and so on inwards. Cells
-	 * above the water around stay empty. The counterpart of the dry cells at disassembly.
+	 * rim. So the hole is filled here, at once, as the game would fill it in the end, by the game's own rule for when
+	 * flowing water becomes a source ({@code FlowingFluid.getNewLiquid}): a cell the vessel's blocks were in or kept
+	 * dry becomes a water source when two of the four cells beside it are sources and the cell below it is a source
+	 * or solid, and so on from the bottom up and from the corners inwards. That closes a hole in a body of water and
+	 * nothing else: a single source on or against a ship that stands on land (a trough, a fountain, a farm's water)
+	 * makes no new source, and cells above the water around stay empty. The counterpart of the dry cells at
+	 * disassembly.
 	 */
 	private void closeTheWater(VesselRecord record) {
 		dev.timstewart.slipway.physics.Hull hull = this.physics.hullNow(record);
@@ -277,27 +282,30 @@ public final class VesselManager {
 				open.remove(key);
 				continue;
 			}
-			boolean reached = false;
-			for (Direction direction : WATER_COMES_FROM) {
-				net.minecraft.world.level.material.FluidState beside = this.level.getFluidState(near.setWithOffset(pos, direction));
-				if (beside.isSource() && beside.is(net.minecraft.tags.FluidTags.WATER)) {
-					reached = true;
-					break;
+			int sources = 0;
+			for (Direction direction : BESIDE) {
+				if (isWaterSource(this.level.getFluidState(near.setWithOffset(pos, direction)))) {
+					sources++;
 				}
 			}
-			if (!reached) {
-				// Not yet: it is asked again when a cell beside or above it has filled.
+			BlockState below = this.level.getBlockState(near.setWithOffset(pos, Direction.DOWN));
+			if (sources < 2 || !(below.isSolid() || isWaterSource(below.getFluidState()))) {
+				// Not yet: it is asked again when a cell beside or below it has filled.
 				continue;
 			}
 			this.level.setBlock(pos, net.minecraft.world.level.block.Blocks.WATER.defaultBlockState(), net.minecraft.world.level.block.Block.UPDATE_ALL);
 			open.remove(key);
-			for (Direction direction : WATER_GOES_TO) {
+			for (Direction direction : ASK_AGAIN) {
 				long next = near.setWithOffset(pos, direction).asLong();
 				if (open.contains(next)) {
 					queue.enqueue(next);
 				}
 			}
 		}
+	}
+
+	private static boolean isWaterSource(net.minecraft.world.level.material.FluidState fluid) {
+		return fluid.isSource() && fluid.is(net.minecraft.tags.FluidTags.WATER);
 	}
 
 	/**

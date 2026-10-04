@@ -62,7 +62,8 @@ vessels in them keep flying as they did.
   of the air its hull kept dry, so a docked boat's hold and a submarine's cabin are not full of water.
 - **Launching.** Assembling a hull that stands in water closes the water at once where its blocks and its hold were,
   instead of leaving a hole for the game to fill over the next seconds: the vessel has water to float on from the
-  moment hover is turned off. (Without this a large hull released early dropped into its own hole and sank.)
+  moment hover is turned off. (Without this a large hull released early dropped into its own hole and sank.) Water
+  comes only where the game itself would make it, between two blocks of water: a ship built on land makes no lake.
 - **Kelp and sea grass.** They never become part of a vessel (they used to tie a hull lying on them to the sea's
   floor, and assembly failed with "too many blocks"), and a vessel can be disassembled onto them: the block tag
   `slipway:sea_plants` (kelp, sea grass, bubble columns).

@@ -20,6 +20,9 @@ import com.seibel.distanthorizons.api.methods.events.sharedParameterObjects.DhAp
  *
  * <p>Turning culling off and on again through the cache makes GL and the cache agree, whatever either held. Every
  * later draw sets the culling its pipeline needs through the same cache, so "on" is a safe state to leave.
+ *
+ * <p>All of this is OpenGL. The game can also draw with another graphics backend, where there is no GL context on
+ * the render thread and a GL call fails: the first event asks whether there is one, and without one nothing is done.
  */
 public final class DhCullRepair {
 	/** For the diagnostic scenario that shows the patch with and without the repair. */
@@ -43,8 +46,22 @@ public final class DhCullRepair {
 		});
 	}
 
+	/** Whether the render thread has an OpenGL context; asked once, on that thread. */
+	private static Boolean openGl;
+
 	private static void repair() {
-		if (enabled) {
+		if (!enabled) {
+			return;
+		}
+		if (openGl == null) {
+			try {
+				org.lwjgl.opengl.GL.getCapabilities();
+				openGl = true;
+			} catch (IllegalStateException noContext) {
+				openGl = false;
+			}
+		}
+		if (openGl) {
 			GlStateManager._disableCull();
 			GlStateManager._enableCull();
 		}
