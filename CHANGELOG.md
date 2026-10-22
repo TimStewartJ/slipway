@@ -3,9 +3,9 @@
 What changed for people who play or run Slipway. The development history, with every test run, is in `WORKLOG.md`
 and `validation.json`; the reasons behind the design are in `DESIGN.md`.
 
-## 0.2.1 (not released)
+## 0.2.1 (2026-10-22)
 
-Fixes only.
+Fixes only; flying, sailing, the water and the survival rules are as in 0.2.0.
 
 ### Fixed
 

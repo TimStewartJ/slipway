@@ -1,4 +1,4 @@
-# Slipway playtest guide (0.2.0)
+# Slipway playtest guide (0.2.1)
 
 Slipway turns anything you build into a ship you can fly: place a **Slipway Helm** on a structure, use it, and the
 structure becomes a vessel that moves and rotates freely (pitch, yaw and roll) while every block stays a real block.
@@ -20,7 +20,7 @@ on other vessels.
 - World **Slipway Harbor 2** (creative, cheats on), for the water and the survival rules: see "The harbour" below.
   **Slipway Harbor**, from the first test build, is kept as you left it.
 
-## Coming in 0.2.1 (not released; not in the play instance)
+## What's new in 0.2.1
 
 - **`/kill @e` and `/tp @e` leave ships alone.** Before, either made every ship in the loaded area vanish (the blocks
   were still stored, and `/slipway disassemble <id>` brought them back). Try `/kill @e[type=!player]` beside a ship:
@@ -28,7 +28,7 @@ on other vessels.
 - **A block set far out in a ship's storage area no longer takes the ship away.** This needs a command or another
   mod, so there is nothing to try by hand; `/slipway info <id>` now ends with where the ship's entity is.
 
-## What's new in 0.2.0: water, survival rules, ladders, jumping
+## What was new in 0.2.0: water, survival rules, ladders, jumping
 
 Two test builds went before the release (0.2.0-pre.1 with the water, 0.2.0-pre.2 with the rest); 0.2.0 is the second
 with the findings of its review fixed.
