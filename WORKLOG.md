@@ -333,6 +333,10 @@ CHANGELOG and PLAYTEST entries, which had merged into 0.1.3's sections, moved to
   check with stock DH 3.3.4, with Sodium and Iris, and with Fabric API only: all pass, no mixin or loader warning.
   Jar SHA-256 `9f3ef57f1452bc28ddf8505c8d1cda1ec0e6adf84962cad77a7a16919ba15928`. Evidence:
   `E:\slipway-e2e\releases\0.2.1\`. The tag adds README and WORKLOG lines only.
+- 16:26: published, https://github.com/TimStewartJ/slipway/releases/tag/v0.2.1 (pre-release), tag `v0.2.1` =
+  `fb70892`, CI green on it; a second build at the tag gave the same jar; the downloaded asset has the same SHA-256.
+  Play instance: 0.2.1 in place of 0.2.0 (game closed; backup
+  `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.1-20261022-162646`); not started.
 
 ## Previous goal (shader blotches)
 
