@@ -170,10 +170,12 @@ a player's range and for blocks set far out.
   entity in a chunk the client does not have is not ticked (its riders keep the pose of its last tick) and, with
   vanilla's renderer, not drawn (`LevelExtractor.isEntityVisible` wants the section at the entity compiled). So the
   client is told: `EntityPlace` (vessel id, held, place) goes to the players who have the vessel when the entity
-  begins and ceases to be held, and to a new viewer after its `VesselInfo` while it is held. It is a payload of its
+  begins and ceases to be held, and to every new viewer after its `VesselInfo`, held or not: a client that stopped
+  being a viewer without `VesselGone` (its player respawned, or the vessel unloaded as its viewers left) still has
+  the place it was last told, which may no longer hold. It is a payload of its
   own, not a field added to another or a second synched value of the entity, and it is sent only to clients that
-  have registered it (`ServerPlayNetworking.canSend`): a 0.1.2 client is not sent what it cannot read and keeps
-  its entity at the middle, as that version did. (Mixed versions were not run.)
+  have registered it (`ServerPlayNetworking.canSend`). Client and server must still run the same version: the
+  vessel packets of 0.2.0 have no version in them.
 - Assembly is unchanged: the entity starts at the middle. Flight and `/slipway pose` move the vessel and the entity
   with it, also to where nothing is loaded, where the vessel unloads as before.
 - `/slipway info` ends with `entity=x,y,z` and `,held` while it is.
@@ -600,7 +602,8 @@ the tests of the rules put their own vessels under them, and `make-harbour` turn
 Server-authoritative. Viewers get `VesselInfo` (plot mapping, bounds, helm; flagged on assembly), plot chunks as
 normal chunk packets (`ChunkMapMixin` keeps block, light and block-entity updates flowing to them although plots are
 far outside their view; the client stores them in a separate map, `ClientChunkCacheMixin`), a `PoseUpdate` every
-tick, `EntityPlace` in the rare case that the vessel's entity is not at the middle of its bounds (0.2.1, see "The
+tick, `EntityPlace` when a player starts to view a vessel and when its entity begins or ceases to be away from the
+middle of its bounds (0.2.1, see "The
 vessel's entity"), and `VesselGone` (with `keepProxy` when only the near view ends). The only serverbound packet is `HelmControl`,
 accepted only from the vessel's pilot, rate-limited (40 per second), with NaN/Infinity rejected and axes clamped to
 [-1, 1] (`ServerPackets`). Vanilla use/break packets aimed at plot positions are checked for reach against where

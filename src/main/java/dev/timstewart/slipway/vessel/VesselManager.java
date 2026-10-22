@@ -967,9 +967,8 @@ public final class VesselManager {
 				if (!vessel.viewers.contains(player)) {
 					vessel.viewers.add(player);
 					ServerPlayNetworking.send(player, this.info(vessel));
-					if (vessel.entityHeld) {
-						this.sendEntityPlace(vessel, player);
-					}
+					// Also when not held: a client that left without VesselGone (respawn, unload) may still hold an old place.
+					this.sendEntityPlace(vessel, player);
 					this.sendChunks(vessel, player);
 				}
 			}

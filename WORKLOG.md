@@ -310,6 +310,25 @@ pull request #1 (`63da45f`, CI green). Evidence of everything below: `E:\slipway
   `E:\slipway-e2e\instance-backups\Slipway-MC-26.3-Fabric-before-slipway-0.2.0-20261004-001340`. Started to the
   title screen in the background and closed: Slipway 0.2.0 loaded, no mixin error.
 
+## 2026-10-22: the vessel's entity (branch `entity-stays`, for 0.2.1)
+
+The parked branch `wip-0.1.4` (`e226a53`, written on 0.1.3) moved onto 0.2.0 as `entity-stays`: server GameTests that
+wait instead of counting ticks, the vessel's entity kept with the players at the vessel, `/kill` and `/tp` leave it.
+Conflicts only in `/slipway info` (`entity=` now ends the line, after the 0.2.0 fields), imports and the docs. The
+CHANGELOG and PLAYTEST entries, which had merged into 0.1.3's sections, moved to a 0.2.1 section. Logs:
+`E:\slipway-e2e\runs\entity-stays-20261022\`.
+- `assemble test checkPatches` green; `runGametest` 74 of 74 in four runs in a row on 8 processors (the test that
+  failed 3 of 4 runs before `e226a53` passed every time).
+- Code review (a second agent, `main...entity-stays`): one medium defect. A client that stopped viewing a vessel
+  without `VesselGone` (its player respawned in the same dimension; or the entity unloaded as its viewers left) kept
+  the held place it was last told; if the entity was released meanwhile, a new `VesselInfo` did not correct it,
+  because a new viewer got `EntityPlace` only while the entity was held. Fixed: every new viewer gets `EntityPlace`.
+  Not covered by a test (no test captures sent payloads). Nothing else found: the `info` format matches its
+  arguments, no 0.2.0 code takes the entity's position for the vessel's.
+- With the fix: `assemble test checkPatches runGametest` green (74 of 74); full `runClientGametest` 20 of 20 on all
+  20 processors (`run-boosted.ps1 -AllCores`), `vessel-entity`, `multiplayer`, `leak` and `soak` included.
+- Not run: a clean build, the packaged-jar check, the jar in production Minecraft. Not released.
+
 ## Previous goal (shader blotches)
 
 2026-09-30 midday (user awake): the user reported black, blotchy lighting under Bliss on the plain skiff (the vessel
