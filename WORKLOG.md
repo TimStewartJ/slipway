@@ -328,6 +328,11 @@ CHANGELOG and PLAYTEST entries, which had merged into 0.1.3's sections, moved to
 - With the fix: `assemble test checkPatches runGametest` green (74 of 74); full `runClientGametest` 20 of 20 on all
   20 processors (`run-boosted.ps1 -AllCores`), `vessel-entity`, `multiplayer`, `leak` and `soak` included.
 - Not run: a clean build, the packaged-jar check, the jar in production Minecraft. Not released.
+- 16:00: Tim: publish it. `Version 0.2.1` (`2d8fdc4`): `gradlew clean build` green on all 20 processors (144 unit
+  tests, 74 server GameTests, 20 of 20 client scenarios, packaged-jar check with DH fork.7), then the packaged-jar
+  check with stock DH 3.3.4, with Sodium and Iris, and with Fabric API only: all pass, no mixin or loader warning.
+  Jar SHA-256 `9f3ef57f1452bc28ddf8505c8d1cda1ec0e6adf84962cad77a7a16919ba15928`. Evidence:
+  `E:\slipway-e2e\releases\0.2.1\`. The tag adds README and WORKLOG lines only.
 
 ## Previous goal (shader blotches)
 

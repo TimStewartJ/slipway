@@ -49,9 +49,9 @@ Minecraft 26.2 and later (a Distant Horizons bug with Iris, fixed in 3.3.3). The
 for Windows, Linux and macOS (x86_64 and aarch64). Playing is tested on Windows; CI runs the server tests on Linux;
 macOS is untested.
 
-Checked combinations for 0.2.0 (production Minecraft, every mixin applied, a vessel assembled, a chest on it opened
+Checked combinations for 0.2.1 (production Minecraft, every mixin applied, a vessel assembled, a chest on it opened
 by a block event, a vessel set loose): Fabric API only; with Sodium and Iris; with Sodium, Iris and Distant Horizons
-3.3.4.
+3.3.4; with Sodium, Iris and Distant Horizons 3.3.4-tellus-fork.7.
 
 Install it on both the client and the server for multiplayer.
 
